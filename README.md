@@ -14,9 +14,9 @@ the spec's validation gates in order, each checked against the 309 whipper
 
 | Gate | What it proves | State |
 |---|---|---|
-| G1 · IDs | TOC, MusicBrainz, CDDB and AccurateRip disc IDs, catalog and ISRCs equal whipper's | Offline: all 309 logs and cdrdao TOC files match. Drive: 52nd Street, Turnstiles PASS; more discs from the corpus to go |
-| G2 · Audio | Same audio as whipper, sample for sample | Turnstiles: all 8 tracks read twice, identical, same CRC as whipper and same MD5 as the FLAC. More discs to go |
-| G3 · AccurateRip | Same v1/v2 checksums as whipper | Not started |
+| G1 · IDs | TOC, MusicBrainz, CDDB and AccurateRip disc IDs, catalog and ISRCs equal whipper's | Offline: all 309 logs and cdrdao TOC files match. Drive: 52nd Street, Turnstiles, Anthology of Bread PASS; more discs from the corpus to go |
+| G2 · Audio | Same audio as whipper, sample for sample | Offline: CRC of all 3,529 tracks in the library matches. Drive: Turnstiles (8 tracks) and Anthology of Bread (20, gap before track 1) read twice, identical, same CRC and FLAC MD5 as whipper |
+| G3 · AccurateRip | Same v1/v2 checksums as whipper | Offline: all 1,617 v1 and 3,376 v2 checksums in 309 logs match. Drive: in progress |
 | G4 · Output | Same tags and sidecar files, `music-audit` clean | Not started |
 | G5 · Side by side | 10 discs through both tools | Not started |
 
@@ -29,12 +29,15 @@ needed) and cdrdao.
 dotnet build
 dotnet test
 dotnet src/Deadwax.Cli/bin/Debug/net10.0/deadwax.dll check-logs ~/Music --online 8
+dotnet src/Deadwax.Cli/bin/Debug/net10.0/deadwax.dll check-audio ~/Music
 dotnet src/Deadwax.Cli/bin/Debug/net10.0/deadwax.dll scan --full --online --against "~/Music/Billy Joel/1978 - 52nd Street"
 dotnet src/Deadwax.Cli/bin/Debug/net10.0/deadwax.dll read --against "~/Music/Billy Joel/1976 - Turnstiles"
 ```
 
 `check-logs` rebuilds the TOC from every whipper log under a folder and checks
-the IDs Deadwax computes against the ones whipper recorded. `scan` reads the disc
+the IDs Deadwax computes against the ones whipper recorded. `check-audio` decodes
+whipper's FLACs (with the `flac` tool) and checks the copy CRC and AccurateRip
+v1/v2 checksums of that audio against the log: G2 and G3 without the drive. `scan` reads the disc
 in the drive; with `--against` it compares the TOC and IDs to that album's
 whipper log. `--full` adds a `cdrdao read-toc` pass (about two minutes) for the
 catalog number, ISRCs, CD-Text and pregaps, and compares those with the cue.

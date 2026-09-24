@@ -18,6 +18,7 @@ internal static partial class ReadCommand
         var offsetText = options.Value("--offset");
         var retriesText = options.Value("--retries");
         var against = options.Value("--against");
+        var offline = options.Flag("--offline");
         options.Rest();
 
         DriveIdentity? identity;
@@ -52,11 +53,34 @@ internal static partial class ReadCommand
                 if (TrackNumber().Match(Path.GetFileName(f)) is { Success: true } m) flacs.TryAdd(int.Parse(m.Groups[1].Value), f);
         }
 
+        // AccurateRip: fetched once, before reading, so a slow network does not
+        // hold the drive.
+        var audioTracks = toc.IdTracks.Where(t => t.IsAudio).ToList();
+        var arId = AccurateRipId.From(toc, DiscIds.Cddb(toc));
+        IReadOnlyList<AccurateRipBlock>? arBlocks = null;
+        var arNote = "";
+        if (!offline)
+        {
+            try
+            {
+                using var http = NewHttp();
+                arBlocks = await AccurateRipDatabase.FetchAsync(http, arId);
+                arNote = arBlocks is null ? "not in the AccurateRip database" : $"AccurateRip: {arBlocks.Count} pressing(s) on file";
+            }
+            catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
+            {
+                arNote = $"AccurateRip unreachable ({e.Message})";
+            }
+        }
+
         Console.WriteLine($"Drive  {identity?.ToString() ?? device}, read offset {offset:+0;-0;0}, up to {retries} retries per sector");
+        if (arNote.Length > 0) Console.WriteLine($"       {arNote}");
         Console.WriteLine();
-        Console.WriteLine(" #  length     test CRC  copy CRC  pass  speed   repairs skips" + (log is null ? "" : "   whipper CRC  FLAC MD5"));
+        Console.WriteLine(" #  length     test CRC  copy CRC  pass  speed   repairs skips  AR v1     AR v2     AccurateRip" +
+                          (log is null ? "" : "   whipper CRC  FLAC MD5  AR vs whipper"));
 
         var failures = 0;
+        var arFailures = 0;
         using var reader = SecureReader.Open(device);
         foreach (var n in numbers)
         {
@@ -76,6 +100,13 @@ internal static partial class ReadCommand
             var line = $"{n,2}  {Clock(sectors),-9}  {Hex(testCrc)}  {Hex(copyCrc)}  {(passOk ? "OK  " : "FAIL")}  {speed,4:0.0}x  {copyReport.Repairs,7} {copyReport.Skips,5}";
             if (!passOk) failures++;
 
+            var (v1, v2) = AccurateRipChecksum.Compute(copyAudio, n == audioTracks[0].Number, n == audioTracks[^1].Number);
+            var verdict = AccurateRipMatch.For(arBlocks, audioTracks.FindIndex(t => t.Number == n), n, v1, v2);
+            var arText = arBlocks is null ? "-"
+                : !verdict.IsAccurate ? "no match"
+                : verdict.V2Confidence >= verdict.V1Confidence ? $"v2, {verdict.V2Confidence} rips" : $"v1, {verdict.V1Confidence} rips";
+            line += $"  {Hex(v1)}  {Hex(v2)}  {arText,-11}";
+
             if (log is not null)
             {
                 var logged = log.Tracks.FirstOrDefault(t => t.Number == n);
@@ -89,18 +120,30 @@ internal static partial class ReadCommand
                 }
                 else md5Col = "(no FLAC)";
                 if (!crcSame) failures++;
-                line += $"   {(crcSame ? "same" : "DIFF " + (logged?.CopyCrc is { } c ? Hex(c) : "none")),-11}  {md5Col}";
+                line += $"   {(crcSame ? "same" : "DIFF " + (logged?.CopyCrc is { } c ? Hex(c) : "none")),-11}  {md5Col,-8}";
+
+                // G3: whipper logged its own local checksums; ours must equal them.
+                var arChecks = new List<bool>();
+                if (logged?.V1?.LocalCrc is { } l1) arChecks.Add(l1 == v1);
+                if (logged?.V2?.LocalCrc is { } l2) arChecks.Add(l2 == v2);
+                var arSame = arChecks.All(x => x);
+                if (!arSame) arFailures++;
+                line += $"  {(arChecks.Count == 0 ? "(none logged)" : arSame ? "same" : "DIFF")}";
             }
             Console.WriteLine(line);
         }
 
         Console.WriteLine();
         if (log is not null)
+        {
             Console.WriteLine(failures == 0
                 ? $"G2: PASS, {numbers.Count} track(s) read twice, identical, and the same audio as whipper's rip."
                 : $"G2: FAIL, {failures} problem(s).");
-        await Task.CompletedTask;
-        return failures == 0 ? 0 : 1;
+            Console.WriteLine(arFailures == 0
+                ? "G3: PASS, AccurateRip v1/v2 checksums equal the ones whipper logged."
+                : $"G3: FAIL, {arFailures} track(s) with different AccurateRip checksums.");
+        }
+        return failures + arFailures == 0 ? 0 : 1;
     }
 
     private static Action<int, int>? Progress(string label)

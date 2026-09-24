@@ -92,3 +92,30 @@ public static class AccurateRipDatabase
         return Parse(bytes);
     }
 }
+
+/// How one track's checksums compare with the database.
+public sealed record AccurateRipVerdict(int Track, uint V1, uint V2, int V1Confidence, int V2Confidence)
+{
+    /// Rips that agree with this one, counting whichever version matched more.
+    public int Confidence => Math.Max(V1Confidence, V2Confidence);
+    public bool IsAccurate => Confidence > 0;
+}
+
+public static class AccurateRipMatch
+{
+    /// Every pressing block is checked; a CRC can sit in any of them, and v1 and
+    /// v2 submissions share the slots. The confidence is the best single entry
+    /// that equals the CRC, which is how whipper reported it.
+    public static AccurateRipVerdict For(IReadOnlyList<AccurateRipBlock>? blocks, int trackIndex, int trackNumber, uint v1, uint v2)
+    {
+        int c1 = 0, c2 = 0;
+        foreach (var b in blocks ?? [])
+        {
+            if (trackIndex >= b.Tracks.Count) continue;
+            var e = b.Tracks[trackIndex];
+            if (e.Crc == v1) c1 = Math.Max(c1, e.Confidence);
+            if (e.Crc == v2) c2 = Math.Max(c2, e.Confidence);
+        }
+        return new AccurateRipVerdict(trackNumber, v1, v2, c1, c2);
+    }
+}
