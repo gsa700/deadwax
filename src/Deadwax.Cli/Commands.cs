@@ -12,6 +12,11 @@ internal static class Commands
               Read the disc's TOC and print its IDs; --full adds catalog, ISRCs,
               CD-Text and pregaps via cdrdao (~2 min). With --against, compare them
               with the whipper log of the same disc (gate G1).
+          deadwax read [--device DEV] [--tracks N,N|all] [--offset N] [--retries N] [--against ALBUM_DIR]
+              Read tracks securely, twice, with the drive's read offset (from
+              whipper.conf unless given). With --against, check the audio equals
+              whipper's rip: logged CRC and the FLAC's stored MD5 (gate G2).
+              Writes nothing.
           deadwax check-logs [LIBRARY] [--online N]
               Rebuild each whipper log's TOC and check that Deadwax computes the
               same disc IDs whipper recorded. --online N also fetches N discs from
@@ -32,6 +37,7 @@ internal static class Commands
             return args[0] switch
             {
                 "scan" => await ScanCommand.RunAsync(args[1..]),
+                "read" => await ReadCommand.RunAsync(args[1..]),
                 "check-logs" => await CheckLogsCommand.RunAsync(args[1..]),
                 _ => Fail($"unknown command '{args[0]}'\n\n{Usage}"),
             };

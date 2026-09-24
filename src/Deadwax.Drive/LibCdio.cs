@@ -1,4 +1,3 @@
-using System.Reflection;
 using System.Runtime.InteropServices;
 
 namespace Deadwax.Drive;
@@ -48,23 +47,7 @@ internal static partial class LibCdio
     [return: MarshalAs(UnmanagedType.U1)]
     public static unsafe partial bool cdio_get_hwinfo(IntPtr cdio, byte* hwinfo);
 
-    // Distributions ship libcdio as libcdio.so.19 and only install the bare
-    // libcdio.so with the -devel package, so the plain name would not load on a
-    // machine that only has the library. Try the soname first. An explicit static
-    // constructor runs before the first call into this class, so before any load.
-    static LibCdio() => NativeLibrary.SetDllImportResolver(typeof(LibCdio).Assembly, Resolve);
-
-    private static IntPtr Resolve(string name, Assembly assembly, DllImportSearchPath? path)
-    {
-        if (name != Lib) return IntPtr.Zero;
-        foreach (var candidate in new[] { "libcdio.so.19", "libcdio.so" })
-        {
-            if (!NativeLibrary.TryLoad(candidate, assembly, path, out var handle)) continue;
-            Quiet(handle);
-            return handle;
-        }
-        return IntPtr.Zero;
-    }
+    static LibCdio() => NativeLibraries.Register();
 
     // cdio_log_level_t: DEBUG = 1, INFO, WARN, ERROR, ASSERT.
     private const int LogError = 4;
@@ -73,7 +56,7 @@ internal static partial class LibCdio
     /// CDROMREADTOCHDR: No medium found") on top of the error Deadwax reports for
     /// the same thing. Raise its threshold to errors only, through the exported
     /// global it reads, before the first call can print anything.
-    private static void Quiet(IntPtr handle)
+    internal static void Quiet(IntPtr handle)
     {
         if (NativeLibrary.TryGetExport(handle, "cdio_loglevel_default", out var level))
             Marshal.WriteInt32(level, LogError);

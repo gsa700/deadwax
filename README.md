@@ -14,8 +14,8 @@ the spec's validation gates in order, each checked against the 309 whipper
 
 | Gate | What it proves | State |
 |---|---|---|
-| G1 · IDs | TOC, MusicBrainz, CDDB and AccurateRip disc IDs, catalog and ISRCs equal whipper's | Offline: all 309 logs and cdrdao TOC files match. Drive: 52nd Street PASS; more discs from the corpus to go |
-| G2 · Audio | Same audio as whipper, sample for sample | Not started |
+| G1 · IDs | TOC, MusicBrainz, CDDB and AccurateRip disc IDs, catalog and ISRCs equal whipper's | Offline: all 309 logs and cdrdao TOC files match. Drive: 52nd Street, Turnstiles PASS; more discs from the corpus to go |
+| G2 · Audio | Same audio as whipper, sample for sample | Turnstiles: all 8 tracks read twice, identical, same CRC as whipper and same MD5 as the FLAC. More discs to go |
 | G3 · AccurateRip | Same v1/v2 checksums as whipper | Not started |
 | G4 · Output | Same tags and sidecar files, `music-audit` clean | Not started |
 | G5 · Side by side | 10 discs through both tools | Not started |
@@ -30,6 +30,7 @@ dotnet build
 dotnet test
 dotnet src/Deadwax.Cli/bin/Debug/net10.0/deadwax.dll check-logs ~/Music --online 8
 dotnet src/Deadwax.Cli/bin/Debug/net10.0/deadwax.dll scan --full --online --against "~/Music/Billy Joel/1978 - 52nd Street"
+dotnet src/Deadwax.Cli/bin/Debug/net10.0/deadwax.dll read --against "~/Music/Billy Joel/1976 - Turnstiles"
 ```
 
 `check-logs` rebuilds the TOC from every whipper log under a folder and checks
@@ -37,14 +38,20 @@ the IDs Deadwax computes against the ones whipper recorded. `scan` reads the dis
 in the drive; with `--against` it compares the TOC and IDs to that album's
 whipper log. `--full` adds a `cdrdao read-toc` pass (about two minutes) for the
 catalog number, ISRCs, CD-Text and pregaps, and compares those with the cue.
+`read` reads tracks securely through paranoia, twice, at the drive's read offset
+(taken from whipper.conf), and with `--against` checks each track's audio
+against whipper's logged CRC and the MD5 stored in the existing FLAC. It writes
+nothing.
 
 ## Layout
 
 ```
 src/Deadwax.Drive      libcdio via P/Invoke (TOC, drive identity); cdrdao TOC files
-                       (catalog, ISRCs, CD-Text, pregaps)
+                       (catalog, ISRCs, CD-Text, pregaps); libcdio-paranoia secure
+                       reads with offset correction
 src/Deadwax.Metadata   MusicBrainz and CDDB disc IDs
-src/Deadwax.Verify     AccurateRip IDs and database, whipper log reader
+src/Deadwax.Verify     AccurateRip IDs and database; CRC32/MD5 audio checks; whipper
+                       log, cue and config readers
 src/Deadwax.Cli        the deadwax command
 tests/Deadwax.Tests    golden files from real rips
 ```
