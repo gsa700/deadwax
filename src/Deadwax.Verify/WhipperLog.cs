@@ -173,8 +173,12 @@ public sealed class WhipperLog
         return null;
     }
 
+    /// YAML scalars as whipper and Deadwax write them: a single-quoted one
+    /// doubles any quote inside it.
     private static string Unquote(string v) =>
-        v.Length >= 2 && (v[0] == '\'' && v[^1] == '\'' || v[0] == '"' && v[^1] == '"') ? v[1..^1] : v;
+        v.Length >= 2 && v[0] == '\'' && v[^1] == '\'' ? v[1..^1].Replace("''", "'")
+        : v.Length >= 2 && v[0] == '"' && v[^1] == '"' ? v[1..^1]
+        : v;
 
     private static uint? Hex(string v) =>
         uint.TryParse(v, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var x) ? x : null;
