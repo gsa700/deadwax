@@ -1,0 +1,587 @@
+Log created by: whipper 0.10.0 (internal logger)
+Log creation date: 2026-07-10T03:46:22Z
+
+Ripping phase information:
+  Drive: PIONEER BD-RW   BDR-209D (revision 1.10)
+  Extraction engine: cdparanoia III 10.2 libcdio 2.1.0
+  Defeat audio cache: false
+  Read offset correction: 667
+  Overread into lead-out: false
+  Gap detection: cdrdao 1.2.6
+  CD-R detected: false
+
+CD metadata:
+  Release:
+    Artist: Bread
+    Title: Anthology of Bread
+  CDDB Disc ID: 0e0de114
+  MusicBrainz Disc ID: 7ljPWqhgqkSbpmAKR5cnZR_hGPY-
+  MusicBrainz lookup URL: https://musicbrainz.org/cdtoc/attach?toc=1+20+266645+183+14508+24708+36033+50058+64383+77058+95283+105858+117183+128733+139683+153633+165858+182133+196158+207783+224583+240333+253683&tracks=20&id=7ljPWqhgqkSbpmAKR5cnZR_hGPY-
+  MusicBrainz Release URL: https://musicbrainz.org/release/b8680c70-a689-3c55-b515-5199fcdcce29
+
+TOC:
+  0:
+    Start: 00:00:00
+    Length: 00:00:33
+    Start sector: 0
+    End sector: 32
+
+  1:
+    Start: 00:00:33
+    Length: 03:11:00
+    Start sector: 33
+    End sector: 14357
+
+  2:
+    Start: 03:11:33
+    Length: 02:16:00
+    Start sector: 14358
+    End sector: 24557
+
+  3:
+    Start: 05:27:33
+    Length: 02:31:00
+    Start sector: 24558
+    End sector: 35882
+
+  4:
+    Start: 07:58:33
+    Length: 03:07:00
+    Start sector: 35883
+    End sector: 49907
+
+  5:
+    Start: 11:05:33
+    Length: 03:11:00
+    Start sector: 49908
+    End sector: 64232
+
+  6:
+    Start: 14:16:33
+    Length: 02:49:00
+    Start sector: 64233
+    End sector: 76907
+
+  7:
+    Start: 17:05:33
+    Length: 04:03:00
+    Start sector: 76908
+    End sector: 95132
+
+  8:
+    Start: 21:08:33
+    Length: 02:21:00
+    Start sector: 95133
+    End sector: 105707
+
+  9:
+    Start: 23:29:33
+    Length: 02:31:00
+    Start sector: 105708
+    End sector: 117032
+
+  10:
+    Start: 26:00:33
+    Length: 02:34:00
+    Start sector: 117033
+    End sector: 128582
+
+  11:
+    Start: 28:34:33
+    Length: 02:26:00
+    Start sector: 128583
+    End sector: 139532
+
+  12:
+    Start: 31:00:33
+    Length: 03:06:00
+    Start sector: 139533
+    End sector: 153482
+
+  13:
+    Start: 34:06:33
+    Length: 02:43:00
+    Start sector: 153483
+    End sector: 165707
+
+  14:
+    Start: 36:49:33
+    Length: 03:37:00
+    Start sector: 165708
+    End sector: 181982
+
+  15:
+    Start: 40:26:33
+    Length: 03:07:00
+    Start sector: 181983
+    End sector: 196007
+
+  16:
+    Start: 43:33:33
+    Length: 02:35:00
+    Start sector: 196008
+    End sector: 207632
+
+  17:
+    Start: 46:08:33
+    Length: 03:44:00
+    Start sector: 207633
+    End sector: 224432
+
+  18:
+    Start: 49:52:33
+    Length: 03:30:00
+    Start sector: 224433
+    End sector: 240182
+
+  19:
+    Start: 53:22:33
+    Length: 02:58:00
+    Start sector: 240183
+    End sector: 253532
+
+  20:
+    Start: 56:20:33
+    Length: 02:52:62
+    Start sector: 253533
+    End sector: 266494
+
+Tracks:
+  0:
+    Filename: Bread/1990 - Anthology of Bread/Bread - 00 - Hidden Track One Audio.flac
+    Peak level: 0.033539
+    Pre-emphasis:
+    Extraction speed: 0.2 X
+    Extraction quality: 100.00 %
+    Test CRC: B97E50FB
+    Copy CRC: B97E50FB
+    AccurateRip v1: {}
+    AccurateRip v2: {}
+    Status: Copy OK
+
+  1:
+    Filename: Bread/1990 - Anthology of Bread/Bread - 01 - Make It With You.flac
+    Pre-gap length: 00:00:33
+    Peak level: 0.689423
+    Pre-emphasis:
+    Extraction speed: 7.3 X
+    Extraction quality: 100.00 %
+    Test CRC: 9656AE83
+    Copy CRC: 9656AE83
+    AccurateRip v1:
+      Result: Found, exact match
+      Confidence: 30
+      Local CRC: D6210B5F
+      Remote CRC: D6210B5F
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 79
+      Local CRC: 9476CA29
+      Remote CRC: 9476CA29
+    Status: Copy OK
+
+  2:
+    Filename: Bread/1990 - Anthology of Bread/Bread - 02 - Dismal Day.flac
+    Pre-gap length: 00:01:28
+    Peak level: 0.749756
+    Pre-emphasis:
+    Extraction speed: 7.8 X
+    Extraction quality: 100.00 %
+    Test CRC: 7D8EE905
+    Copy CRC: 7D8EE905
+    AccurateRip v1:
+      Result: Found, exact match
+      Confidence: 29
+      Local CRC: 429A42EB
+      Remote CRC: 429A42EB
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 79
+      Local CRC: C151012E
+      Remote CRC: C151012E
+    Status: Copy OK
+
+  3:
+    Filename: Bread/1990 - Anthology of Bread/Bread - 03 - London Bridge.flac
+    Pre-gap length: 00:02:03
+    Peak level: 0.88559
+    Pre-emphasis:
+    Extraction speed: 8.2 X
+    Extraction quality: 100.00 %
+    Test CRC: '15991250'
+    Copy CRC: '15991250'
+    AccurateRip v1:
+      Result: Found, exact match
+      Confidence: 30
+      Local CRC: D72964E0
+      Remote CRC: D72964E0
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 81
+      Local CRC: 944D5AD7
+      Remote CRC: 944D5AD7
+    Status: Copy OK
+
+  4:
+    Filename: Bread/1990 - Anthology of Bread/Bread - 04 - Anyway You Want Me.flac
+    Pre-gap length: 00:01:30
+    Peak level: 0.646118
+    Pre-emphasis:
+    Extraction speed: 8.9 X
+    Extraction quality: 100.00 %
+    Test CRC: E4C4DF5A
+    Copy CRC: E4C4DF5A
+    AccurateRip v1:
+      Result: Found, exact match
+      Confidence: 30
+      Local CRC: '95217580'
+      Remote CRC: '95217580'
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 78
+      Local CRC: 8B8E898F
+      Remote CRC: 8B8E898F
+    Status: Copy OK
+
+  5:
+    Filename: Bread/1990 - Anthology of Bread/Bread - 05 - Look What You've Done.flac
+    Pre-gap length: 00:02:00
+    Peak level: 0.859222
+    Pre-emphasis:
+    Extraction speed: 9.1 X
+    Extraction quality: 100.00 %
+    Test CRC: DC3C5D8B
+    Copy CRC: DC3C5D8B
+    AccurateRip v1:
+      Result: Found, exact match
+      Confidence: 31
+      Local CRC: 4E37322B
+      Remote CRC: 4E37322B
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 80
+      Local CRC: C2C0BAB6
+      Remote CRC: C2C0BAB6
+    Status: Copy OK
+
+  6:
+    Filename: Bread/1990 - Anthology of Bread/Bread - 06 - It Don't Matter to Me.flac
+    Pre-gap length: 00:01:35
+    Peak level: 0.968231
+    Pre-emphasis:
+    Extraction speed: 9.7 X
+    Extraction quality: 100.00 %
+    Test CRC: 8A9171BB
+    Copy CRC: 8A9171BB
+    AccurateRip v1:
+      Result: Found, exact match
+      Confidence: 31
+      Local CRC: 32657C91
+      Remote CRC: 32657C91
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 83
+      Local CRC: '901022E0'
+      Remote CRC: '901022E0'
+    Status: Copy OK
+
+  7:
+    Filename: Bread/1990 - Anthology of Bread/Bread - 07 - The Last Time.flac
+    Pre-gap length: 00:01:65
+    Peak level: 0.982269
+    Pre-emphasis:
+    Extraction speed: 10.2 X
+    Extraction quality: 100.00 %
+    Test CRC: 77347E2E
+    Copy CRC: 77347E2E
+    AccurateRip v1:
+      Result: Found, exact match
+      Confidence: 30
+      Local CRC: 94742DAA
+      Remote CRC: 94742DAA
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 80
+      Local CRC: D822C8D3
+      Remote CRC: D822C8D3
+    Status: Copy OK
+
+  8:
+    Filename: Bread/1990 - Anthology of Bread/Bread - 08 - Let Your Love Go.flac
+    Pre-gap length: 00:01:18
+    Peak level: 0.800507
+    Pre-emphasis:
+    Extraction speed: 10.5 X
+    Extraction quality: 100.00 %
+    Test CRC: EB74A5D7
+    Copy CRC: EB74A5D7
+    AccurateRip v1:
+      Result: Found, exact match
+      Confidence: 31
+      Local CRC: 1B0100EB
+      Remote CRC: 1B0100EB
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 83
+      Local CRC: 786B6F83
+      Remote CRC: 786B6F83
+    Status: Copy OK
+
+  9:
+    Filename: Bread/1990 - Anthology of Bread/Bread - 09 - Truckin'.flac
+    Pre-gap length: 00:01:50
+    Peak level: 0.803772
+    Pre-emphasis:
+    Extraction speed: 10.5 X
+    Extraction quality: 100.00 %
+    Test CRC: '37453010'
+    Copy CRC: '37453010'
+    AccurateRip v1:
+      Result: Found, exact match
+      Confidence: 30
+      Local CRC: 8FA88698
+      Remote CRC: 8FA88698
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 80
+      Local CRC: CC9EF237
+      Remote CRC: CC9EF237
+    Status: Copy OK
+
+  10:
+    Filename: Bread/1990 - Anthology of Bread/Bread - 10 - If.flac
+    Pre-gap length: 00:01:60
+    Peak level: 0.558136
+    Pre-emphasis:
+    Extraction speed: 10.9 X
+    Extraction quality: 100.00 %
+    Test CRC: E8B0A6B6
+    Copy CRC: E8B0A6B6
+    AccurateRip v1:
+      Result: Found, exact match
+      Confidence: 34
+      Local CRC: 16D7D2A4
+      Remote CRC: 16D7D2A4
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 86
+      Local CRC: 347EC762
+      Remote CRC: 347EC762
+    Status: Copy OK
+
+  11:
+    Filename: Bread/1990 - Anthology of Bread/Bread - 11 - Baby I'm-A Want You.flac
+    Pre-gap length: 00:01:60
+    Peak level: 0.676514
+    Pre-emphasis:
+    Extraction speed: 10.8 X
+    Extraction quality: 100.00 %
+    Test CRC: B326C734
+    Copy CRC: B326C734
+    AccurateRip v1:
+      Result: Found, exact match
+      Confidence: 32
+      Local CRC: 99836BC3
+      Remote CRC: 99836BC3
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 83
+      Local CRC: E58451E2
+      Remote CRC: E58451E2
+    Status: Copy OK
+
+  12:
+    Filename: Bread/1990 - Anthology of Bread/Bread - 12 - Everything I Own.flac
+    Pre-gap length: 00:01:50
+    Peak level: 0.891205
+    Pre-emphasis:
+    Extraction speed: 11.7 X
+    Extraction quality: 100.00 %
+    Test CRC: B4356209
+    Copy CRC: B4356209
+    AccurateRip v1:
+      Result: Found, exact match
+      Confidence: 32
+      Local CRC: 6284BBC0
+      Remote CRC: 6284BBC0
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 84
+      Local CRC: A8A2253A
+      Remote CRC: A8A2253A
+    Status: Copy OK
+
+  13:
+    Filename: Bread/1990 - Anthology of Bread/Bread - 13 - Down on My Knees.flac
+    Pre-gap length: 00:01:42
+    Peak level: 0.753693
+    Pre-emphasis:
+    Extraction speed: 11.2 X
+    Extraction quality: 100.00 %
+    Test CRC: 63D423F2
+    Copy CRC: 63D423F2
+    AccurateRip v1:
+      Result: Found, exact match
+      Confidence: 32
+      Local CRC: 06CA47F2
+      Remote CRC: 06CA47F2
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 82
+      Local CRC: B8623018
+      Remote CRC: B8623018
+    Status: Copy OK
+
+  14:
+    Filename: Bread/1990 - Anthology of Bread/Bread - 14 - Aubrey.flac
+    Pre-gap length: 00:01:45
+    Peak level: 0.800842
+    Pre-emphasis:
+    Extraction speed: 12.3 X
+    Extraction quality: 100.00 %
+    Test CRC: A4D686CF
+    Copy CRC: A4D686CF
+    AccurateRip v1:
+      Result: Found, exact match
+      Confidence: 32
+      Local CRC: 8AF717F5
+      Remote CRC: 8AF717F5
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 82
+      Local CRC: 5482A92F
+      Remote CRC: 5482A92F
+    Status: Copy OK
+
+  15:
+    Filename: Bread/1990 - Anthology of Bread/Bread - 15 - Diary.flac
+    Pre-gap length: 00:01:55
+    Peak level: 0.592133
+    Pre-emphasis:
+    Extraction speed: 12.4 X
+    Extraction quality: 100.00 %
+    Test CRC: 58385ECF
+    Copy CRC: 58385ECF
+    AccurateRip v1:
+      Result: Found, exact match
+      Confidence: 32
+      Local CRC: 73C3C89B
+      Remote CRC: 73C3C89B
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 82
+      Local CRC: EF25D8D3
+      Remote CRC: EF25D8D3
+    Status: Copy OK
+
+  16:
+    Filename: Bread/1990 - Anthology of Bread/Bread - 16 - Sweet Surrender.flac
+    Pre-gap length: 00:02:13
+    Peak level: 0.772308
+    Pre-emphasis:
+    Extraction speed: 12.4 X
+    Extraction quality: 100.00 %
+    Test CRC: 28ADB7F3
+    Copy CRC: 28ADB7F3
+    AccurateRip v1:
+      Result: Found, exact match
+      Confidence: 32
+      Local CRC: 822CE05C
+      Remote CRC: 822CE05C
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 84
+      Local CRC: BE5371DC
+      Remote CRC: BE5371DC
+    Status: Copy OK
+
+  17:
+    Filename: Bread/1990 - Anthology of Bread/Bread - 17 - The Guitar Man.flac
+    Pre-gap length: 00:01:43
+    Peak level: 0.879852
+    Pre-emphasis:
+    Extraction speed: 12.7 X
+    Extraction quality: 100.00 %
+    Test CRC: '37237793'
+    Copy CRC: '37237793'
+    AccurateRip v1:
+      Result: Found, exact match
+      Confidence: 32
+      Local CRC: 20A71C1B
+      Remote CRC: 20A71C1B
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 83
+      Local CRC: C053BEC8
+      Remote CRC: C053BEC8
+    Status: Copy OK
+
+  18:
+    Filename: Bread/1990 - Anthology of Bread/Bread - 18 - Fancy Dancer.flac
+    Pre-gap length: 00:01:38
+    Peak level: 0.611328
+    Pre-emphasis:
+    Extraction speed: 12.9 X
+    Extraction quality: 100.00 %
+    Test CRC: F20F3AA4
+    Copy CRC: F20F3AA4
+    AccurateRip v1:
+      Result: Found, exact match
+      Confidence: 31
+      Local CRC: 74ABEFBA
+      Remote CRC: 74ABEFBA
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 77
+      Local CRC: 7D4FD047
+      Remote CRC: 7D4FD047
+    Status: Copy OK
+
+  19:
+    Filename: Bread/1990 - Anthology of Bread/Bread - 19 - She's the Only One.flac
+    Pre-gap length: 00:01:68
+    Peak level: 0.747925
+    Pre-emphasis:
+    Extraction speed: 12.5 X
+    Extraction quality: 100.00 %
+    Test CRC: F83B911D
+    Copy CRC: F83B911D
+    AccurateRip v1:
+      Result: Found, exact match
+      Confidence: 33
+      Local CRC: 9040BDB1
+      Remote CRC: 9040BDB1
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 79
+      Local CRC: EB35BF8F
+      Remote CRC: EB35BF8F
+    Status: Copy OK
+
+  20:
+    Filename: Bread/1990 - Anthology of Bread/Bread - 20 - Lost Without Your Love.flac
+    Pre-gap length: 00:01:68
+    Peak level: 0.674957
+    Pre-emphasis:
+    Extraction speed: 13.6 X
+    Extraction quality: 100.00 %
+    Test CRC: 49CA0FEA
+    Copy CRC: 49CA0FEA
+    AccurateRip v1:
+      Result: Found, exact match
+      Confidence: 31
+      Local CRC: 28E883B3
+      Remote CRC: 28E883B3
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 80
+      Local CRC: 7D20A382
+      Remote CRC: 7D20A382
+    Status: Copy OK
+
+Conclusive status report:
+  AccurateRip summary: All tracks accurately ripped
+  Health status: No errors occurred
+  EOF: End of status report
+
+SHA-256 hash: 1A10487848DAC42FF0B5CF24BABCF8B72AF4F57199FD09E50EAA8776DEC79CED

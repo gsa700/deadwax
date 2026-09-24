@@ -1,0 +1,9 @@
+# Normalise line endings in the repo. Project templates emit
+# CRLF for some files; without this a Windows contributor's first commit
+# would look like a whole-file rewrite.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.webp binary
+
+*.bin binary

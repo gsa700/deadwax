@@ -1,0 +1,213 @@
+Log created by: whipper 0.10.0 (internal logger)
+Log creation date: 2026-09-24T00:29:18Z
+
+Ripping phase information:
+  Drive: PIONEER BD-RW   BDR-209D (revision 1.10)
+  Extraction engine: cdparanoia III 10.2 libcdio 2.3.0
+  Defeat audio cache: false
+  Read offset correction: 667
+  Overread into lead-out: false
+  Gap detection: cdrdao 1.2.6
+  CD-R detected: false
+
+CD metadata:
+  Release:
+    Artist: Billy Joel
+    Title: Turnstiles
+  CDDB Disc ID: 7308a708
+  MusicBrainz Disc ID: 4grtVRvaY4ZI1GCetew4KJlIUJ4-
+  MusicBrainz lookup URL: https://musicbrainz.org/cdtoc/attach?toc=1+8+166309+150+20952+35982+52958+80150+97911+121710+142444&tracks=8&id=4grtVRvaY4ZI1GCetew4KJlIUJ4-
+  MusicBrainz Release URL: https://musicbrainz.org/release/b0ab1b1a-d143-398c-9fd4-6b475886b9f2
+
+TOC:
+  1:
+    Start: 00:00:00
+    Length: 04:37:27
+    Start sector: 0
+    End sector: 20801
+
+  2:
+    Start: 04:37:27
+    Length: 03:20:30
+    Start sector: 20802
+    End sector: 35831
+
+  3:
+    Start: 07:57:57
+    Length: 03:46:26
+    Start sector: 35832
+    End sector: 52807
+
+  4:
+    Start: 11:44:08
+    Length: 06:02:42
+    Start sector: 52808
+    End sector: 79999
+
+  5:
+    Start: 17:46:50
+    Length: 03:56:61
+    Start sector: 80000
+    End sector: 97760
+
+  6:
+    Start: 21:43:36
+    Length: 05:17:24
+    Start sector: 97761
+    End sector: 121559
+
+  7:
+    Start: 27:00:60
+    Length: 04:36:34
+    Start sector: 121560
+    End sector: 142293
+
+  8:
+    Start: 31:37:19
+    Length: 05:18:15
+    Start sector: 142294
+    End sector: 166158
+
+Tracks:
+  1:
+    Filename: Billy Joel/1998 - Turnstiles/Billy Joel - 01 - Say Goodbye to Hollywood.flac
+    Peak level: 1.0
+    Pre-emphasis:
+    Extraction speed: 7.5 X
+    Extraction quality: 100.00 %
+    Test CRC: 569AF6B3
+    Copy CRC: 569AF6B3
+    AccurateRip v1:
+      Result: Track not present in AccurateRip database
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 23
+      Local CRC: D3B5FE64
+      Remote CRC: D3B5FE64
+    Status: Copy OK
+
+  2:
+    Filename: Billy Joel/1998 - Turnstiles/Billy Joel - 02 - Summer, Highland Falls.flac
+    Peak level: 1.0
+    Pre-emphasis:
+    Extraction speed: 8.2 X
+    Extraction quality: 100.00 %
+    Test CRC: 9228C1E9
+    Copy CRC: 9228C1E9
+    AccurateRip v1:
+      Result: Track not present in AccurateRip database
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 23
+      Local CRC: 08630F41
+      Remote CRC: 08630F41
+    Status: Copy OK
+
+  3:
+    Filename: Billy Joel/1998 - Turnstiles/Billy Joel - 03 - All You Wanna Do Is Dance.flac
+    Peak level: 1.0
+    Pre-emphasis:
+    Extraction speed: 8.7 X
+    Extraction quality: 100.00 %
+    Test CRC: 42A6CDF1
+    Copy CRC: 42A6CDF1
+    AccurateRip v1:
+      Result: Track not present in AccurateRip database
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 23
+      Local CRC: A7524734
+      Remote CRC: A7524734
+    Status: Copy OK
+
+  4:
+    Filename: Billy Joel/1998 - Turnstiles/Billy Joel - 04 - New York State of Mind.flac
+    Peak level: 0.999969
+    Pre-emphasis:
+    Extraction speed: 9.9 X
+    Extraction quality: 100.00 %
+    Test CRC: AAE9DA3A
+    Copy CRC: AAE9DA3A
+    AccurateRip v1:
+      Result: Track not present in AccurateRip database
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 23
+      Local CRC: F6B81564
+      Remote CRC: F6B81564
+    Status: Copy OK
+
+  5:
+    Filename: Billy Joel/1998 - Turnstiles/Billy Joel - 05 - James.flac
+    Peak level: 0.977081
+    Pre-emphasis:
+    Extraction speed: 10.5 X
+    Extraction quality: 100.00 %
+    Test CRC: 7A8EFC81
+    Copy CRC: 7A8EFC81
+    AccurateRip v1:
+      Result: Track not present in AccurateRip database
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 23
+      Local CRC: 7C85D0AA
+      Remote CRC: 7C85D0AA
+    Status: Copy OK
+
+  6:
+    Filename: Billy Joel/1998 - Turnstiles/Billy Joel - 06 - Prelude _ Angry Young Man.flac
+    Peak level: 1.0
+    Pre-emphasis:
+    Extraction speed: 11.2 X
+    Extraction quality: 100.00 %
+    Test CRC: FD6D19ED
+    Copy CRC: FD6D19ED
+    AccurateRip v1:
+      Result: Track not present in AccurateRip database
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 23
+      Local CRC: D58D6C6F
+      Remote CRC: D58D6C6F
+    Status: Copy OK
+
+  7:
+    Filename: Billy Joel/1998 - Turnstiles/Billy Joel - 07 - I’ve Loved These Days.flac
+    Peak level: 0.992249
+    Pre-emphasis:
+    Extraction speed: 11.3 X
+    Extraction quality: 100.00 %
+    Test CRC: 0041F05F
+    Copy CRC: 0041F05F
+    AccurateRip v1:
+      Result: Track not present in AccurateRip database
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 23
+      Local CRC: EBEACA64
+      Remote CRC: EBEACA64
+    Status: Copy OK
+
+  8:
+    Filename: Billy Joel/1998 - Turnstiles/Billy Joel - 08 - Miami 2017 (Seen the Lights Go Out on Broadway).flac
+    Peak level: 0.999969
+    Pre-emphasis:
+    Extraction speed: 12.2 X
+    Extraction quality: 100.00 %
+    Test CRC: C3A2829B
+    Copy CRC: C3A2829B
+    AccurateRip v1:
+      Result: Track not present in AccurateRip database
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 23
+      Local CRC: 4DFA7F9D
+      Remote CRC: 4DFA7F9D
+    Status: Copy OK
+
+Conclusive status report:
+  AccurateRip summary: All tracks accurately ripped
+  Health status: No errors occurred
+  EOF: End of status report
+
+SHA-256 hash: D9B103FF9D57035A06167723C0E8B425A179FB5320AD9B6F60AB76E9989D07D1

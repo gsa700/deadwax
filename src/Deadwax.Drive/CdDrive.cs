@@ -1,0 +1,101 @@
+namespace Deadwax.Drive;
+
+public sealed record DriveIdentity(string Vendor, string Model, string Revision)
+{
+    public override string ToString() => $"{Vendor} {Model} {Revision}";
+}
+
+public sealed class DriveException(string message) : Exception(message);
+
+/// A CD drive with a disc in it. Holds libcdio's handle; dispose to release it.
+public sealed class CdDrive : IDisposable
+{
+    public const string DefaultDevice = "/dev/sr0";
+
+    private IntPtr _cdio;
+
+    public string Device { get; }
+
+    private CdDrive(string device, IntPtr cdio)
+    {
+        Device = device;
+        _cdio = cdio;
+    }
+
+    public static CdDrive Open(string device = DefaultDevice)
+    {
+        IntPtr cdio;
+        try
+        {
+            cdio = LibCdio.cdio_open_cd(device);
+        }
+        catch (DllNotFoundException)
+        {
+            throw new DriveException("libcdio is not installed (looked for libcdio.so.19).");
+        }
+        if (cdio == IntPtr.Zero)
+            throw new DriveException($"Could not open {device}. Is there a disc in the drive?");
+        return new CdDrive(device, cdio);
+    }
+
+    public Toc ReadToc()
+    {
+        var handle = Handle;
+        var first = LibCdio.cdio_get_first_track_num(handle);
+        var count = LibCdio.cdio_get_num_tracks(handle);
+        if (first == LibCdio.InvalidTrack || count == LibCdio.InvalidTrack || count == 0)
+            throw new DriveException($"No disc in {Device}, or the disc has no table of contents.");
+
+        var tracks = new List<TocTrack>(count);
+        for (var n = first; n < first + count; n++)
+        {
+            var lsn = LibCdio.cdio_get_track_lsn(handle, n);
+            if (lsn == LibCdio.InvalidLsn) throw new DriveException($"The drive gave no start for track {n}.");
+            tracks.Add(new TocTrack(n, lsn, LibCdio.cdio_get_track_format(handle, n) == LibCdio.TrackFormatAudio));
+        }
+
+        var leadout = LibCdio.cdio_get_track_lsn(handle, LibCdio.LeadoutTrack);
+        if (leadout == LibCdio.InvalidLsn) throw new DriveException("The drive gave no lead-out position.");
+        return new Toc(tracks, leadout);
+    }
+
+    public unsafe DriveIdentity? ReadIdentity()
+    {
+        var buffer = stackalloc byte[LibCdio.HwInfoSize];
+        if (!LibCdio.cdio_get_hwinfo(Handle, buffer)) return null;
+
+        var span = new ReadOnlySpan<byte>(buffer, LibCdio.HwInfoSize);
+        var vendor = Field(span, 0, LibCdio.HwVendorLength);
+        var model = Field(span, LibCdio.HwVendorLength + 1, LibCdio.HwModelLength);
+        var revision = Field(span, LibCdio.HwVendorLength + 1 + LibCdio.HwModelLength + 1, LibCdio.HwRevisionLength);
+        return new DriveIdentity(vendor, model, revision);
+
+        static string Field(ReadOnlySpan<byte> all, int start, int length)
+        {
+            var field = all.Slice(start, length);
+            var nul = field.IndexOf((byte)0);
+            if (nul >= 0) field = field[..nul];
+            return System.Text.Encoding.ASCII.GetString(field).Trim();
+        }
+    }
+
+    /// The disc's catalog number (UPC/EAN), when the disc carries one.
+    public string? ReadCatalog() => Blank(LibCdio.TakeString(LibCdio.cdio_get_mcn(Handle)));
+
+    /// A track's ISRC, when the disc carries one. Read from the subchannel, so
+    /// this takes a moment per track.
+    public string? ReadIsrc(int track) => Blank(LibCdio.TakeString(LibCdio.cdio_get_track_isrc(Handle, checked((byte)track))));
+
+    // Drives report "no catalog" as an empty string, or as all zeros.
+    private static string? Blank(string? s) =>
+        string.IsNullOrWhiteSpace(s) || s.All(c => c == '0') ? null : s.Trim();
+
+    private IntPtr Handle => _cdio != IntPtr.Zero ? _cdio : throw new ObjectDisposedException(nameof(CdDrive));
+
+    public void Dispose()
+    {
+        if (_cdio == IntPtr.Zero) return;
+        LibCdio.cdio_destroy(_cdio);
+        _cdio = IntPtr.Zero;
+    }
+}

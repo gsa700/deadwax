@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Deadwax.Drive\Deadwax.Drive.csproj" />
+    <ProjectReference Include="..\Deadwax.Metadata\Deadwax.Metadata.csproj" />
+    <ProjectReference Include="..\Deadwax.Verify\Deadwax.Verify.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>deadwax</AssemblyName>
+    <RootNamespace>Deadwax.Cli</RootNamespace>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

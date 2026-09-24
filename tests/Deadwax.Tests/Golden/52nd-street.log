@@ -1,0 +1,236 @@
+Log created by: whipper 0.10.0 (internal logger)
+Log creation date: 2026-09-24T00:39:54Z
+
+Ripping phase information:
+  Drive: PIONEER BD-RW   BDR-209D (revision 1.10)
+  Extraction engine: cdparanoia III 10.2 libcdio 2.3.0
+  Defeat audio cache: false
+  Read offset correction: 667
+  Overread into lead-out: false
+  Gap detection: cdrdao 1.2.6
+  CD-R detected: false
+
+CD metadata:
+  Release:
+    Artist: Billy Joel
+    Title: 'Original Album Classics (Volume 2) (Disc 3 of 5): 52nd Street'
+  CDDB Disc ID: 7c098609
+  MusicBrainz Disc ID: jLUgBWFc9TgiGpRK2PDNQVbLAgQ-
+  MusicBrainz lookup URL: https://musicbrainz.org/cdtoc/attach?toc=1+9+183071+150+18478+36038+57341+80873+102072+123264+141959+171675&tracks=9&id=jLUgBWFc9TgiGpRK2PDNQVbLAgQ-
+  MusicBrainz Release URL: https://musicbrainz.org/release/8e79627f-0c4e-4bb6-85f3-92fbbc5430bc
+
+TOC:
+  1:
+    Start: 00:00:00
+    Length: 04:04:28
+    Start sector: 0
+    End sector: 18327
+
+  2:
+    Start: 04:04:28
+    Length: 03:54:10
+    Start sector: 18328
+    End sector: 35887
+
+  3:
+    Start: 07:58:38
+    Length: 04:44:03
+    Start sector: 35888
+    End sector: 57190
+
+  4:
+    Start: 12:42:41
+    Length: 05:13:57
+    Start sector: 57191
+    End sector: 80722
+
+  5:
+    Start: 17:56:23
+    Length: 04:42:49
+    Start sector: 80723
+    End sector: 101921
+
+  6:
+    Start: 22:38:72
+    Length: 04:42:42
+    Start sector: 101922
+    End sector: 123113
+
+  7:
+    Start: 27:21:39
+    Length: 04:09:20
+    Start sector: 123114
+    End sector: 141808
+
+  8:
+    Start: 31:30:59
+    Length: 06:36:16
+    Start sector: 141809
+    End sector: 171524
+
+  9:
+    Start: 38:07:00
+    Length: 02:31:71
+    Start sector: 171525
+    End sector: 182920
+
+Tracks:
+  1:
+    Filename: 'Billy Joel/2014 - Original Album Classics (Volume 2) (Disc 3 of 5): 52nd Street/Billy Joel - 01 - Big Shot.flac'
+    Peak level: 0.999756
+    Pre-emphasis:
+    Extraction speed: 7.4 X
+    Extraction quality: 100.00 %
+    Test CRC: 4B8DE990
+    Copy CRC: 4B8DE990
+    AccurateRip v1:
+      Result: Track not present in AccurateRip database
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 20
+      Local CRC: 8F0B465F
+      Remote CRC: 8F0B465F
+    Status: Copy OK
+
+  2:
+    Filename: 'Billy Joel/2014 - Original Album Classics (Volume 2) (Disc 3 of 5): 52nd Street/Billy Joel - 02 - Honesty.flac'
+    Peak level: 0.999969
+    Pre-emphasis:
+    Extraction speed: 8.3 X
+    Extraction quality: 100.00 %
+    Test CRC: 74B1938F
+    Copy CRC: 74B1938F
+    AccurateRip v1:
+      Result: Track not present in AccurateRip database
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 20
+      Local CRC: E3F74AAE
+      Remote CRC: E3F74AAE
+    Status: Copy OK
+
+  3:
+    Filename: 'Billy Joel/2014 - Original Album Classics (Volume 2) (Disc 3 of 5): 52nd Street/Billy Joel - 03 - My Life.flac'
+    Peak level: 1.0
+    Pre-emphasis:
+    Extraction speed: 9.2 X
+    Extraction quality: 100.00 %
+    Test CRC: A321903D
+    Copy CRC: A321903D
+    AccurateRip v1:
+      Result: Track not present in AccurateRip database
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 20
+      Local CRC: 11340E8E
+      Remote CRC: 11340E8E
+    Status: Copy OK
+
+  4:
+    Filename: 'Billy Joel/2014 - Original Album Classics (Volume 2) (Disc 3 of 5): 52nd Street/Billy Joel - 04 - Zanzibar.flac'
+    Peak level: 1.0
+    Pre-emphasis:
+    Extraction speed: 10.0 X
+    Extraction quality: 100.00 %
+    Test CRC: 9EFF9D3F
+    Copy CRC: 9EFF9D3F
+    AccurateRip v1:
+      Result: Track not present in AccurateRip database
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 20
+      Local CRC: 13EB1CAC
+      Remote CRC: 13EB1CAC
+    Status: Copy OK
+
+  5:
+    Filename: 'Billy Joel/2014 - Original Album Classics (Volume 2) (Disc 3 of 5): 52nd Street/Billy Joel - 05 - Stiletto.flac'
+    Peak level: 1.0
+    Pre-emphasis:
+    Extraction speed: 10.6 X
+    Extraction quality: 100.00 %
+    Test CRC: 43C64412
+    Copy CRC: 43C64412
+    AccurateRip v1:
+      Result: Track not present in AccurateRip database
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 20
+      Local CRC: 86C59BBE
+      Remote CRC: 86C59BBE
+    Status: Copy OK
+
+  6:
+    Filename: "Billy Joel/2014 - Original Album Classics (Volume 2) (Disc 3 of 5): 52nd Street/Billy Joel - 06 - Rosalinda's Eyes.flac"
+    Peak level: 1.0
+    Pre-emphasis:
+    Extraction speed: 11.2 X
+    Extraction quality: 100.00 %
+    Test CRC: 4F24F331
+    Copy CRC: 4F24F331
+    AccurateRip v1:
+      Result: Track not present in AccurateRip database
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 20
+      Local CRC: BFFFD1B4
+      Remote CRC: BFFFD1B4
+    Status: Copy OK
+
+  7:
+    Filename: 'Billy Joel/2014 - Original Album Classics (Volume 2) (Disc 3 of 5): 52nd Street/Billy Joel - 07 - Half A Mile Away.flac'
+    Peak level: 0.999969
+    Pre-emphasis:
+    Extraction speed: 11.5 X
+    Extraction quality: 100.00 %
+    Test CRC: '40010337'
+    Copy CRC: '40010337'
+    AccurateRip v1:
+      Result: Track not present in AccurateRip database
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 20
+      Local CRC: 6569068E
+      Remote CRC: 6569068E
+    Status: Copy OK
+
+  8:
+    Filename: 'Billy Joel/2014 - Original Album Classics (Volume 2) (Disc 3 of 5): 52nd Street/Billy Joel - 08 - Until The Night.flac'
+    Peak level: 1.0
+    Pre-emphasis:
+    Extraction speed: 12.4 X
+    Extraction quality: 100.00 %
+    Test CRC: 92A2867C
+    Copy CRC: 92A2867C
+    AccurateRip v1:
+      Result: Track not present in AccurateRip database
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 20
+      Local CRC: D29D879A
+      Remote CRC: D29D879A
+    Status: Copy OK
+
+  9:
+    Filename: 'Billy Joel/2014 - Original Album Classics (Volume 2) (Disc 3 of 5): 52nd Street/Billy Joel - 09 - 52nd Street.flac'
+    Peak level: 1.0
+    Pre-emphasis:
+    Extraction speed: 11.2 X
+    Extraction quality: 100.00 %
+    Test CRC: 0F509633
+    Copy CRC: 0F509633
+    AccurateRip v1:
+      Result: Track not present in AccurateRip database
+    AccurateRip v2:
+      Result: Found, exact match
+      Confidence: 20
+      Local CRC: '20826977'
+      Remote CRC: '20826977'
+    Status: Copy OK
+
+Conclusive status report:
+  AccurateRip summary: All tracks accurately ripped
+  Health status: No errors occurred
+  EOF: End of status report
+
+SHA-256 hash: 2644D084EEACD9F34F7F6F0B5D3DC36B0C6B1B053275366F01C0C4521C691E70
