@@ -52,13 +52,13 @@ nothing.
 src/Deadwax.Drive      libcdio via P/Invoke (TOC, drive identity); cdrdao TOC files
                        (catalog, ISRCs, CD-Text, pregaps); libcdio-paranoia secure
                        reads with offset correction
-src/Deadwax.Metadata   MusicBrainz and CDDB disc IDs
-src/Deadwax.Verify     AccurateRip IDs and database; CRC32/MD5 audio checks; whipper
-                       log, cue and config readers
+src/Deadwax.Metadata   disc IDs; MusicBrainz client, tags and library conventions
+src/Deadwax.Verify     AccurateRip IDs, database and checksums; CRC32/MD5 audio
+                       checks; whipper log, cue and config readers
+src/Deadwax.Output     libFLAC encoding, tags, file names, .cue/.m3u, the rip log
+src/Deadwax.Core       the rip session, shared by the command line and the window
 src/Deadwax.Cli        the deadwax command
 tests/Deadwax.Tests    golden files from real rips
-src/Deadwax.Output     libFLAC encoding, tags, file names, .cue/.m3u, the rip log
-src/Deadwax.Core       the rip session shared by the command line and, later, the window
 ```
 
 The App project arrives with the window.
