@@ -30,6 +30,8 @@ internal static class CheckTagsCommand
         }
 
         using var mb = new MusicBrainzClient(MusicBrainzClient.DefaultCacheDir);
+        var artistFolders = await ArtistFolders.ScanAsync(root);
+        var remnants = 0;
         var byKey = new SortedDictionary<string, int>(StringComparer.Ordinal);
         var examples = new Dictionary<string, List<string>>();
         int albums = 0, clean = 0, boxes = 0, tracks = 0;
@@ -48,6 +50,18 @@ internal static class CheckTagsCommand
             var toc = Directory.EnumerateFiles(dir, "*.toc").FirstOrDefault() is { } tocPath
                 ? CdrdaoToc.Parse(await File.ReadAllTextAsync(tocPath)) : null;
 
+            // A disc refiled out of a box by the older wizard can still carry the
+            // box's album ID: the library says disc 1 of 1, the release says
+            // otherwise. Its album-level tags are §7's job, like the others.
+            var libraryDiscTotal = first.FirstOrDefault(t => t.Key == "DISCTOTAL")?.Value;
+            if (libraryDiscTotal == "1" && release.RootElement.GetProperty("media").GetArrayLength() > 1) { remnants++; continue; }
+
+            // The folder's year is his decision (defaulting to the original
+            // year); here it stands in for the choice made on the Disc screen.
+            var folderYear = Path.GetFileName(dir)[..4];
+            var albumArtistId = first.FirstOrDefault(t => t.Key == "MUSICBRAINZ_ALBUMARTISTID")?.Value;
+            var folderArtist = albumArtistId is null ? null : artistFolders.For(albumArtistId);
+
             albums++;
             var albumDiffs = 0;
             foreach (var flac in flacs)
@@ -62,7 +76,9 @@ internal static class CheckTagsCommand
                 try
                 {
                     var medium = ReleaseTags.Medium(release.RootElement, discId, discNumber);
-                    expected = ReleaseTags.ForTrack(release.RootElement, medium, number, discId, disc?.Isrc ?? disc?.Text?.Isrc);
+                    expected = LibraryConventions.Apply(
+                        ReleaseTags.ForTrack(release.RootElement, medium, number, discId, disc?.Isrc ?? disc?.Text?.Isrc),
+                        folderYear, folderArtist);
                 }
                 catch (Exception e) when (e is MusicBrainzException or InvalidOperationException)
                 {
@@ -85,7 +101,8 @@ internal static class CheckTagsCommand
         }
 
         Console.WriteLine();
-        Console.WriteLine($"{albums} albums ({tracks} tracks) checked against MusicBrainz: {clean} with identical tags. {boxes} refiled box discs skipped.");
+        Console.WriteLine($"{albums} albums ({tracks} tracks) checked against MusicBrainz: {clean} with identical tags. " +
+                          $"{boxes + remnants} refiled box discs skipped ({remnants} still carrying the box's album ID).");
         if (byKey.Count > 0)
         {
             Console.WriteLine();
