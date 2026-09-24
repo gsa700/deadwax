@@ -16,12 +16,19 @@ namespace Deadwax.Metadata;
 ///   John Oates", "Smashing Pumpkins", "Metallica & San Francisco Symphony".
 public static class LibraryConventions
 {
-    /// The year a release is first offered with: its release group's first
-    /// release, or the release's own year when MusicBrainz has none.
-    public static string? OriginalYear(JsonElement release)
+    /// The year the Disc screen offers first. For an album, its original year:
+    /// the release group's first release (his rule, 2026-07-13). For a
+    /// compilation, the year of the edition in hand: MusicBrainz files the US
+    /// "Anthology of Bread" (1990) under the UK "The Sound of Bread" (1977), and
+    /// in the library 16 of 18 compilations whose years differ keep the edition's.
+    public static string? DefaultYear(JsonElement release)
     {
+        var rg = release.TryGetProperty("release-group", out var g) ? g : default;
+        var compilation = rg.ValueKind == JsonValueKind.Object && rg.TryGetProperty("secondary-types", out var types) &&
+                          types.EnumerateArray().Any(t => t.GetString() == "Compilation");
+
         string? first = null;
-        if (release.TryGetProperty("release-group", out var rg) && rg.TryGetProperty("first-release-date", out var f))
+        if (!compilation && rg.ValueKind == JsonValueKind.Object && rg.TryGetProperty("first-release-date", out var f))
             first = f.GetString();
         if (string.IsNullOrEmpty(first) && release.TryGetProperty("date", out var d)) first = d.GetString();
         return first is { Length: >= 4 } ? first[..4] : null;

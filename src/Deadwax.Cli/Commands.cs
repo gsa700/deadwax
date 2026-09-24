@@ -8,6 +8,14 @@ internal static class Commands
 {
     private const string Usage = """
         usage:
+          deadwax rip --library DIR [--release ID] [--year YYYY] [--device DEV] [--offset N]
+                      [--conventions LIBRARY] [--offline]
+              Rip the disc into DIR/Artist/YEAR - Album/: FLACs, .toc, .cue, .m3u,
+              .log. Artist spellings follow LIBRARY (default ~/Music). The year
+              defaults to the album's original year. Never writes over a folder.
+          deadwax compare DEADWAX_ALBUM_DIR WHIPPER_ALBUM_DIR
+              Gate G5: a Deadwax rip against whipper's rip of the same disc,
+              file by file: audio frames, tags, names, logs, .m3u, .cue, .toc.
           deadwax scan [--device DEV] [--full] [--online] [--against ALBUM_DIR|LOG]
               Read the disc's TOC and print its IDs; --full adds catalog, ISRCs,
               CD-Text and pregaps via cdrdao (~2 min). With --against, compare them
@@ -46,6 +54,8 @@ internal static class Commands
         {
             return args[0] switch
             {
+                "rip" => await RipCommand.RunAsync(args[1..]),
+                "compare" => await CompareCommand.RunAsync(args[1..]),
                 "scan" => await ScanCommand.RunAsync(args[1..]),
                 "read" => await ReadCommand.RunAsync(args[1..]),
                 "check-logs" => await CheckLogsCommand.RunAsync(args[1..]),

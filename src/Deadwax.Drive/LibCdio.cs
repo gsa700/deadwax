@@ -49,6 +49,20 @@ internal static partial class LibCdio
 
     static LibCdio() => NativeLibraries.Register();
 
+    /// libcdio's version, from its exported `const char *cdio_version_string`,
+    /// for the rip log ("2.3.0"); null if the library cannot be loaded.
+    public static string? Version()
+    {
+        NativeLibraries.Register();
+        foreach (var name in new[] { "libcdio.so.19", "libcdio.so" })
+        {
+            if (!NativeLibrary.TryLoad(name, out var handle)) continue;
+            if (!NativeLibrary.TryGetExport(handle, "cdio_version_string", out var slot)) return null;
+            return Marshal.PtrToStringUTF8(Marshal.ReadIntPtr(slot));
+        }
+        return null;
+    }
+
     // cdio_log_level_t: DEBUG = 1, INFO, WARN, ERROR, ASSERT.
     private const int LogError = 4;
 

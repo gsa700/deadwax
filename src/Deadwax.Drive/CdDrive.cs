@@ -99,6 +99,9 @@ public sealed class CdDrive : IDisposable
 
     private IntPtr Handle => _cdio != IntPtr.Zero ? _cdio : throw new ObjectDisposedException(nameof(CdDrive));
 
+    /// "libcdio-paranoia (libcdio 2.3.0)", for the rip log.
+    public static string EngineDescription => $"libcdio-paranoia (libcdio {LibCdio.Version() ?? "unknown"})";
+
     public void Dispose()
     {
         if (_cdio == IntPtr.Zero) return;

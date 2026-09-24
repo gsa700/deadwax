@@ -7,13 +7,14 @@ namespace Deadwax.Drive;
 /// paid the same on every rip.
 public static class Cdrdao
 {
-    public sealed record Result(string Text, CdrdaoToc Toc);
+    public sealed record Result(string Text, CdrdaoToc Toc, string Version);
 
     public static async Task<Result> ReadTocAsync(string device, CancellationToken ct = default)
     {
         // cdrdao will not write over an existing file, so give it a fresh name.
         var dir = Directory.CreateTempSubdirectory("deadwax-");
         var path = Path.Combine(dir.FullName, "disc.toc");
+        var version = "cdrdao";
         try
         {
             var start = new ProcessStartInfo("cdrdao")
@@ -41,6 +42,8 @@ public static class Cdrdao
                     throw;
                 }
                 var output = (await stdout) + (await stderr);
+                var versionLine = output.Split('\n').FirstOrDefault(l => l.StartsWith("Cdrdao version ", StringComparison.Ordinal));
+                version = versionLine is null ? "cdrdao" : "cdrdao " + versionLine.Split(' ')[2];
                 if (process.ExitCode != 0 || !File.Exists(path))
                 {
                     var last = output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).LastOrDefault();
@@ -49,7 +52,7 @@ public static class Cdrdao
             }
 
             var text = await File.ReadAllTextAsync(path, ct);
-            return new Result(text, CdrdaoToc.Parse(text));
+            return new Result(text, CdrdaoToc.Parse(text), version);
         }
         finally
         {

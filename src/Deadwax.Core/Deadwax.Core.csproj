@@ -5,13 +5,9 @@
     <ProjectReference Include="..\Deadwax.Metadata\Deadwax.Metadata.csproj" />
     <ProjectReference Include="..\Deadwax.Verify\Deadwax.Verify.csproj" />
     <ProjectReference Include="..\Deadwax.Output\Deadwax.Output.csproj" />
-    <ProjectReference Include="..\Deadwax.Core\Deadwax.Core.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <AssemblyName>deadwax</AssemblyName>
-    <RootNamespace>Deadwax.Cli</RootNamespace>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
