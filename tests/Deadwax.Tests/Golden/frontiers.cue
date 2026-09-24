@@ -1,0 +1,103 @@
+    UPC_EAN 886919012927
+REM DISCID BF0DE20E
+REM COMMENT "whipper 0.10.0"
+CATALOG 0082876858952
+PERFORMER "Journey"
+TITLE "Original Album Classics"
+FILE "Journey - 01 - Separate Ways (Worlds Apart).flac" WAVE
+  TRACK 01 AUDIO
+    ISRC "USSM18300106"
+    TITLE "Separate Ways (Worlds Apart)"
+    ISRC USSM18300106
+    INDEX 01 00:00:00
+  TRACK 02 AUDIO
+    ISRC "USSM18300107"
+    TITLE "Send Her My Love"
+    ISRC USSM18300107
+    INDEX 00 05:23:53
+FILE "Journey - 02 - Send Her My Love.flac" WAVE
+    INDEX 01 00:00:00
+  TRACK 03 AUDIO
+    ISRC "USSM18300108"
+    TITLE "Chain Reaction"
+    ISRC USSM18300108
+    INDEX 00 03:54:41
+FILE "Journey - 03 - Chain Reaction.flac" WAVE
+    INDEX 01 00:00:00
+  TRACK 04 AUDIO
+    ISRC "USSM18300109"
+    TITLE "After the Fall"
+    ISRC USSM18300109
+    INDEX 00 04:19:24
+FILE "Journey - 04 - After the Fall.flac" WAVE
+    INDEX 01 00:00:00
+  TRACK 05 AUDIO
+    ISRC "USSM18300110"
+    TITLE "Faithfully"
+    ISRC USSM18300110
+    INDEX 00 05:00:72
+FILE "Journey - 05 - Faithfully.flac" WAVE
+    INDEX 01 00:00:00
+  TRACK 06 AUDIO
+    ISRC "USSM18300111"
+    TITLE "Edge of the Blade"
+    ISRC USSM18300111
+    INDEX 00 04:27:06
+FILE "Journey - 06 - Edge of the Blade.flac" WAVE
+    INDEX 01 00:00:00
+  TRACK 07 AUDIO
+    ISRC "USSM18300112"
+    TITLE "Troubled Child"
+    ISRC USSM18300112
+    INDEX 00 04:30:44
+FILE "Journey - 07 - Troubled Child.flac" WAVE
+    INDEX 01 00:00:00
+  TRACK 08 AUDIO
+    ISRC "USSM18300113"
+    TITLE "Back Talk"
+    ISRC USSM18300113
+    INDEX 00 04:29:09
+FILE "Journey - 08 - Back Talk.flac" WAVE
+    INDEX 01 00:00:00
+  TRACK 09 AUDIO
+    ISRC "USSM18300114"
+    TITLE "Frontiers"
+    ISRC USSM18300114
+    INDEX 00 03:16:44
+FILE "Journey - 09 - Frontiers.flac" WAVE
+    INDEX 01 00:00:00
+  TRACK 10 AUDIO
+    ISRC "USSM18300115"
+    TITLE "Rubicon"
+    ISRC USSM18300115
+    INDEX 00 04:09:68
+FILE "Journey - 10 - Rubicon.flac" WAVE
+    INDEX 01 00:00:00
+  TRACK 11 AUDIO
+    ISRC "USSM10604485"
+    TITLE "Only the Young"
+    ISRC USSM10604485
+    INDEX 00 04:17:59
+FILE "Journey - 11 - Only the Young.flac" WAVE
+    INDEX 01 00:00:00
+  TRACK 12 AUDIO
+    ISRC "USSM19932794"
+    TITLE "Ask the Lonely"
+    ISRC USSM19932794
+    INDEX 00 04:16:74
+FILE "Journey - 12 - Ask the Lonely.flac" WAVE
+    INDEX 01 00:00:00
+  TRACK 13 AUDIO
+    ISRC "USSM10015431"
+    TITLE "Liberty"
+    ISRC USSM10015431
+    INDEX 00 03:53:49
+FILE "Journey - 13 - Liberty.flac" WAVE
+    INDEX 01 00:00:00
+  TRACK 14 AUDIO
+    ISRC "USSM10015430"
+    TITLE "Only Solutions"
+    ISRC USSM10015430
+    INDEX 00 02:53:66
+FILE "Journey - 14 - Only Solutions.flac" WAVE
+    INDEX 01 00:00:00

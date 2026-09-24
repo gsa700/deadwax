@@ -5,6 +5,9 @@ namespace Deadwax.Drive;
 
 /// The slice of libcdio Deadwax calls. Signatures follow libcdio 2.x (soname
 /// libcdio.so.19); none of the -devel headers are needed to build.
+///
+/// Not here: libcdio's catalog and ISRC calls. They return nothing on the
+/// BDR-209D for discs that have both, so those come from cdrdao (CdrdaoToc).
 internal static partial class LibCdio
 {
     private const string Lib = "cdio";
@@ -41,28 +44,9 @@ internal static partial class LibCdio
     [LibraryImport(Lib)]
     public static partial int cdio_get_track_format(IntPtr cdio, byte track);
 
-    /// Returns a malloc'd string, or null. Free with cdio_free.
-    [LibraryImport(Lib)]
-    public static partial IntPtr cdio_get_mcn(IntPtr cdio);
-
-    /// Returns a malloc'd string, or null. Free with cdio_free.
-    [LibraryImport(Lib)]
-    public static partial IntPtr cdio_get_track_isrc(IntPtr cdio, byte track);
-
     [LibraryImport(Lib)]
     [return: MarshalAs(UnmanagedType.U1)]
     public static unsafe partial bool cdio_get_hwinfo(IntPtr cdio, byte* hwinfo);
-
-    [LibraryImport(Lib)]
-    public static partial void cdio_free(IntPtr p);
-
-    /// Takes ownership of a string libcdio allocated: copies it, frees it.
-    public static string? TakeString(IntPtr p)
-    {
-        if (p == IntPtr.Zero) return null;
-        try { return Marshal.PtrToStringUTF8(p); }
-        finally { cdio_free(p); }
-    }
 
     // Distributions ship libcdio as libcdio.so.19 and only install the bare
     // libcdio.so with the -devel package, so the plain name would not load on a

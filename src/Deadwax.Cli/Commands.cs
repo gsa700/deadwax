@@ -8,8 +8,9 @@ internal static class Commands
 {
     private const string Usage = """
         usage:
-          deadwax scan [--device DEV] [--isrc] [--online] [--against ALBUM_DIR|LOG]
-              Read the disc's TOC and print its IDs. With --against, compare them
+          deadwax scan [--device DEV] [--full] [--online] [--against ALBUM_DIR|LOG]
+              Read the disc's TOC and print its IDs; --full adds catalog, ISRCs,
+              CD-Text and pregaps via cdrdao (~2 min). With --against, compare them
               with the whipper log of the same disc (gate G1).
           deadwax check-logs [LIBRARY] [--online N]
               Rebuild each whipper log's TOC and check that Deadwax computes the

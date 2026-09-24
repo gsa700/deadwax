@@ -79,17 +79,6 @@ public sealed class CdDrive : IDisposable
         }
     }
 
-    /// The disc's catalog number (UPC/EAN), when the disc carries one.
-    public string? ReadCatalog() => Blank(LibCdio.TakeString(LibCdio.cdio_get_mcn(Handle)));
-
-    /// A track's ISRC, when the disc carries one. Read from the subchannel, so
-    /// this takes a moment per track.
-    public string? ReadIsrc(int track) => Blank(LibCdio.TakeString(LibCdio.cdio_get_track_isrc(Handle, checked((byte)track))));
-
-    // Drives report "no catalog" as an empty string, or as all zeros.
-    private static string? Blank(string? s) =>
-        string.IsNullOrWhiteSpace(s) || s.All(c => c == '0') ? null : s.Trim();
-
     private IntPtr Handle => _cdio != IntPtr.Zero ? _cdio : throw new ObjectDisposedException(nameof(CdDrive));
 
     public void Dispose()

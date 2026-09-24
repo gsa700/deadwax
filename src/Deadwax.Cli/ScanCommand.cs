@@ -15,7 +15,7 @@ internal static class ScanCommand
         var options = new Options(args);
         var device = options.Value("--device") ?? CdDrive.DefaultDevice;
         var against = options.Value("--against");
-        var readIsrc = options.Flag("--isrc");
+        var full = options.Flag("--full");
         var online = options.Flag("--online");
         options.Rest();
 
@@ -27,13 +27,20 @@ internal static class ScanCommand
             if (log is null) return Fail($"no whipper .log found at {against}");
         }
 
-        using var drive = CdDrive.Open(device);
-        var identity = drive.ReadIdentity();
-        var toc = drive.ReadToc();
-        var catalog = drive.ReadCatalog();
-        var isrcs = readIsrc
-            ? toc.Tracks.Where(t => t.IsAudio).ToDictionary(t => t.Number, t => drive.ReadIsrc(t.Number))
-            : null;
+        DriveIdentity? identity;
+        Toc toc;
+        using (var drive = CdDrive.Open(device))
+        {
+            identity = drive.ReadIdentity();
+            toc = drive.ReadToc();
+        }
+
+        CdrdaoToc? cdrdao = null;
+        if (full)
+        {
+            Console.Error.WriteLine("Reading catalog, ISRCs, CD-Text and pregaps with cdrdao (about two minutes)...");
+            cdrdao = (await Cdrdao.ReadTocAsync(device)).Toc;
+        }
 
         var mbId = DiscIds.MusicBrainz(toc);
         var cddb = DiscIds.Cddb(toc);
@@ -41,13 +48,19 @@ internal static class ScanCommand
 
         Console.WriteLine($"Drive        {identity?.ToString() ?? "(unknown)"} at {device}");
         Console.WriteLine($"Tracks       {toc.FirstTrack}-{toc.LastTrack}, {toc.Tracks.Count(t => t.IsAudio)} audio, lead-out at sector {toc.LeadoutLsn} ({Clock(toc.LeadoutLsn)})");
-        Console.WriteLine($"Catalog      {catalog ?? "(none)"}");
+        if (cdrdao is not null)
+        {
+            Console.WriteLine($"Catalog      {CdrdaoToc.Real(cdrdao.Catalog) ?? "(none)"}{(CdrdaoToc.Real(cdrdao.DiscText?.UpcEan) is { } upc ? $", CD-Text {upc}" : "")}");
+            if (cdrdao.DiscText is { } text) Console.WriteLine($"CD-Text      {text.Performer} / {text.Title}");
+        }
         Console.WriteLine();
-        Console.WriteLine("  #   start sector  length     ISRC");
+        Console.WriteLine(cdrdao is null ? "  #   start sector  length" : "  #   start sector  length     pregap  ISRC");
         foreach (var t in toc.Tracks)
         {
-            var isrc = isrcs is not null && isrcs.TryGetValue(t.Number, out var i) ? i ?? "-" : "";
-            Console.WriteLine($"  {t.Number,2}  {t.StartLsn,12}  {Clock(toc.EndLsn(t) - t.StartLsn),-9}  {(t.IsAudio ? isrc : "(data)")}");
+            var line = $"  {t.Number,2}  {t.StartLsn,12}  {Clock(toc.EndLsn(t) - t.StartLsn),-9}";
+            if (cdrdao?.Tracks.FirstOrDefault(x => x.Number == t.Number) is { } c)
+                line += $"  {Clock(c.PregapSectors),-7} {c.Isrc ?? c.Text?.Isrc ?? "-"}";
+            Console.WriteLine(t.IsAudio ? line : line + "  (data)");
         }
         Console.WriteLine();
         Console.WriteLine($"MusicBrainz  {mbId}");
@@ -60,8 +73,21 @@ internal static class ScanCommand
         {
             Console.WriteLine();
             Console.WriteLine($"Against {log.Path}");
-            failures += Compare(log, toc, mbId, cddb);
-            if (cuePath is not null) failures += CompareCue(cuePath, catalog, isrcs);
+            var logged = log.ToToc();
+            var checks = new List<Check>();
+            checks.AddRange(CdrdaoChecks.AgainstToc(toc, logged));
+            checks.Add(new("MusicBrainz TOC", DiscIds.MusicBrainzToc(toc), log.MusicBrainzToc));
+            checks.Add(new("MusicBrainz ID", mbId, log.MusicBrainzId));
+            checks.Add(new("CDDB ID", Hex(cddb), log.CddbId is { } id ? Hex(id) : null));
+            if (cdrdao is not null)
+            {
+                // cdrdao's own TOC must agree with libcdio's, then with the cue.
+                checks.AddRange(CdrdaoChecks.AgainstToc(cdrdao.ToToc(), toc).Select(c => c with { What = "cdrdao " + c.What }));
+                if (cuePath is not null) checks.AddRange(CdrdaoChecks.AgainstCue(cdrdao, WhipperCue.Load(cuePath)));
+            }
+            foreach (var c in checks) c.Print();
+            failures += checks.Count(c => !c.Same);
+            if (cdrdao is null) Console.WriteLine("  (catalog and ISRCs not checked: add --full)");
         }
 
         if (online)
@@ -84,67 +110,9 @@ internal static class ScanCommand
         if (log is not null)
         {
             Console.WriteLine();
-            Console.WriteLine(failures == 0 ? "G1: PASS, everything matches whipper's log." : $"G1: FAIL, {failures} difference(s).");
+            Console.WriteLine(failures == 0 ? "G1: PASS, everything matches whipper." : $"G1: FAIL, {failures} difference(s).");
         }
         return failures == 0 ? 0 : 1;
-    }
-
-    private static int Compare(WhipperLog log, Toc toc, string mbId, uint cddb)
-    {
-        var failures = 0;
-        void Check(string what, string ours, string? theirs)
-        {
-            var same = string.Equals(ours, theirs, StringComparison.OrdinalIgnoreCase);
-            if (!same) failures++;
-            Console.WriteLine($"  {(same ? "same" : "DIFF")}  {what,-16} {ours}{(same ? "" : $"  (whipper: {theirs ?? "none"})")}");
-        }
-
-        var logged = log.ToToc();
-        Check("track count", toc.Tracks.Count.ToString(), logged.Tracks.Count.ToString());
-        foreach (var t in toc.Tracks)
-        {
-            var theirs = logged.Tracks.FirstOrDefault(x => x.Number == t.Number);
-            Check($"track {t.Number} start", t.StartLsn.ToString(), theirs?.StartLsn.ToString());
-        }
-        Check("lead-out", toc.LeadoutLsn.ToString(), logged.LeadoutLsn.ToString());
-        Check("MusicBrainz TOC", DiscIds.MusicBrainzToc(toc), log.MusicBrainzToc);
-        Check("MusicBrainz ID", mbId, log.MusicBrainzId);
-        Check("CDDB ID", Hex(cddb), log.CddbId is { } c ? Hex(c) : null);
-        return failures;
-    }
-
-    /// Catalog and ISRCs are in whipper's .cue, not its log. whipper writes the
-    /// catalog two ways ("CATALOG n" and an indented "UPC_EAN n"), and writes an
-    /// all-zero catalog when the disc has none.
-    private static int CompareCue(string cuePath, string? catalog, Dictionary<int, string?>? isrcs)
-    {
-        var failures = 0;
-        var lines = File.ReadAllLines(cuePath);
-        var cueCatalog = lines.Select(l => l.Trim())
-            .Where(l => l.StartsWith("CATALOG ", StringComparison.Ordinal) || l.StartsWith("UPC_EAN ", StringComparison.Ordinal))
-            .Select(l => l[(l.IndexOf(' ') + 1)..].Trim())
-            .FirstOrDefault(v => v.Any(c => c != '0'));
-        var same = catalog == cueCatalog;
-        if (!same) failures++;
-        Console.WriteLine($"  {(same ? "same" : "DIFF")}  {"catalog",-16} {catalog ?? "none"}{(same ? "" : $"  (whipper: {cueCatalog ?? "none"})")}");
-
-        if (isrcs is null) return failures;
-        var cueIsrcs = new Dictionary<int, string>();
-        var track = 0;
-        foreach (var raw in lines)
-        {
-            var l = raw.Trim();
-            if (l.StartsWith("TRACK ", StringComparison.Ordinal)) track = int.Parse(l.Split(' ')[1]);
-            else if (l.StartsWith("ISRC ", StringComparison.Ordinal) && track > 0) cueIsrcs.TryAdd(track, l[5..].Trim().Trim('"'));
-        }
-        foreach (var (n, ours) in isrcs)
-        {
-            cueIsrcs.TryGetValue(n, out var theirs);
-            var s = ours == theirs;
-            if (!s) failures++;
-            Console.WriteLine($"  {(s ? "same" : "DIFF")}  {$"track {n} ISRC",-16} {ours ?? "none"}{(s ? "" : $"  (whipper: {theirs ?? "none"})")}");
-        }
-        return failures;
     }
 
     private static (WhipperLog? Log, string? Cue) FindLog(string path)

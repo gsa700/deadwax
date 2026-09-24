@@ -6,9 +6,11 @@ namespace Deadwax.Tests;
 /// disc, ~/Music, nor the network.
 internal static class Golden
 {
-    private static string PathOf(string name) => Path.Combine(AppContext.BaseDirectory, "Golden", name);
+    public static string PathOf(string name) => Path.Combine(AppContext.BaseDirectory, "Golden", name);
 
     public static WhipperLog Log(string name) => WhipperLog.Load(PathOf(name));
 
     public static byte[] Bytes(string name) => File.ReadAllBytes(PathOf(name));
+
+    public static string Text(string name) => File.ReadAllText(PathOf(name));
 }

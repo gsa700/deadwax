@@ -21,6 +21,7 @@ internal static class CheckLogsCommand
         if (logs.Count == 0) return Fail($"no .log files under {library}");
 
         int passed = 0, failed = 0, skipped = 0, gaps = 0;
+        int tocPassed = 0, tocFailed = 0, tocMissing = 0;
         var arCandidates = new List<(WhipperLog Log, AccurateRipId Id)>();
 
         foreach (var path in logs)
@@ -51,6 +52,37 @@ internal static class CheckLogsCommand
             var cddb = DiscIds.Cddb(toc);
             if (cddb != log.CddbId) problems.Add($"CDDB ID {Hex(cddb)} != logged {Hex(log.CddbId.Value)}");
 
+            // whipper kept cdrdao's TOC file beside the log. Reading it must give
+            // back the same TOC the log records, and the catalog and ISRCs whipper
+            // copied from it into the cue.
+            var dir = Path.GetDirectoryName(path)!;
+            var tocFile = Directory.EnumerateFiles(dir, "*.toc").FirstOrDefault();
+            var cueFile = Directory.EnumerateFiles(dir, "*.cue").FirstOrDefault();
+            if (tocFile is null || cueFile is null)
+            {
+                tocMissing++;
+            }
+            else
+            {
+                List<Check> checks;
+                try
+                {
+                    var cdrdao = Drive.CdrdaoToc.Parse(File.ReadAllText(tocFile));
+                    checks = [.. CdrdaoChecks.AgainstToc(cdrdao.ToToc(), toc), .. CdrdaoChecks.AgainstCue(cdrdao, WhipperCue.Load(cueFile))];
+                }
+                catch (FormatException e)
+                {
+                    checks = [new Check("TOC file", e.Message, "readable")];
+                }
+                var bad = checks.Where(c => !c.Same).ToList();
+                if (bad.Count == 0) tocPassed++;
+                else
+                {
+                    tocFailed++;
+                    problems.AddRange(bad.Select(c => $"{Path.GetExtension(tocFile)}/cue: {c.What} {c.Ours} != whipper {c.Theirs ?? "none"}"));
+                }
+            }
+
             if (problems.Count == 0)
             {
                 passed++;
@@ -66,7 +98,8 @@ internal static class CheckLogsCommand
         }
 
         Console.WriteLine();
-        Console.WriteLine($"Disc IDs from {logs.Count} logs: {passed} match whipper, {failed} differ, {skipped} skipped.");
+        Console.WriteLine($"{logs.Count} logs: {passed} fully match whipper, {failed} differ, {skipped} skipped.");
+        Console.WriteLine($"cdrdao TOC files: {tocPassed} give the same TOC, catalog and ISRCs as whipper's log and cue, {tocFailed} differ, {tocMissing} missing.");
         Console.WriteLine($"{gaps} logs list a stretch before track 1 as track 0.");
 
         var arFailed = 0;

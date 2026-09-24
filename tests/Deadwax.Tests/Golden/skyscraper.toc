@@ -1,0 +1,156 @@
+CD_DA
+
+CATALOG "0603497823567"
+CD_TEXT {
+  LANGUAGE_MAP {
+    0: 9
+  }
+  LANGUAGE 0 {
+    TITLE "The Warner Recordings (1985-1994)"
+    PERFORMER "David Lee Roth"
+    SIZE_INFO { 1,  1, 10,  0, 42,  3,  0,  0,  0,  0,  0,  0,
+                0,  0,  0,  0,  0,  0,  0,  3, 47,  0,  0,  0,
+                0,  0,  0,  0,  9,  0,  0,  0,  0,  0,  0,  0}
+  }
+}
+
+// Track 1
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USWB22400099"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Knucklebones (2025 Remaster) - David Lee Roth"
+  }
+}
+FILE "data.wav" 0 03:18:54
+
+
+// Track 2
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USWB22400100"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Just Like Paradise (2025 Remaster) - David Lee Roth"
+  }
+}
+FILE "data.wav" 03:18:54 04:03:19
+
+
+// Track 3
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USWB22400101"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "The Bottom Line (2025 Remaster) - David Lee Roth"
+  }
+}
+FILE "data.wav" 07:21:73 03:38:06
+
+
+// Track 4
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USWB22400102"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Skyscraper (2025 Remaster) - David Lee Roth"
+  }
+}
+FILE "data.wav" 11:00:04 03:40:65
+
+
+// Track 5
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USWB22400103"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Damn Good (2025 Remaster) - David Lee Roth"
+  }
+}
+FILE "data.wav" 14:40:69 05:48:55
+
+
+// Track 6
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USWB22400104"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Hot Dog and a Shake (2025 Remaster) - David Lee Roth"
+  }
+}
+FILE "data.wav" 20:29:49 03:19:69
+
+
+// Track 7
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USWB12403936"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Stand Up (2025 Remaster) - David Lee Roth"
+  }
+}
+FILE "data.wav" 23:49:43 04:40:05
+
+
+// Track 8
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USWB22400105"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Hina (2025 Remaster) - David Lee Roth"
+  }
+}
+FILE "data.wav" 28:29:48 04:41:07
+
+
+// Track 9
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USWB22400106"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Perfect Timing (2025 Remaster) - David Lee Roth"
+  }
+}
+FILE "data.wav" 33:10:55 03:41:35
+
+
+// Track 10
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USWB22400107"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Two Fools a Minute (2025 Remaster) - David Lee Roth"
+    PERFORMER ""
+  }
+}
+FILE "data.wav" 36:52:15 04:27:61
+

@@ -7,3 +7,7 @@
 *.webp binary
 
 *.bin binary
+
+# Golden files are real rip output, kept byte for byte (one has a stray CR
+# inside a CD-Text string on purpose).
+tests/Deadwax.Tests/Golden/** -text
