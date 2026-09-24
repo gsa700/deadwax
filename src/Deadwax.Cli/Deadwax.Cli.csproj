@@ -4,6 +4,7 @@
     <ProjectReference Include="..\Deadwax.Drive\Deadwax.Drive.csproj" />
     <ProjectReference Include="..\Deadwax.Metadata\Deadwax.Metadata.csproj" />
     <ProjectReference Include="..\Deadwax.Verify\Deadwax.Verify.csproj" />
+    <ProjectReference Include="..\Deadwax.Output\Deadwax.Output.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

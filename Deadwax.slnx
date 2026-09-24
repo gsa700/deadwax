@@ -3,6 +3,7 @@
     <Project Path="src/Deadwax.Cli/Deadwax.Cli.csproj" />
     <Project Path="src/Deadwax.Drive/Deadwax.Drive.csproj" />
     <Project Path="src/Deadwax.Metadata/Deadwax.Metadata.csproj" />
+    <Project Path="src/Deadwax.Output/Deadwax.Output.csproj" />
     <Project Path="src/Deadwax.Verify/Deadwax.Verify.csproj" />
   </Folder>
   <Folder Name="/tests/">
