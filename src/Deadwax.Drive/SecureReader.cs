@@ -107,8 +107,9 @@ public sealed class SecureReader : IDisposable
         _drive = drive;
     }
 
-    public static SecureReader Open(string device = CdDrive.DefaultDevice)
+    public static SecureReader Open(string? device = null)
     {
+        device ??= CdDrive.DefaultDevice;
         IntPtr drive;
         try
         {

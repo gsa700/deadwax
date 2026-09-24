@@ -92,7 +92,7 @@ internal static partial class ReadCommand
             var testCrc = AudioChecks.Crc32(testAudio);
             testAudio = null;
             var (copyAudio, copyReport) = reader.ReadTrack(toc, n, offset, retries, Progress($"track {n} copy"));
-            Console.Error.Write("\r\x1b[K");
+            if (!Console.IsErrorRedirected) Console.Error.Write("\r\x1b[K");
 
             var copyCrc = AudioChecks.Crc32(copyAudio);
             var passOk = testCrc == copyCrc && copyReport.Skips == 0 && testReport.Skips == 0;
@@ -146,13 +146,24 @@ internal static partial class ReadCommand
         return failures + arFailures == 0 ? 0 : 1;
     }
 
-    private static Action<int, int>? Progress(string label)
+    /// On a terminal, one line rewritten in place. Redirected to a file, a line
+    /// every 10% with the time, so a slow disc shows where it is slow: a run
+    /// on a smudged Anthology of Bread went 20 minutes with nothing to see.
+    private static Action<int, int> Progress(string label)
     {
-        if (Console.IsErrorRedirected) return null;
         var last = -1;
+        var clock = System.Diagnostics.Stopwatch.StartNew();
         return (done, total) =>
         {
             var pct = done * 100 / total;
+            if (Console.IsErrorRedirected)
+            {
+                var step = pct / 10 * 10;
+                if (step == last) return;
+                last = step;
+                Console.Error.WriteLine($"  {label} {step,3}%  sector {done}/{total}  {clock.Elapsed:mm\\:ss}");
+                return;
+            }
             if (pct == last) return;
             last = pct;
             Console.Error.Write($"\r\x1b[K  {label} {pct,3}%");

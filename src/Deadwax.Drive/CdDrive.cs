@@ -10,7 +10,24 @@ public sealed class DriveException(string message) : Exception(message);
 /// A CD drive with a disc in it. Holds libcdio's handle; dispose to release it.
 public sealed class CdDrive : IDisposable
 {
-    public const string DefaultDevice = "/dev/sr0";
+    /// The drive to use when none is named: /dev/cdrom if udev made that link,
+    /// otherwise the first /dev/srN. Not a fixed /dev/sr0: after a USB reset
+    /// with the old device still held open, the BDR-209D came back as sr1 and
+    /// no /dev/cdrom link existed (2026-09-24).
+    public static string DefaultDevice
+    {
+        get
+        {
+            if (File.Exists("/dev/cdrom")) return "/dev/cdrom";
+            var sr = Directory.Exists("/dev")
+                ? Directory.EnumerateFiles("/dev", "sr*")
+                    .Where(p => int.TryParse(Path.GetFileName(p)[2..], out _))
+                    .OrderBy(p => int.Parse(Path.GetFileName(p)[2..]))
+                    .FirstOrDefault()
+                : null;
+            return sr ?? "/dev/sr0";
+        }
+    }
 
     private IntPtr _cdio;
 
@@ -22,8 +39,9 @@ public sealed class CdDrive : IDisposable
         _cdio = cdio;
     }
 
-    public static CdDrive Open(string device = DefaultDevice)
+    public static CdDrive Open(string? device = null)
     {
+        device ??= DefaultDevice;
         IntPtr cdio;
         try
         {
