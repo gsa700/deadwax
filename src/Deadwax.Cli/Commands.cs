@@ -20,6 +20,10 @@ internal static class Commands
           deadwax check-audio [LIBRARY|LOG] [--limit N]
               Decode whipper's FLACs and check Deadwax's copy CRC and AccurateRip
               v1/v2 checksums of that audio equal the logged ones (G2/G3, no drive).
+          deadwax check-tags [LIBRARY] [--limit N] [--verbose]
+              Build each album's tags from MusicBrainz and the disc's .toc and
+              compare them with the tags in the library (G4). Caches releases in
+              ~/.cache/deadwax/musicbrainz.
           deadwax check-logs [LIBRARY] [--online N]
               Rebuild each whipper log's TOC and check that Deadwax computes the
               same disc IDs whipper recorded. --online N also fetches N discs from
@@ -43,6 +47,7 @@ internal static class Commands
                 "read" => await ReadCommand.RunAsync(args[1..]),
                 "check-logs" => await CheckLogsCommand.RunAsync(args[1..]),
                 "check-audio" => await CheckAudioCommand.RunAsync(args[1..]),
+                "check-tags" => await CheckTagsCommand.RunAsync(args[1..]),
                 _ => Fail($"unknown command '{args[0]}'\n\n{Usage}"),
             };
         }

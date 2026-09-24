@@ -154,7 +154,16 @@ internal static class CheckLogsCommand
             }
         }
 
-        var ok = missing == 0 && matched > 0;
+        // A disc whipper found no match for can have been submitted since
+        // (Shout at the Devil: none at rip time, 2 pressings by 2026-09-24).
+        // The file being there at Deadwax's URL is then the whole check.
+        if (matched == 0 && missing == 0)
+        {
+            Console.WriteLine($"OK    {name}: {id.FileName}, {blocks.Count} pressing(s); whipper had no match at rip time, so no logged CRCs to look for");
+            return true;
+        }
+
+        var ok = missing == 0;
         Console.WriteLine($"{(ok ? "OK  " : "FAIL")}  {name}: {id.FileName}, {blocks.Count} pressing(s), {matched} logged CRCs found{(missing > 0 ? $", {missing} MISSING" : "")}");
         return ok;
     }
