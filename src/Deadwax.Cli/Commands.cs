@@ -24,6 +24,9 @@ internal static class Commands
               Build each album's tags from MusicBrainz and the disc's .toc and
               compare them with the tags in the library (G4). Caches releases in
               ~/.cache/deadwax/musicbrainz.
+          deadwax check-sidecars [LIBRARY] [--verbose]
+              Regenerate each album's .cue and .m3u from its .toc and compare
+              them with whipper's (G4).
           deadwax check-logs [LIBRARY] [--online N]
               Rebuild each whipper log's TOC and check that Deadwax computes the
               same disc IDs whipper recorded. --online N also fetches N discs from
@@ -48,6 +51,7 @@ internal static class Commands
                 "check-logs" => await CheckLogsCommand.RunAsync(args[1..]),
                 "check-audio" => await CheckAudioCommand.RunAsync(args[1..]),
                 "check-tags" => await CheckTagsCommand.RunAsync(args[1..]),
+                "check-sidecars" => await CheckSidecarsCommand.RunAsync(args[1..]),
                 _ => Fail($"unknown command '{args[0]}'\n\n{Usage}"),
             };
         }
