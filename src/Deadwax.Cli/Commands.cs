@@ -8,9 +8,9 @@ internal static class Commands
 {
     private const string Usage = """
         usage:
-          deadwax rip --library DIR [--release ID] [--year YYYY] [--device DEV] [--offset N]
+          deadwax rip [--library DIR] [--release ID] [--year YYYY] [--device DEV] [--offset N]
                       [--conventions LIBRARY] [--offline] [--post-rip [--unbox]]
-              Rip the disc into DIR/Artist/YEAR - Album/: FLACs, .toc, .cue, .m3u,
+              Rip the disc into DIR/Artist/YEAR - Album/ (DIR defaults to ~/Music): FLACs, .toc, .cue, .m3u,
               .log. Artist spellings follow LIBRARY (default ~/Music). The year
               defaults to the album's original year. Never writes over a folder.
               --post-rip then runs music-unbox (plan only unless --unbox),

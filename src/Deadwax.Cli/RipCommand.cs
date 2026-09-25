@@ -12,7 +12,7 @@ internal static class RipCommand
     {
         var options = new Options(args);
         var device = options.Value("--device");
-        var library = options.Value("--library");
+        var library = options.Value("--library") ?? "~/Music";   // his library since G5 (2026-09-24)
         var conventions = options.Value("--conventions") ?? "~/Music";
         var release = options.Value("--release");
         var year = options.Value("--year");
@@ -21,25 +21,21 @@ internal static class RipCommand
         var postRip = options.Flag("--post-rip");
         var unbox = options.Flag("--unbox");
         options.Rest();
-        if (library is null) return Fail("--library DIR is required (use a scratch folder until G5 has passed)");
 
-        var session = new RipSession(
-            new RipOptions
-            {
-                Device = device,
-                Library = Home(library),
-                ConventionsLibrary = Home(conventions),
-                ReleaseId = release,
-                Year = year,
-                Offset = offset is null ? null : int.Parse(offset),
-                AccurateRip = !offline,
-            },
-            say: Console.WriteLine,
-            progress: Progress());
+        var ripOptions = new RipOptions
+        {
+            Device = device,
+            Library = Home(library),
+            ConventionsLibrary = Home(conventions),
+            ReleaseId = release,
+            Year = year,
+            Offset = offset is null ? null : int.Parse(offset),
+            AccurateRip = !offline,
+        };
 
         try
         {
-            var result = await session.RunAsync();
+            var result = await RipSession.RunAsync(ripOptions, new ConsoleObserver());
             if (!Console.IsErrorRedirected) Console.Error.Write("\r\x1b[K");
             Console.WriteLine();
             Console.WriteLine(result.AllOk
@@ -65,23 +61,26 @@ internal static class RipCommand
         }
     }
 
-    private static Action<int, string, int, int> Progress()
+    private sealed class ConsoleObserver : IRipObserver
     {
-        var last = (Track: 0, Pass: "", Step: -1);
-        var clock = System.Diagnostics.Stopwatch.StartNew();
-        return (track, pass, done, total) =>
+        private (int Track, string Pass, int Step) _last = (0, "", -1);
+        private readonly System.Diagnostics.Stopwatch _clock = System.Diagnostics.Stopwatch.StartNew();
+
+        public void Say(string message) => Console.WriteLine(message);
+
+        public void Progress(int track, string pass, int done, int total)
         {
             var pct = done * 100 / total;
             if (Console.IsErrorRedirected)
             {
                 var step = pct / 10 * 10;
-                if ((track, pass, step) == last) return;
-                if (last.Track != track || last.Pass != pass) clock.Restart();
-                last = (track, pass, step);
-                Console.Error.WriteLine($"  track {track} {pass} {step,3}%  {clock.Elapsed:mm\\:ss}");
+                if ((track, pass, step) == _last) return;
+                if (_last.Track != track || _last.Pass != pass) _clock.Restart();
+                _last = (track, pass, step);
+                Console.Error.WriteLine($"  track {track} {pass} {step,3}%  {_clock.Elapsed:mm\\:ss}");
                 return;
             }
             Console.Error.Write($"\r\x1b[K  track {track} {pass} {pct,3}%");
-        };
+        }
     }
 }

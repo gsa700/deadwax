@@ -15,7 +15,7 @@ public sealed record RipOptions
     /// when writing a scratch copy somewhere else).
     public required string ConventionsLibrary { get; init; }
     public string? ReleaseId { get; init; }
-    /// The folder year. Default: LibraryConventions.DefaultYear (spec §7).
+    /// The folder year. Default: ReleasePlan.DefaultYear (spec §7).
     public string? Year { get; init; }
     public int? Offset { get; init; }
     public int MaxRetries { get; init; } = SecureReader.DefaultMaxRetries;
@@ -40,18 +40,107 @@ public sealed record RipResult(string AlbumDirectory, IReadOnlyList<RippedTrack>
     public bool AllOk => Tracks.All(t => t.CopyOk);
 }
 
-/// One rip, start to finish, for the command line now and the window later
-/// (spec §4). Reads the disc, finds the release, reads every track securely
-/// until two passes agree, checks AccurateRip, and writes FLACs plus the .toc,
-/// .cue, .m3u and .log. It refuses to write into a folder that exists.
-public sealed class RipSession(RipOptions options, Action<string> say, Action<int, string, int, int>? progress = null)
+/// Everything known about the disc before a release is chosen: what the Disc
+/// screen shows while he picks.
+public sealed record PreparedDisc(
+    string Device, DriveIdentity? Identity, Toc Toc, int Offset, string DiscId, uint Cddb,
+    Cdrdao.Result Cdrdao, IReadOnlyList<ReleaseCandidate> Candidates)
+{
+    public int AudioTracks => Toc.Tracks.Count(t => t.IsAudio);
+    public string? Catalog => Cdrdao.Toc.EffectiveCatalog;
+    public bool HasPreTrackGap => Cdrdao.Toc.Tracks.Count > 0 && Cdrdao.Toc.Tracks[0].PregapSectors > 0;
+    public bool PreEmphasis => Cdrdao.Toc.Tracks.Any(t => t.PreEmphasis);
+}
+
+public sealed record PlannedTrack(int Number, string Title, string? Artist, int Sectors, string FileName);
+
+/// One release chosen for the disc: the names, the years to choose between, and
+/// the tags waiting for each track.
+public sealed class ReleasePlan : IDisposable
+{
+    internal JsonDocument Document { get; }
+    internal JsonElement Root => Document.RootElement;
+    internal JsonElement Medium { get; }
+
+    public string ReleaseId { get; }
+    public string? ReleaseGroupId { get; }
+    public string AlbumArtist { get; }
+    public string? FolderArtist { get; }
+    public string Album { get; }
+    public string DiscTitle { get; }
+    public int MediaCount { get; }
+    public bool IsCompilation { get; }
+    /// The edition's own year, and the album's first release.
+    public string? EditionYear { get; }
+    public string? OriginalYear { get; }
+    /// The year offered first (spec §7): original for albums, edition for compilations.
+    public string DefaultYear { get; }
+    public IReadOnlyList<PlannedTrack> Tracks { get; }
+
+    internal ReleasePlan(JsonDocument doc, JsonElement medium, string? folderArtist, PreparedDisc disc)
+    {
+        Document = doc;
+        Medium = medium;
+        var root = doc.RootElement;
+        ReleaseId = root.GetProperty("id").GetString()!;
+        var rg = root.TryGetProperty("release-group", out var g) ? g : default;
+        ReleaseGroupId = rg.ValueKind == JsonValueKind.Object ? rg.GetProperty("id").GetString() : null;
+        IsCompilation = rg.ValueKind == JsonValueKind.Object && rg.TryGetProperty("secondary-types", out var types) &&
+                        types.EnumerateArray().Any(t => t.GetString() == "Compilation");
+        MediaCount = root.GetProperty("media").GetArrayLength();
+
+        var sample = ReleaseTags.ForTrack(root, medium, disc.Toc.FirstTrack, disc.DiscId, null);
+        FolderArtist = folderArtist;
+        AlbumArtist = folderArtist ?? sample.First(t => t.Key == "ALBUMARTIST").Value;
+        Album = sample.First(t => t.Key == "ALBUM").Value;
+        DiscTitle = ReleaseChoice.DiscTitle(root, medium);
+
+        EditionYear = root.TryGetProperty("date", out var d) && d.GetString() is { Length: >= 4 } date ? date[..4] : null;
+        OriginalYear = rg.ValueKind == JsonValueKind.Object && rg.TryGetProperty("first-release-date", out var f) &&
+                       f.GetString() is { Length: >= 4 } first ? first[..4] : null;
+        DefaultYear = LibraryConventions.DefaultYear(root) ?? EditionYear ?? OriginalYear ?? "0000";
+
+        var tracks = new List<PlannedTrack>();
+        foreach (var t in disc.Toc.IdTracks.Where(t => t.IsAudio))
+        {
+            var tags = ReleaseTags.ForTrack(root, medium, t.Number, disc.DiscId, null);
+            var title = tags.First(x => x.Key == "TITLE").Value;
+            var artist = tags.FirstOrDefault(x => x.Key == "ARTIST")?.Value;
+            tracks.Add(new PlannedTrack(t.Number, title, artist, disc.Toc.EndLsn(t) - t.StartLsn,
+                FileNames.Track(AlbumArtist, t.Number, title)));
+        }
+        Tracks = tracks;
+    }
+
+    public string AlbumDirectory(string library, string year) =>
+        Path.Combine(library, FileNames.ArtistFolder(AlbumArtist), FileNames.AlbumFolder(year, DiscTitle));
+
+    public void Dispose() => Document.Dispose();
+}
+
+/// What a rip reports as it goes. All calls come from the ripping thread.
+public interface IRipObserver
+{
+    void Say(string message);
+    void TrackStarted(int track) { }
+    void Progress(int track, string pass, int done, int total);
+    void PassFinished(int track, string pass, ReadReport report) { }
+    void TrackFinished(RippedTrack track) { }
+}
+
+/// One rip, in three steps the window can pause between (spec §4):
+///   Prepare: TOC, cdrdao, the releases the disc is on;
+///   Plan: one release, with names, years and tags;
+///   Rip: every track read until two passes agree, AccurateRip, FLAC, .toc,
+///   .cue, .m3u, .log and cover.jpg. It refuses to write into a folder that
+///   exists. The command line runs all three in a row (RunAsync).
+public sealed class RipSession
 {
     public const string Version = "0.1";
 
-    public async Task<RipResult> RunAsync(CancellationToken ct = default)
+    public static async Task<PreparedDisc> PrepareAsync(string? device, int? offsetOverride, Action<string> say, CancellationToken ct = default)
     {
-        var device = options.Device ?? CdDrive.DefaultDevice;
-
+        device ??= CdDrive.DefaultDevice;
         DriveIdentity? identity;
         Toc toc;
         using (var drive = CdDrive.Open(device))
@@ -59,7 +148,7 @@ public sealed class RipSession(RipOptions options, Action<string> say, Action<in
             identity = drive.ReadIdentity();
             toc = drive.ReadToc();
         }
-        var offset = options.Offset
+        var offset = offsetOverride
                      ?? (identity is null ? null : WhipperConfig.ReadOffset(identity.Vendor, identity.Model, identity.Revision))
                      ?? throw new RipException($"No read offset is known for {identity?.ToString() ?? device}.");
 
@@ -72,37 +161,52 @@ public sealed class RipSession(RipOptions options, Action<string> say, Action<in
             throw new RipException("cdrdao and libcdio disagree about the TOC; not ripping.");
 
         using var mb = new MusicBrainzClient(MusicBrainzClient.DefaultCacheDir);
-        var releaseId = options.ReleaseId ?? await PickReleaseAsync(mb, discId, ct);
-        using var release = await mb.GetReleaseAsync(releaseId, ct) ?? throw new RipException($"MusicBrainz has no release {releaseId}.");
-        var root = release.RootElement;
-        var medium = ReleaseTags.Medium(root, discId);
+        using var lookup = await mb.GetDiscAsync(discId, ct);
+        var candidates = lookup is null ? [] : ReleaseChoice.FromDiscLookup(lookup.RootElement, discId);
+        return new PreparedDisc(device, identity, toc, offset, discId, cddb, cdrdao, candidates);
+    }
 
-        var folders = await ArtistFolders.ScanAsync(options.ConventionsLibrary);
-        var albumArtistId = root.GetProperty("artist-credit")[0].GetProperty("artist").GetProperty("id").GetString()!;
-        var folderArtist = folders.For(albumArtistId);
-        var year = options.Year ?? LibraryConventions.DefaultYear(root) ?? throw new RipException("No year known; give one.");
-        var discTitle = ReleaseChoice.DiscTitle(root, medium);
+    public static async Task<ReleasePlan> PlanAsync(PreparedDisc disc, string releaseId, string conventionsLibrary, CancellationToken ct = default)
+    {
+        using var mb = new MusicBrainzClient(MusicBrainzClient.DefaultCacheDir);
+        var doc = await mb.GetReleaseAsync(releaseId, ct) ?? throw new RipException($"MusicBrainz has no release {releaseId}.");
+        try
+        {
+            var root = doc.RootElement;
+            var medium = ReleaseTags.Medium(root, disc.DiscId);
+            var folders = await ArtistFolders.ScanAsync(conventionsLibrary);
+            var albumArtistId = root.GetProperty("artist-credit")[0].GetProperty("artist").GetProperty("id").GetString()!;
+            return new ReleasePlan(doc, medium, folders.For(albumArtistId), disc);
+        }
+        catch
+        {
+            doc.Dispose();
+            throw;
+        }
+    }
 
-        var sample = ReleaseTags.ForTrack(root, medium, toc.FirstTrack, discId, null);
-        var albumArtist = folderArtist ?? sample.First(t => t.Key == "ALBUMARTIST").Value;
-        var albumDir = Path.Combine(options.Library, FileNames.ArtistFolder(albumArtist), FileNames.AlbumFolder(year, discTitle));
+    public static async Task<RipResult> RipAsync(
+        PreparedDisc disc, ReleasePlan plan, string year, string library, IRipObserver observer,
+        int maxRetries = SecureReader.DefaultMaxRetries, int maxPasses = 5, bool accurateRip = true, CancellationToken ct = default)
+    {
+        var root = plan.Root;
+        var toc = disc.Toc;
+        var albumDir = plan.AlbumDirectory(library, year);
         if (Directory.Exists(albumDir)) throw new RipException($"{albumDir} already exists; not writing over it.");
-        say($"{albumArtist} - {discTitle} ({year}) -> {albumDir}");
+        observer.Say($"{plan.AlbumArtist} - {plan.DiscTitle} ({year}) -> {albumDir}");
 
         IReadOnlyList<AccurateRipBlock>? arBlocks = null;
-        var arId = AccurateRipId.From(toc, cddb);
-        if (options.AccurateRip)
+        if (accurateRip)
         {
             try
             {
-                using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
-                http.DefaultRequestHeaders.UserAgent.ParseAdd($"Deadwax/{Version}");
-                arBlocks = await AccurateRipDatabase.FetchAsync(http, arId, ct);
-                say(arBlocks is null ? "AccurateRip: not in the database." : $"AccurateRip: {arBlocks.Count} pressing(s) on file.");
+                using var http = Http(20);
+                arBlocks = await AccurateRipDatabase.FetchAsync(http, AccurateRipId.From(toc, disc.Cddb), ct);
+                observer.Say(arBlocks is null ? "AccurateRip: not in the database." : $"AccurateRip: {arBlocks.Count} pressing(s) on file.");
             }
             catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
             {
-                say($"AccurateRip unreachable ({e.Message}); ripping without it.");
+                observer.Say($"AccurateRip unreachable ({e.Message}); ripping without it.");
             }
         }
 
@@ -112,18 +216,20 @@ public sealed class RipSession(RipOptions options, Action<string> say, Action<in
         var logTracks = new List<LogTrack>();
         var sidecarTracks = new List<SidecarTrack>();
 
-        using (var reader = SecureReader.Open(device))
+        using (var reader = SecureReader.Open(disc.Device))
         {
             foreach (var track in audioTracks)
             {
                 ct.ThrowIfCancellationRequested();
                 var n = track.Number;
                 var sectors = toc.EndLsn(track) - track.StartLsn;
-                var cdTrack = cdrdao.Toc.Tracks.First(t => t.Number == n);
+                var cdTrack = disc.Cdrdao.Toc.Tracks.First(t => t.Number == n);
+                observer.TrackStarted(n);
 
                 // Read until two passes agree: the first is the test, each later
                 // one a copy compared with the pass before it.
-                var (audio, report) = reader.ReadTrack(toc, n, offset, options.MaxRetries, (d, t) => progress?.Invoke(n, "test", d, t), ct);
+                var (audio, report) = reader.ReadTrack(toc, n, disc.Offset, maxRetries, (d, t) => observer.Progress(n, "test", d, t), ct);
+                observer.PassFinished(n, "test", report);
                 var testCrc = AudioChecks.Crc32(audio);
                 var previousCrc = testCrc;
                 uint copyCrc = 0;
@@ -132,28 +238,30 @@ public sealed class RipSession(RipOptions options, Action<string> say, Action<in
                 var repairs = report.Repairs;
                 var skips = report.Skips;
                 var elapsed = report.Elapsed;
-                while (passes < options.MaxPasses)
+                while (passes < maxPasses)
                 {
-                    (audio, report) = reader.ReadTrack(toc, n, offset, options.MaxRetries, (d, t) => progress?.Invoke(n, "copy", d, t), ct);
+                    (audio, report) = reader.ReadTrack(toc, n, disc.Offset, maxRetries, (d, t) => observer.Progress(n, "copy", d, t), ct);
+                    observer.PassFinished(n, "copy", report);
                     passes++;
                     copyCrc = AudioChecks.Crc32(audio);
                     repairs += report.Repairs;
                     skips += report.Skips;
                     elapsed = report.Elapsed;
                     if (copyCrc == previousCrc && report.Skips == 0) { agreed = true; break; }
-                    say($"Track {n}: pass {passes} differs from pass {passes - 1}; reading again.");
+                    observer.Say($"Track {n}: pass {passes} differs from pass {passes - 1}; reading again.");
                     previousCrc = copyCrc;
                 }
                 if (agreed) testCrc = copyCrc;   // the pass it agreed with
 
+                var index = audioTracks.IndexOf(track);
                 var (v1, v2) = AccurateRipChecksum.Compute(audio, n == audioTracks[0].Number, n == audioTracks[^1].Number);
-                var verdict = AccurateRipMatch.For(arBlocks, audioTracks.IndexOf(track), n, v1, v2);
+                var verdict = AccurateRipMatch.For(arBlocks, index, n, v1, v2);
 
                 var tags = LibraryConventions.Apply(
-                    ReleaseTags.ForTrack(root, medium, n, discId, cdTrack.Isrc ?? cdTrack.Text?.Isrc), year, folderArtist);
+                    ReleaseTags.ForTrack(root, plan.Medium, n, disc.DiscId, cdTrack.Isrc ?? cdTrack.Text?.Isrc), year, plan.FolderArtist);
                 var title = tags.First(t => t.Key == "TITLE").Value;
                 var artist = tags.FirstOrDefault(t => t.Key == "ARTIST")?.Value;
-                var fileName = FileNames.Track(albumArtist, n, title);
+                var fileName = FileNames.Track(plan.AlbumArtist, n, title);
                 var path = Path.Combine(albumDir, fileName);
 
                 FlacWriter.Encode(path, audio);
@@ -164,58 +272,75 @@ public sealed class RipSession(RipOptions options, Action<string> say, Action<in
                 var status = agreed ? "Copy OK" : "Copy NOT OK";
                 var seconds = sectors / (double)Toc.SectorsPerSecond;
                 logTracks.Add(new LogTrack(
-                    n, Path.GetRelativePath(options.Library, path), Peak(audio), cdTrack.PreEmphasis,
+                    n, Path.GetRelativePath(library, path), Peak(audio), cdTrack.PreEmphasis,
                     seconds / Math.Max(elapsed.TotalSeconds, 0.001), testCrc, copyCrc, repairs, skips,
-                    Ar(arBlocks, audioTracks.IndexOf(track), v1, verdict.V1Confidence),
-                    Ar(arBlocks, audioTracks.IndexOf(track), v2, verdict.V2Confidence),
+                    Ar(arBlocks, index, v1, verdict.V1Confidence), Ar(arBlocks, index, v2, verdict.V2Confidence),
                     status));
                 sidecarTracks.Add(new SidecarTrack(n, fileName, title, artist, sectors));
-                ripped.Add(new RippedTrack(n, path, agreed, passes, copyCrc, verdict));
-                say($"Track {n}: {status}, {passes} pass(es), {(verdict.IsAccurate ? $"accurate ({verdict.Confidence} rips)" : arBlocks is null ? "not in AccurateRip" : "no AccurateRip match")}");
+                var result = new RippedTrack(n, path, agreed, passes, copyCrc, verdict);
+                ripped.Add(result);
+                observer.TrackFinished(result);
+                observer.Say($"Track {n}: {status}, {passes} pass(es), {(verdict.IsAccurate ? $"accurate ({verdict.Confidence} rips)" : arBlocks is null ? "not in AccurateRip" : "no AccurateRip match")}");
             }
         }
 
-        var baseName = $"{FileNames.Safe(albumArtist)} - {FileNames.Safe(discTitle)}";
-        await File.WriteAllTextAsync(Path.Combine(albumDir, baseName + ".toc"), cdrdao.Text, ct);
+        var baseName = $"{FileNames.Safe(plan.AlbumArtist)} - {FileNames.Safe(plan.DiscTitle)}";
+        await File.WriteAllTextAsync(Path.Combine(albumDir, baseName + ".toc"), disc.Cdrdao.Text, ct);
         await File.WriteAllTextAsync(Path.Combine(albumDir, baseName + ".cue"),
-            Sidecars.Cue(cdrdao.Toc, cddb, albumArtist, sample.First(t => t.Key == "ALBUM").Value, sidecarTracks, Version), ct);
+            Sidecars.Cue(disc.Cdrdao.Toc, disc.Cddb, plan.AlbumArtist, plan.Album, sidecarTracks, Version), ct);
         await File.WriteAllTextAsync(Path.Combine(albumDir, baseName + ".m3u"), Sidecars.M3u(sidecarTracks), ct);
 
-        var driveName = identity is null ? device : $"{identity.Vendor} {identity.Model} (revision {identity.Revision})";
-        var logDisc = new LogDisc(driveName, CdDrive.EngineDescription, offset, cdrdao.Version, false,
-            albumArtist, discTitle, cddb, discId, DiscIds.MusicBrainzAttachUrl(toc), releaseId, toc);
+        var identity = disc.Identity;
+        var driveName = identity is null ? disc.Device : $"{identity.Vendor} {identity.Model} (revision {identity.Revision})";
+        var logDisc = new LogDisc(driveName, CdDrive.EngineDescription, disc.Offset, disc.Cdrdao.Version, false,
+            plan.AlbumArtist, plan.DiscTitle, disc.Cddb, disc.DiscId, DiscIds.MusicBrainzAttachUrl(toc), plan.ReleaseId, toc);
         await File.WriteAllTextAsync(Path.Combine(albumDir, baseName + ".log"),
             RipLog.Write(logDisc, logTracks, Version, DateTimeOffset.UtcNow), ct);
 
         // cover.jpg, as whipper's -C file wrote it; never embedded.
-        try
-        {
-            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-            http.DefaultRequestHeaders.UserAgent.ParseAdd($"Deadwax/{Version}");
-            var rgId = root.TryGetProperty("release-group", out var rg) ? rg.GetProperty("id").GetString() : null;
-            var cover = await CoverArt.FrontAsync(http, releaseId, rgId, ct);
-            if (cover is null) say("No front cover in the Cover Art Archive.");
-            else await File.WriteAllBytesAsync(Path.Combine(albumDir, "cover.jpg"), cover, ct);
-        }
-        catch (HttpRequestException e)
-        {
-            say($"Front cover not fetched ({e.Message}).");
-        }
+        var coverBytes = await FrontCoverAsync(plan, ct);
+        if (coverBytes is null) observer.Say("No front cover in the Cover Art Archive.");
+        else await File.WriteAllBytesAsync(Path.Combine(albumDir, "cover.jpg"), coverBytes, ct);
 
         return new RipResult(albumDir, ripped);
     }
 
-    private async Task<string> PickReleaseAsync(MusicBrainzClient mb, string discId, CancellationToken ct)
+    /// The release's 500-pixel front (then its release group's), for cover.jpg
+    /// and for the Disc screen while he chooses. Null when there is none, or
+    /// the archive cannot be reached.
+    public static async Task<byte[]?> FrontCoverAsync(ReleasePlan plan, CancellationToken ct = default)
     {
-        using var disc = await mb.GetDiscAsync(discId, ct)
-            ?? throw new RipException($"Disc {discId} is not in MusicBrainz. Attach it there, or give a release with --release.");
-        var candidates = ReleaseChoice.FromDiscLookup(disc.RootElement, discId);
-        return candidates.Count switch
+        try
         {
-            0 => throw new RipException($"Disc {discId} is in MusicBrainz but on no release."),
-            1 => candidates[0].Id,
-            _ => throw new ReleaseChoiceNeeded(candidates),
+            using var http = Http(30);
+            return await CoverArt.FrontAsync(http, plan.ReleaseId, plan.ReleaseGroupId, ct);
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+    }
+
+    /// The command line: all three steps in a row.
+    public static async Task<RipResult> RunAsync(RipOptions options, IRipObserver observer, CancellationToken ct = default)
+    {
+        var disc = await PrepareAsync(options.Device, options.Offset, observer.Say, ct);
+        var releaseId = options.ReleaseId ?? disc.Candidates.Count switch
+        {
+            0 => throw new RipException($"Disc {disc.DiscId} is not on any MusicBrainz release. Attach it there, or give a release with --release."),
+            1 => disc.Candidates[0].Id,
+            _ => throw new ReleaseChoiceNeeded(disc.Candidates),
         };
+        using var plan = await PlanAsync(disc, releaseId, options.ConventionsLibrary, ct);
+        return await RipAsync(disc, plan, options.Year ?? plan.DefaultYear, options.Library, observer,
+            options.MaxRetries, options.MaxPasses, options.AccurateRip, ct);
+    }
+
+    private static HttpClient Http(int seconds)
+    {
+        var http = new HttpClient { Timeout = TimeSpan.FromSeconds(seconds) };
+        http.DefaultRequestHeaders.UserAgent.ParseAdd($"Deadwax/{Version}");
+        return http;
     }
 
     private static LogAccurateRip Ar(IReadOnlyList<AccurateRipBlock>? blocks, int index, uint crc, int confidence)
