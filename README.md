@@ -5,7 +5,7 @@ A CD ripper for a FLAC library you own, and the companion to
 through libcdio-paranoia, verifies every rip against AccurateRip, and files the
 album into the library the way the library wants it.
 
-Early days: nothing rips yet. The design is in the spec (kept outside the repo,
+Deadwax rips: `deadwax rip --library DIR --post-rip` takes a disc to a library-ready album. Validation gates G1–G5 are done; it has not yet been pointed at ~/Music. The design is in the spec (kept outside the repo,
 `~/Documents/Projects/Deadwax/deadwax-spec.md`), and the build is going through
 the spec's validation gates in order, each checked against the 309 whipper
 0.10.0 rips already in the library.
@@ -18,7 +18,7 @@ the spec's validation gates in order, each checked against the 309 whipper
 | G2 · Audio | Same audio as whipper, sample for sample | Offline: CRC of all 3,529 tracks in the library matches. Drive: Turnstiles (8 tracks) and Anthology of Bread (20, gap before track 1) read twice, identical, same CRC and FLAC MD5 as whipper |
 | G3 · AccurateRip | Same v1/v2 checksums as whipper | Offline: all 1,617 v1 and 3,376 v2 checksums in 309 logs match. Drive: Anthology of Bread, all 20 tracks accurate (79–87 matching rips) and equal to whipper's |
 | G4 · Output | Same tags and sidecar files, `music-audit` clean | Tags: 177 of 199 non-box albums identical (the rest is MusicBrainz drift). FLAC: byte-identical frames to whipper's. .m3u: 308 of 309 identical (the other was hand-edited, and is wrong). .cue: structure identical on all 306 comparable. Log: written and verifiable. `deadwax rip` works end to end |
-| G5 · Side by side | 10 discs through both tools | 9 of 10. Shout at the Devil (box disc): one `rip --post-rip --unbox` command, identical on every check, art included. Strange Brew: one `rip --post-rip` command, identical on every check, art included. КОНЦЕРТ (box disc): after `--post-rip --unbox`, identical to the library copy on every check, album tags, folder, cover.jpg and back.jpg included. Dirt: PASS but for one composer MusicBrainz added after the rip (his folder rename aside). Frontiers: a clean PASS (91 checks); its two catalog numbers stay in the .toc, the cue carries the subchannel one. H₂O: a clean PASS (91 checks), with no year given: it reproduced the hand-corrected library copy ("+" credit to the library's "&", 2004 release to 1982). Back in Black: a clean PASS (67 checks). Anthology of Bread: everything the same but the year (fixed since). Storm Front (box disc 4, both tools on the same day): FLACs, tags, logs and .toc identical; only the deliberate `"` to `'` file name differs |
+| G5 · Side by side | 10 discs through both tools | **PASS, 10 of 10.** Seven identical on every check, art included; the rest differ only by the deliberate `"`→`'` file name, one composer MusicBrainz added after the rip, and his hand-renamed folder. Two naming rules (compilation year, disambiguation) found and fixed on the way |
 
 ## Build and run
 
