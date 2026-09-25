@@ -1,0 +1,369 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:app="using:Deadwax.App"
+        x:Class="Deadwax.App.MainWindow"
+        x:DataType="app:MainViewModel"
+        Title="Deadwax"
+        Width="1444" Height="1080" MinWidth="1100" MinHeight="760"
+        Background="{StaticResource Ground}"
+        ExtendClientAreaToDecorationsHint="True"
+        WindowDecorations="None">
+
+    <Window.Styles>
+        <!-- A release to pick: the whole row is the button. -->
+        <Style Selector="Button.release">
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Padding" Value="18,14"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style Selector="Button.release:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#26262C"/>
+            <Setter Property="BorderBrush" Value="#8C8C94"/>
+        </Style>
+        <Style Selector="RadioButton, CheckBox">
+            <Setter Property="Foreground" Value="{StaticResource Text}"/>
+            <Setter Property="FontSize" Value="14"/>
+        </Style>
+        <Style Selector="ProgressBar">
+            <Setter Property="Foreground" Value="{StaticResource Amber}"/>
+            <Setter Property="Background" Value="{StaticResource Rule}"/>
+        </Style>
+    </Window.Styles>
+
+    <DockPanel>
+        <!-- The title bar: drawn here, like AlbumWall's, to the desktop's own button layout. -->
+        <Border x:Name="TopBar" DockPanel.Dock="Top" Height="48" Background="{StaticResource Bar}"
+                BorderBrush="#2E2E33" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" Margin="12,0">
+                <StackPanel Grid.Column="0" x:Name="LeftButtons" Orientation="Horizontal" Spacing="8"
+                            VerticalAlignment="Center" Margin="0,0,12,0"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="20" VerticalAlignment="Center"
+                            IsHitTestVisible="False">
+                    <TextBlock Text="Deadwax" FontSize="17" FontWeight="Bold" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <Border Classes="stage" Classes.current="{Binding ShowDiscScreen}"><TextBlock Text="Disc"/></Border>
+                        <Border Classes="stage" Classes.current="{Binding IsRipping}"><TextBlock Text="Rip"/></Border>
+                        <Border Classes="stage" Classes.current="{Binding IsIntake}"><TextBlock Text="Intake"/></Border>
+                    </StackPanel>
+                </StackPanel>
+                <TextBlock Grid.Column="3" Text="{Binding DriveText}" Classes="dim mono" FontSize="12"
+                           VerticalAlignment="Center" Margin="0,0,16,0" IsHitTestVisible="False"/>
+                <StackPanel Grid.Column="4" x:Name="RightButtons" Orientation="Horizontal" Spacing="8"
+                            VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+
+        <Panel>
+            <!-- ============================ DISC ============================ -->
+            <Grid ColumnDefinitions="420,*" IsVisible="{Binding ShowDiscScreen}">
+                <Border Grid.Column="0" Background="{StaticResource Aside}" Padding="28,32">
+                    <StackPanel Spacing="20">
+                        <Panel Width="364" Height="364">
+                            <Border Background="#26262A" CornerRadius="4" IsVisible="{Binding NoCover}">
+                                <TextBlock Text="{Binding StatusText}" Classes="dim" TextWrapping="Wrap" TextAlignment="Center"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" Margin="32"/>
+                            </Border>
+                            <Image Source="{Binding Cover}" Stretch="UniformToFill" IsVisible="{Binding HasCover}"/>
+                        </Panel>
+                        <Border Height="1" Background="{StaticResource Rule}"/>
+                        <Grid ColumnDefinitions="132,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" IsVisible="{Binding IsDisc}">
+                            <Grid.Styles>
+                                <Style Selector="TextBlock"><Setter Property="Margin" Value="0,0,0,10"/><Setter Property="FontSize" Value="13"/></Style>
+                            </Grid.Styles>
+                            <TextBlock Grid.Row="0" Classes="dim" Text="Tracks"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding TracksText}"/>
+                            <TextBlock Grid.Row="1" Classes="dim" Text="Disc type"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding DiscTypeText}"/>
+                            <TextBlock Grid.Row="2" Classes="dim" Text="Before track 1"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding GapText}"/>
+                            <TextBlock Grid.Row="3" Classes="dim" Text="Catalog"/>
+                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding CatalogText}" Classes="mono" FontSize="12"/>
+                            <TextBlock Grid.Row="4" Classes="dim" Text="MusicBrainz ID"/>
+                            <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding DiscIdText}" Classes="mono" FontSize="12" TextWrapping="Wrap"/>
+                            <TextBlock Grid.Row="5" Classes="dim" Text="AccurateRip"/>
+                            <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding AccurateRipText}" TextWrapping="Wrap"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <Grid Grid.Column="1" Margin="40,32" RowDefinitions="*,Auto">
+                    <!-- Waiting for a disc, or reading it. -->
+                    <StackPanel Grid.Row="0" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                IsVisible="{Binding !IsDisc}">
+                        <TextBlock Text="{Binding StatusText}" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                        <ProgressBar IsIndeterminate="True" Width="320" IsVisible="{Binding IsScanning}"/>
+                        <TextBlock Text="{Binding ErrorText}" Foreground="{StaticResource Bad}" IsVisible="{Binding HasError}"
+                                   TextWrapping="Wrap" MaxWidth="640" HorizontalAlignment="Center" TextAlignment="Center"/>
+                    </StackPanel>
+
+                    <ScrollViewer Grid.Row="0" IsVisible="{Binding IsDisc}">
+                        <StackPanel Spacing="24">
+                            <StackPanel Spacing="4">
+                                <TextBlock Classes="label" Text="WHICH RELEASE IS THIS?"/>
+                                <TextBlock Classes="dim" FontSize="14" Text="{Binding ReleasesHeading}"/>
+                            </StackPanel>
+                            <ItemsControl ItemsSource="{Binding Releases}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><StackPanel Spacing="8"/></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="app:ReleaseRow">
+                                        <Button Classes="release" Background="{Binding Background}" BorderBrush="{Binding Border}"
+                                                Click="OnReleaseClicked" Tag="{Binding}">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <StackPanel Spacing="3">
+                                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                                        <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                                        <TextBlock Text="{Binding Note}" Classes="dim" FontSize="14" IsVisible="{Binding HasNote}" VerticalAlignment="Bottom"/>
+                                                    </StackPanel>
+                                                    <TextBlock Text="{Binding Detail}" Classes="soft" FontSize="13"/>
+                                                    <TextBlock Text="{Binding Printed}" Classes="dim mono" FontSize="12" IsVisible="{Binding HasPrinted}"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
+                                                    <Border Background="#1F3A27" CornerRadius="10" Padding="9,3" IsVisible="{Binding BarcodeMatch}">
+                                                        <TextBlock Text="✓ Barcode matches this disc" Foreground="{StaticResource Good}" FontSize="12" FontWeight="SemiBold"/>
+                                                    </Border>
+                                                    <Border Background="#3A3522" CornerRadius="10" Padding="9,3" IsVisible="{Binding IsSet}" HorizontalAlignment="Right">
+                                                        <TextBlock Text="Box set" Foreground="{StaticResource AmberSoft}" FontSize="12" FontWeight="SemiBold"/>
+                                                    </Border>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding HasSubchannelText}">
+                                <ProgressBar IsIndeterminate="True" Width="120" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding SubchannelText}" Classes="dim" FontSize="13" VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- The year: his choice, with the rule's answer first (spec §7). -->
+                            <Border Background="{StaticResource Bar}" CornerRadius="8" Padding="20,18">
+                                <StackPanel Spacing="10">
+                                    <TextBlock Classes="label" Text="YEAR"/>
+                                    <StackPanel Spacing="6" IsVisible="{Binding HasYearChoice}">
+                                        <RadioButton GroupName="year" IsChecked="{Binding UseOriginal}" Content="{Binding OriginalLabel}"/>
+                                        <RadioButton GroupName="year" IsChecked="{Binding UseEdition}" Content="{Binding EditionLabel}"/>
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding YearNote}" Classes="soft" FontSize="13" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Background="{StaticResource Bar}" CornerRadius="8" Padding="20,18" IsVisible="{Binding HasNoteChoice}">
+                                <StackPanel Spacing="8">
+                                    <TextBlock Classes="label" Text="FOLDER NAME"/>
+                                    <CheckBox IsChecked="{Binding KeepNote}" Content="{Binding KeepNoteLabel}"/>
+                                    <TextBlock Classes="soft" FontSize="13" TextWrapping="Wrap"
+                                               Text="The note tells this release apart from others on MusicBrainz. It is not part of the album's name, so it is left out unless you want it."/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Background="{StaticResource Bar}" CornerRadius="8" Padding="20,18" IsVisible="{Binding IsSetDisc}">
+                                <StackPanel Spacing="8">
+                                    <TextBlock Classes="label" Text="PART OF A SET"/>
+                                    <CheckBox IsChecked="{Binding Unbox}" Content="File it as its own album after the rip (music-unbox)"/>
+                                    <TextBlock Classes="soft" FontSize="13" TextWrapping="Wrap"
+                                               Text="The disc is ripped under the set's name first, as whipper did; music-unbox then retags it as the album inside, with its own year and cover."/>
+                                </StackPanel>
+                            </Border>
+
+                            <StackPanel Spacing="10">
+                                <TextBlock Classes="label" Text="WILL BE WRITTEN TO"/>
+                                <Border Background="{StaticResource Bar}" CornerRadius="8" Padding="20,16">
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="{Binding OutputFolder}" Classes="mono" FontSize="13" TextWrapping="Wrap"/>
+                                        <TextBlock Text="{Binding OutputFiles}" Classes="mono soft" FontSize="13" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
+                            <TextBlock Text="{Binding ErrorText}" Foreground="{StaticResource Bad}" IsVisible="{Binding HasError}" TextWrapping="Wrap"/>
+                            <StackPanel Orientation="Horizontal" Spacing="12" IsVisible="{Binding HasPartialAlbum}">
+                                <TextBlock Text="{Binding PartialAlbum}" Classes="mono soft" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="560"/>
+                                <Button Classes="quiet" Content="Remove the partial album" Click="OnRemovePartial"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right" Margin="0,24,0,0">
+                        <Button Classes="quiet" Content="Read the disc again" Click="OnRescan" IsVisible="{Binding IsDisc}"/>
+                        <Button Classes="quiet" Content="Eject" Click="OnEject"/>
+                        <Button Classes="primary" Content="Rip disc" Click="OnRip" IsEnabled="{Binding CanRip}" IsVisible="{Binding IsDisc}"/>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+
+            <!-- ============================ RIP ============================ -->
+            <DockPanel IsVisible="{Binding IsRipping}">
+                <Border DockPanel.Dock="Top" Background="{StaticResource Aside}" Padding="40,28">
+                    <Grid ColumnDefinitions="Auto,*" >
+                        <Panel Width="112" Height="112" Margin="0,0,24,0">
+                            <Border Background="#26262A" CornerRadius="4"/>
+                            <Image Source="{Binding Cover}" Stretch="UniformToFill"/>
+                        </Panel>
+                        <StackPanel Grid.Column="1" Spacing="10" VerticalAlignment="Center">
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="{Binding AlbumTitle}" FontSize="24" FontWeight="Bold"/>
+                                <TextBlock Text="{Binding AlbumLine}" Classes="soft" FontSize="14"/>
+                            </StackPanel>
+                            <ProgressBar Value="{Binding Overall}" Maximum="100" Height="10" CornerRadius="5"/>
+                            <StackPanel Orientation="Horizontal" Spacing="28">
+                                <TextBlock Text="{Binding NowText}" FontSize="13" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding SpeedText}" Classes="dim mono" FontSize="13"/>
+                                <TextBlock Text="{Binding ElapsedText}" Classes="dim mono" FontSize="13"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <StackPanel DockPanel.Dock="Bottom" Margin="40,0,40,20" Spacing="8">
+                    <Button Classes="quiet" Height="34" Padding="14,0" FontSize="13" HorizontalAlignment="Left"
+                            Content="{Binding LogButtonText}" Click="OnToggleLog"/>
+                    <Border Background="{StaticResource Bar}" CornerRadius="8" Padding="16,12" IsVisible="{Binding ShowLog}">
+                        <ScrollViewer MaxHeight="180">
+                            <ItemsControl ItemsSource="{Binding Log}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="x:String">
+                                        <TextBlock Text="{Binding}" Classes="dim mono" FontSize="12" TextWrapping="Wrap"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Border>
+                </StackPanel>
+
+                <StackPanel DockPanel.Dock="Bottom" Spacing="10" Margin="40,0,40,20">
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <TextBlock Classes="label" Text="DISC SURFACE"/>
+                        <TextBlock Classes="dim" FontSize="13" Text="Each cell is about two seconds of audio. Re-reads show as they happen."/>
+                    </StackPanel>
+                    <ItemsControl ItemsSource="{Binding Map}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><UniformGrid Columns="120"/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="app:MapCell">
+                                <Border Height="10" Margin="1" CornerRadius="1.5" Background="{Binding Fill}"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <StackPanel Orientation="Horizontal" Spacing="20">
+                        <StackPanel.Styles><Style Selector="TextBlock"><Setter Property="FontSize" Value="12"/><Setter Property="Foreground" Value="{StaticResource Dim}"/></Style></StackPanel.Styles>
+                        <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="10" Height="10" CornerRadius="2" Background="{StaticResource Good}"/><TextBlock Text="Read cleanly"/></StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="10" Height="10" CornerRadius="2" Background="{StaticResource AmberSoft}"/><TextBlock Text="Re-read, recovered"/></StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="10" Height="10" CornerRadius="2" Background="{StaticResource Bad}"/><TextBlock Text="Could not read"/></StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="10" Height="10" CornerRadius="2" Background="#5E5E66"/><TextBlock Text="Reading"/></StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="10" Height="10" CornerRadius="2" Background="{StaticResource Rule}"/><TextBlock Text="Not read yet"/></StackPanel>
+                    </StackPanel>
+                </StackPanel>
+
+                <DockPanel Margin="40,24,40,20">
+                    <Grid DockPanel.Dock="Top" ColumnDefinitions="44,*,80,110,110,84,230" Margin="16,0,16,10">
+                        <Grid.Styles><Style Selector="TextBlock"><Setter Property="FontSize" Value="12"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{StaticResource Dim}"/></Style></Grid.Styles>
+                        <TextBlock Text="#"/>
+                        <TextBlock Grid.Column="1" Text="TITLE"/>
+                        <TextBlock Grid.Column="2" Text="LENGTH"/>
+                        <TextBlock Grid.Column="3" Text="TEST CRC"/>
+                        <TextBlock Grid.Column="4" Text="COPY CRC"/>
+                        <TextBlock Grid.Column="5" Text="SPEED"/>
+                        <TextBlock Grid.Column="6" Text="ACCURATERIP"/>
+                    </Grid>
+                    <Border DockPanel.Dock="Top" Height="1" Background="{StaticResource Rule}"/>
+                    <ScrollViewer x:Name="TrackScroll">
+                        <ItemsControl ItemsSource="{Binding Tracks}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="app:TrackRow">
+                                    <Border Background="{Binding Background}" BorderBrush="{StaticResource RowRule}" BorderThickness="0,0,0,1" Height="48">
+                                        <Grid ColumnDefinitions="44,*,80,110,110,84,230" Margin="16,0" VerticalAlignment="Center">
+                                            <Grid.Styles><Style Selector="TextBlock"><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="FontSize" Value="14"/></Style></Grid.Styles>
+                                            <TextBlock Text="{Binding NumberText}" Classes="mono dim"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding Title}" Foreground="{Binding Foreground}" TextTrimming="CharacterEllipsis" FontWeight="Medium" Margin="0,0,12,0"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding Length}" Classes="mono" Foreground="{Binding Foreground}"/>
+                                            <TextBlock Grid.Column="3" Text="{Binding TestCrc}" Classes="mono" FontSize="13"/>
+                                            <TextBlock Grid.Column="4" Text="{Binding CopyCrc}" Classes="mono" FontSize="13"/>
+                                            <TextBlock Grid.Column="5" Text="{Binding Speed}" Classes="mono" FontSize="13"/>
+                                            <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                <ProgressBar Width="110" Height="6" Value="{Binding Progress}" Maximum="100" IsVisible="{Binding Active}" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding Status}" Foreground="{Binding StatusBrush}" FontWeight="SemiBold"/>
+                                                <TextBlock Text="{Binding Detail}" Classes="dim" FontSize="13"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </DockPanel>
+            </DockPanel>
+
+            <!-- ============================ INTAKE ============================ -->
+            <Grid ColumnDefinitions="420,*" IsVisible="{Binding IsIntake}">
+                <Border Grid.Column="0" Background="{StaticResource Aside}" Padding="28,32">
+                    <StackPanel Spacing="16">
+                        <Panel Width="364" Height="364">
+                            <Border Background="#26262A" CornerRadius="4"/>
+                            <Image Source="{Binding Cover}" Stretch="UniformToFill"/>
+                        </Panel>
+                    </StackPanel>
+                </Border>
+                <Grid Grid.Column="1" Margin="40,36" RowDefinitions="Auto,Auto,*,Auto">
+                    <StackPanel Orientation="Horizontal" Spacing="20">
+                        <Border Width="56" Height="56" CornerRadius="28" Background="#1F3A27">
+                            <TextBlock Text="{Binding VerdictMark}" Foreground="{Binding VerdictBrush}" FontSize="28" FontWeight="Bold"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel Spacing="4" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Verdict}" FontSize="26" FontWeight="Bold"/>
+                            <TextBlock Text="{Binding VerdictDetail}" Classes="soft" FontSize="14" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="1" Spacing="12" Margin="0,28,0,0">
+                        <TextBlock Classes="label" Text="INTO THE LIBRARY"/>
+                        <Border Background="{StaticResource Bar}" CornerRadius="8">
+                            <ItemsControl ItemsSource="{Binding Steps}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="app:StepRow">
+                                        <Grid ColumnDefinitions="28,220,*" Margin="20,12">
+                                            <TextBlock Text="{Binding Mark}" Foreground="{Binding Brush}" FontWeight="Bold" FontSize="15"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding Name}" FontWeight="SemiBold" FontSize="14"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding Detail}" Classes="soft" FontSize="14" TextWrapping="Wrap"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="2" Spacing="12" Margin="0,28,0,0">
+                        <TextBlock Classes="label" Text="FILES"/>
+                        <Border Background="{StaticResource Bar}" CornerRadius="8" Padding="20,16">
+                            <StackPanel>
+                                <TextBlock Text="{Binding AlbumDirectory}" Classes="mono" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                <ItemsControl ItemsSource="{Binding Files}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="x:String">
+                                            <TextBlock Text="{Binding}" Classes="mono soft" FontSize="13" Margin="0,0,24,4"/>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
+                        <Button Classes="quiet" Content="View log" Click="OnViewLog"/>
+                        <Button Classes="quiet" Content="Open folder" Click="OnOpenFolder"/>
+                        <Button Classes="primary" Content="Eject, next disc" Click="OnNextDisc"/>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Panel>
+    </DockPanel>
+</Window>

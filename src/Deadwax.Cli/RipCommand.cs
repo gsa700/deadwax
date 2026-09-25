@@ -20,6 +20,7 @@ internal static class RipCommand
         var offline = options.Flag("--offline");
         var postRip = options.Flag("--post-rip");
         var unbox = options.Flag("--unbox");
+        var keepNote = options.Flag("--keep-note");
         options.Rest();
 
         var ripOptions = new RipOptions
@@ -31,6 +32,7 @@ internal static class RipCommand
             Year = year,
             Offset = offset is null ? null : int.Parse(offset),
             AccurateRip = !offline,
+            KeepDisambiguation = keepNote,
         };
 
         try

@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/Deadwax.App/Deadwax.App.csproj" />
     <Project Path="src/Deadwax.Cli/Deadwax.Cli.csproj" />
     <Project Path="src/Deadwax.Core/Deadwax.Core.csproj" />
     <Project Path="src/Deadwax.Drive/Deadwax.Drive.csproj" />

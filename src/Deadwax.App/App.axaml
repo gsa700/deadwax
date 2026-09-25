@@ -1,0 +1,131 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Deadwax.App.App"
+             RequestedThemeVariant="Dark">
+    <!-- The family's neutral dark (w2-monitor-x, lp100a-monitor), his choice on
+         2026-09-24 over AlbumWall's warm brown: a tool's frame stays grey, so
+         the only colour on screen is the disc's cover. -->
+    <Application.Resources>
+        <SolidColorBrush x:Key="Ground" Color="#1C1C1E"/>
+        <SolidColorBrush x:Key="Bar" Color="#161618"/>
+        <SolidColorBrush x:Key="Aside" Color="#232326"/>
+        <SolidColorBrush x:Key="Raised" Color="#2C2C30"/>
+        <SolidColorBrush x:Key="Rule" Color="#3C3C42"/>
+        <SolidColorBrush x:Key="RowRule" Color="#2A2A2F"/>
+        <SolidColorBrush x:Key="Text" Color="#DCDCDC"/>
+        <SolidColorBrush x:Key="Soft" Color="#B8B8BE"/>
+        <SolidColorBrush x:Key="Dim" Color="#8C8C94"/>
+        <SolidColorBrush x:Key="Amber" Color="#FFB000"/>
+        <SolidColorBrush x:Key="AmberSoft" Color="#FFC94D"/>
+        <SolidColorBrush x:Key="Good" Color="#3CC850"/>
+        <SolidColorBrush x:Key="Bad" Color="#EB4646"/>
+        <FontFamily x:Key="Mono">DejaVu Sans Mono, Consolas, monospace</FontFamily>
+    </Application.Resources>
+
+    <Application.Styles>
+        <FluentTheme />
+
+        <Style Selector="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource Text}"/>
+        </Style>
+        <Style Selector="TextBlock.dim">
+            <Setter Property="Foreground" Value="{StaticResource Dim}"/>
+        </Style>
+        <Style Selector="TextBlock.soft">
+            <Setter Property="Foreground" Value="{StaticResource Soft}"/>
+        </Style>
+        <Style Selector="TextBlock.mono">
+            <Setter Property="FontFamily" Value="{StaticResource Mono}"/>
+        </Style>
+        <!-- Small uppercase section labels, as in the mockup. -->
+        <Style Selector="TextBlock.label">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="LetterSpacing" Value="1"/>
+            <Setter Property="Foreground" Value="{StaticResource Dim}"/>
+        </Style>
+
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="{StaticResource Amber}"/>
+            <Setter Property="Foreground" Value="#161618"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Height" Value="44"/>
+            <Setter Property="Padding" Value="28,0"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#FFC233"/>
+            <Setter Property="Foreground" Value="#161618"/>
+        </Style>
+        <Style Selector="Button.primary:disabled /template/ ContentPresenter">
+            <Setter Property="Background" Value="#3A3A40"/>
+            <Setter Property="Foreground" Value="#6E6E76"/>
+        </Style>
+        <Style Selector="Button.quiet">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="#4A4A52"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="{StaticResource Text}"/>
+            <Setter Property="Height" Value="44"/>
+            <Setter Property="Padding" Value="20,0"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <!-- Window buttons, AlbumWall's exactly: round on Linux like GNOME's own. -->
+        <Style Selector="Button.wbtn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#8C8C94"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.wbtn.round">
+            <Setter Property="Width" Value="26"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="CornerRadius" Value="13"/>
+        </Style>
+        <Style Selector="Button.wbtn.square">
+            <Setter Property="Width" Value="46"/>
+            <Setter Property="Height" Value="47"/>
+            <Setter Property="CornerRadius" Value="0"/>
+        </Style>
+        <Style Selector="Button.wbtn /template/ ContentPresenter">
+            <Setter Property="Background" Value="#2C2C30"/>
+        </Style>
+        <Style Selector="Button.wbtn.square /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.wbtn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#3C3C42"/>
+        </Style>
+        <Style Selector="Button.wbtn:pointerover">
+            <Setter Property="Foreground" Value="#DCDCDC"/>
+        </Style>
+        <Style Selector="Button.wbtn.close:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#C42B1C"/>
+        </Style>
+        <Style Selector="Button.wbtn.close:pointerover">
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+        </Style>
+
+        <!-- Stage chips in the header: where the rip is, not tabs to pick. -->
+        <Style Selector="Border.stage">
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <Style Selector="Border.stage.current">
+            <Setter Property="Background" Value="#2E2E33"/>
+        </Style>
+        <Style Selector="Border.stage > TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="{StaticResource Dim}"/>
+        </Style>
+        <Style Selector="Border.stage.current > TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource Text}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+    </Application.Styles>
+</Application>

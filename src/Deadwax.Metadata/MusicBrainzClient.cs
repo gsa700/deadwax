@@ -49,11 +49,12 @@ public sealed class MusicBrainzClient : IDisposable
         return JsonDocument.Parse(body);
     }
 
-    /// The releases a disc ID is attached to. Note `inc=releases` is invalid on
-    /// this endpoint (HTTP 400); releases come back by default.
+    /// The releases a disc ID is attached to, each with its barcode, and with
+    /// its label and catalog number (`inc=labels`). Note `inc=releases` is
+    /// invalid on this endpoint (HTTP 400); releases come back by default.
     public async Task<JsonDocument?> GetDiscAsync(string discId, CancellationToken ct = default)
     {
-        var body = await GetAsync($"discid/{discId}?fmt=json", ct);
+        var body = await GetAsync($"discid/{discId}?inc=labels&fmt=json", ct);
         return body is null ? null : JsonDocument.Parse(body);
     }
 

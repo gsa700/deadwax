@@ -22,6 +22,8 @@ public sealed record RipOptions
     /// Reads of a track, in all, while looking for two that agree.
     public int MaxPasses { get; init; } = 5;
     public bool AccurateRip { get; init; } = true;
+    /// Put MusicBrainz's disambiguation note in the folder name, as whipper did.
+    public bool KeepDisambiguation { get; init; }
 }
 
 public sealed class RipException(string message) : Exception(message);
@@ -42,14 +44,17 @@ public sealed record RipResult(string AlbumDirectory, IReadOnlyList<RippedTrack>
 
 /// Everything known about the disc before a release is chosen: what the Disc
 /// screen shows while he picks.
+/// Cdrdao is null until the subchannel has been read (about two minutes):
+/// the window shows the disc and its releases before that, and ripping waits
+/// for it.
 public sealed record PreparedDisc(
     string Device, DriveIdentity? Identity, Toc Toc, int Offset, string DiscId, uint Cddb,
-    Cdrdao.Result Cdrdao, IReadOnlyList<ReleaseCandidate> Candidates)
+    Cdrdao.Result? Cdrdao, IReadOnlyList<ReleaseCandidate> Candidates)
 {
     public int AudioTracks => Toc.Tracks.Count(t => t.IsAudio);
-    public string? Catalog => Cdrdao.Toc.EffectiveCatalog;
-    public bool HasPreTrackGap => Cdrdao.Toc.Tracks.Count > 0 && Cdrdao.Toc.Tracks[0].PregapSectors > 0;
-    public bool PreEmphasis => Cdrdao.Toc.Tracks.Any(t => t.PreEmphasis);
+    public string? Catalog => Cdrdao?.Toc.EffectiveCatalog;
+    public int PreTrackGap => Cdrdao is { } c && c.Toc.Tracks.Count > 0 ? c.Toc.Tracks[0].PregapSectors : 0;
+    public bool PreEmphasis => Cdrdao?.Toc.Tracks.Any(t => t.PreEmphasis) == true;
 }
 
 public sealed record PlannedTrack(int Number, string Title, string? Artist, int Sectors, string FileName);
@@ -67,7 +72,11 @@ public sealed class ReleasePlan : IDisposable
     public string AlbumArtist { get; }
     public string? FolderArtist { get; }
     public string Album { get; }
-    public string DiscTitle { get; }
+    /// MusicBrainz's note telling this release from others of the same name,
+    /// and whether it goes into the folder name (off unless asked for).
+    public string? Disambiguation { get; }
+    public bool KeepDisambiguation { get; set; }
+    public string DiscTitle => ReleaseChoice.DiscTitle(Root, Medium, KeepDisambiguation);
     public int MediaCount { get; }
     public bool IsCompilation { get; }
     /// The edition's own year, and the album's first release.
@@ -93,7 +102,7 @@ public sealed class ReleasePlan : IDisposable
         FolderArtist = folderArtist;
         AlbumArtist = folderArtist ?? sample.First(t => t.Key == "ALBUMARTIST").Value;
         Album = sample.First(t => t.Key == "ALBUM").Value;
-        DiscTitle = ReleaseChoice.DiscTitle(root, medium);
+        Disambiguation = ReleaseChoice.Disambiguation(root);
 
         EditionYear = root.TryGetProperty("date", out var d) && d.GetString() is { Length: >= 4 } date ? date[..4] : null;
         OriginalYear = rg.ValueKind == JsonValueKind.Object && rg.TryGetProperty("first-release-date", out var f) &&
@@ -138,7 +147,8 @@ public sealed class RipSession
 {
     public const string Version = "0.1";
 
-    public static async Task<PreparedDisc> PrepareAsync(string? device, int? offsetOverride, Action<string> say, CancellationToken ct = default)
+    public static async Task<PreparedDisc> PrepareAsync(
+        string? device, int? offsetOverride, Action<string> say, bool readSubchannel = true, CancellationToken ct = default)
     {
         device ??= CdDrive.DefaultDevice;
         DriveIdentity? identity;
@@ -154,16 +164,24 @@ public sealed class RipSession
 
         var discId = DiscIds.MusicBrainz(toc);
         var cddb = DiscIds.Cddb(toc);
-        say($"Disc {discId}, {toc.Tracks.Count(t => t.IsAudio)} audio tracks. Reading ISRCs, CD-Text and pregaps (about two minutes)...");
-        var cdrdao = await Cdrdao.ReadTocAsync(device, ct);
-        var cdrdaoToc = cdrdao.Toc.ToToc();
-        if (!cdrdaoToc.Tracks.SequenceEqual(toc.Tracks) || cdrdaoToc.LeadoutLsn != toc.LeadoutLsn)
-            throw new RipException("cdrdao and libcdio disagree about the TOC; not ripping.");
-
         using var mb = new MusicBrainzClient(MusicBrainzClient.DefaultCacheDir);
         using var lookup = await mb.GetDiscAsync(discId, ct);
         var candidates = lookup is null ? [] : ReleaseChoice.FromDiscLookup(lookup.RootElement, discId);
-        return new PreparedDisc(device, identity, toc, offset, discId, cddb, cdrdao, candidates);
+        var disc = new PreparedDisc(device, identity, toc, offset, discId, cddb, null, candidates);
+        if (!readSubchannel) return disc;
+        say($"Disc {discId}, {disc.AudioTracks} audio tracks. Reading ISRCs, CD-Text and pregaps (about two minutes)...");
+        return await ReadSubchannelAsync(disc, ct);
+    }
+
+    /// cdrdao's pass over the subchannel: ISRCs, catalog, CD-Text and pregaps
+    /// (spec §4). Its TOC must agree with libcdio's, or nothing is ripped.
+    public static async Task<PreparedDisc> ReadSubchannelAsync(PreparedDisc disc, CancellationToken ct = default)
+    {
+        var cdrdao = await Cdrdao.ReadTocAsync(disc.Device, ct);
+        var cdrdaoToc = cdrdao.Toc.ToToc();
+        if (!cdrdaoToc.Tracks.SequenceEqual(disc.Toc.Tracks) || cdrdaoToc.LeadoutLsn != disc.Toc.LeadoutLsn)
+            throw new RipException("cdrdao and libcdio disagree about the TOC; not ripping.");
+        return disc with { Cdrdao = cdrdao };
     }
 
     public static async Task<ReleasePlan> PlanAsync(PreparedDisc disc, string releaseId, string conventionsLibrary, CancellationToken ct = default)
@@ -187,8 +205,10 @@ public sealed class RipSession
 
     public static async Task<RipResult> RipAsync(
         PreparedDisc disc, ReleasePlan plan, string year, string library, IRipObserver observer,
-        int maxRetries = SecureReader.DefaultMaxRetries, int maxPasses = 5, bool accurateRip = true, CancellationToken ct = default)
+        int maxRetries = SecureReader.DefaultMaxRetries, int maxPasses = 5, bool accurateRip = true,
+        byte[]? cover = null, CancellationToken ct = default)
     {
+        var cdrdao = disc.Cdrdao ?? throw new RipException("The disc's subchannel has not been read yet.");
         var root = plan.Root;
         var toc = disc.Toc;
         var albumDir = plan.AlbumDirectory(library, year);
@@ -211,6 +231,13 @@ public sealed class RipSession
         }
 
         Directory.CreateDirectory(albumDir);
+
+        // cover.jpg first, as whipper's -C file wrote it (never embedded): the
+        // album is visible in AlbumWall while it rips, and he listens along.
+        cover ??= await FrontCoverAsync(plan, ct);
+        if (cover is null) observer.Say("No front cover in the Cover Art Archive.");
+        else await File.WriteAllBytesAsync(Path.Combine(albumDir, "cover.jpg"), cover, ct);
+
         var audioTracks = toc.IdTracks.Where(t => t.IsAudio).ToList();
         var ripped = new List<RippedTrack>();
         var logTracks = new List<LogTrack>();
@@ -223,7 +250,7 @@ public sealed class RipSession
                 ct.ThrowIfCancellationRequested();
                 var n = track.Number;
                 var sectors = toc.EndLsn(track) - track.StartLsn;
-                var cdTrack = disc.Cdrdao.Toc.Tracks.First(t => t.Number == n);
+                var cdTrack = cdrdao.Toc.Tracks.First(t => t.Number == n);
                 observer.TrackStarted(n);
 
                 // Read until two passes agree: the first is the test, each later
@@ -285,22 +312,17 @@ public sealed class RipSession
         }
 
         var baseName = $"{FileNames.Safe(plan.AlbumArtist)} - {FileNames.Safe(plan.DiscTitle)}";
-        await File.WriteAllTextAsync(Path.Combine(albumDir, baseName + ".toc"), disc.Cdrdao.Text, ct);
+        await File.WriteAllTextAsync(Path.Combine(albumDir, baseName + ".toc"), cdrdao.Text, ct);
         await File.WriteAllTextAsync(Path.Combine(albumDir, baseName + ".cue"),
-            Sidecars.Cue(disc.Cdrdao.Toc, disc.Cddb, plan.AlbumArtist, plan.Album, sidecarTracks, Version), ct);
+            Sidecars.Cue(cdrdao.Toc, disc.Cddb, plan.AlbumArtist, plan.Album, sidecarTracks, Version), ct);
         await File.WriteAllTextAsync(Path.Combine(albumDir, baseName + ".m3u"), Sidecars.M3u(sidecarTracks), ct);
 
         var identity = disc.Identity;
         var driveName = identity is null ? disc.Device : $"{identity.Vendor} {identity.Model} (revision {identity.Revision})";
-        var logDisc = new LogDisc(driveName, CdDrive.EngineDescription, disc.Offset, disc.Cdrdao.Version, false,
+        var logDisc = new LogDisc(driveName, CdDrive.EngineDescription, disc.Offset, cdrdao.Version, false,
             plan.AlbumArtist, plan.DiscTitle, disc.Cddb, disc.DiscId, DiscIds.MusicBrainzAttachUrl(toc), plan.ReleaseId, toc);
         await File.WriteAllTextAsync(Path.Combine(albumDir, baseName + ".log"),
             RipLog.Write(logDisc, logTracks, Version, DateTimeOffset.UtcNow), ct);
-
-        // cover.jpg, as whipper's -C file wrote it; never embedded.
-        var coverBytes = await FrontCoverAsync(plan, ct);
-        if (coverBytes is null) observer.Say("No front cover in the Cover Art Archive.");
-        else await File.WriteAllBytesAsync(Path.Combine(albumDir, "cover.jpg"), coverBytes, ct);
 
         return new RipResult(albumDir, ripped);
     }
@@ -324,7 +346,7 @@ public sealed class RipSession
     /// The command line: all three steps in a row.
     public static async Task<RipResult> RunAsync(RipOptions options, IRipObserver observer, CancellationToken ct = default)
     {
-        var disc = await PrepareAsync(options.Device, options.Offset, observer.Say, ct);
+        var disc = await PrepareAsync(options.Device, options.Offset, observer.Say, ct: ct);
         var releaseId = options.ReleaseId ?? disc.Candidates.Count switch
         {
             0 => throw new RipException($"Disc {disc.DiscId} is not on any MusicBrainz release. Attach it there, or give a release with --release."),
@@ -332,8 +354,9 @@ public sealed class RipSession
             _ => throw new ReleaseChoiceNeeded(disc.Candidates),
         };
         using var plan = await PlanAsync(disc, releaseId, options.ConventionsLibrary, ct);
+        plan.KeepDisambiguation = options.KeepDisambiguation;
         return await RipAsync(disc, plan, options.Year ?? plan.DefaultYear, options.Library, observer,
-            options.MaxRetries, options.MaxPasses, options.AccurateRip, ct);
+            options.MaxRetries, options.MaxPasses, options.AccurateRip, ct: ct);
     }
 
     private static HttpClient Http(int seconds)

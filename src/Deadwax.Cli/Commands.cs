@@ -9,10 +9,12 @@ internal static class Commands
     private const string Usage = """
         usage:
           deadwax rip [--library DIR] [--release ID] [--year YYYY] [--device DEV] [--offset N]
-                      [--conventions LIBRARY] [--offline] [--post-rip [--unbox]]
+                      [--conventions LIBRARY] [--offline] [--keep-note] [--post-rip [--unbox]]
               Rip the disc into DIR/Artist/YEAR - Album/ (DIR defaults to ~/Music): FLACs, .toc, .cue, .m3u,
               .log. Artist spellings follow LIBRARY (default ~/Music). The year
               defaults to the album's original year. Never writes over a folder.
+              --keep-note keeps MusicBrainz's disambiguation note in the folder
+              name, as whipper did.
               --post-rip then runs music-unbox (plan only unless --unbox),
               music-backart and music-audit, as the wizard did.
           deadwax post-rip ALBUM_DIR [--unbox]
