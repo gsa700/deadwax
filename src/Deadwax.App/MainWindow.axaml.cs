@@ -28,11 +28,17 @@ public sealed partial class MainWindow : Window
     private byte[]? _coverBytes;
     private string? _libraryMatch;
 
+    private readonly Settings _settings = Settings.Load();
+
     public MainWindow()
     {
         InitializeComponent();
+        Width = Math.Max(_settings.Width, MinWidth);
+        Height = Math.Max(_settings.Height, MinHeight);
+        if (_settings.Maximized) WindowState = WindowState.Maximized;
         DataContext = _vm;
         _vm.YearChanged += UpdateOutputPreview;
+        _vm.Log.CollectionChanged += (_, _) => Dispatcher.UIThread.Post(() => LogScroll.ScrollToEnd(), DispatcherPriority.Background);
         BuildWindowButtons();
         AddHandler(PointerPressedEvent, OnPointerPressedForResize, RoutingStrategies.Tunnel);
         AddHandler(PointerMovedEvent, OnPointerMovedForResize, RoutingStrategies.Tunnel);
@@ -42,7 +48,19 @@ public sealed partial class MainWindow : Window
         _vm.StatusText = "Put a CD in the drive.";
         _watch.Tick += async (_, _) => await WatchAsync();
         Opened += async (_, _) => { _watch.Start(); await WatchAsync(); };
-        Closing += (_, _) => _work?.Cancel();
+        Closing += (_, _) =>
+        {
+            _work?.Cancel();
+            // The size of the normal window, not the maximized one, so leaving
+            // maximized restores to what he last chose.
+            _settings.Maximized = WindowState == WindowState.Maximized;
+            if (WindowState == WindowState.Normal)
+            {
+                _settings.Width = Bounds.Width;
+                _settings.Height = Bounds.Height;
+            }
+            _settings.Save();
+        };
     }
 
     // ------------------------------------------------------------ the disc
@@ -523,7 +541,7 @@ public sealed partial class MainWindow : Window
         {
             var t = disc.Toc.Track(result.Number);
             for (var c = t.StartLsn / SectorsPerCell; c <= (disc.Toc.EndLsn(t) - 1) / SectorsPerCell && c < vm.Map.Count; c++)
-                vm.Map[c].Fill = _worst.TryGetValue(c, out var b) ? b : result.CopyOk ? Tone.Good : Tone.Bad;
+                vm.Map[c].Fill = _worst.TryGetValue(c, out var b) ? b : result.CopyOk ? Tone.MapGood : Tone.Bad;
 
             var row = vm.Tracks.FirstOrDefault(r => r.Number == result.Number);
             if (row is null) return;

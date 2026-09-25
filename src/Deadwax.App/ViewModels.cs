@@ -37,7 +37,11 @@ public static class Tone
     public static readonly IBrush Dim = Brush.Parse("#8C8C94");
     public static readonly IBrush Waiting = Brush.Parse("#6E6E76");
     public static readonly IBrush Unread = Brush.Parse("#3C3C42");
-    public static readonly IBrush Reading = Brush.Parse("#5E5E66");
+    /// The map's colours are calmer than the text's: a whole disc of the bright
+    /// green was a loud block in the neutral frame (2026-09-24), and "reading"
+    /// needed to stand out from "not read yet".
+    public static readonly IBrush Reading = Brush.Parse("#8A6A1E");
+    public static readonly IBrush MapGood = Brush.Parse("#2D8F46");
     public static readonly IBrush ActiveRow = Brush.Parse("#26262C");
     public static readonly IBrush Selected = Brush.Parse("#2C2C30");
     public static readonly IBrush Unselected = Brush.Parse("#232326");

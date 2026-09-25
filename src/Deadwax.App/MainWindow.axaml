@@ -222,8 +222,10 @@
                 <StackPanel DockPanel.Dock="Bottom" Margin="40,0,40,20" Spacing="8">
                     <Button Classes="quiet" Height="34" Padding="14,0" FontSize="13" HorizontalAlignment="Left"
                             Content="{Binding LogButtonText}" Click="OnToggleLog"/>
+                    <!-- A fixed ten lines, so opening it or a new line never shifts
+                         the table and map above; it follows the newest line. -->
                     <Border Background="{StaticResource Bar}" CornerRadius="8" Padding="16,12" IsVisible="{Binding ShowLog}">
-                        <ScrollViewer MaxHeight="180">
+                        <ScrollViewer x:Name="LogScroll" Height="160">
                             <ItemsControl ItemsSource="{Binding Log}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="x:String">
@@ -252,16 +254,16 @@
                     </ItemsControl>
                     <StackPanel Orientation="Horizontal" Spacing="20">
                         <StackPanel.Styles><Style Selector="TextBlock"><Setter Property="FontSize" Value="12"/><Setter Property="Foreground" Value="{StaticResource Dim}"/></Style></StackPanel.Styles>
-                        <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="10" Height="10" CornerRadius="2" Background="{StaticResource Good}"/><TextBlock Text="Read cleanly"/></StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="10" Height="10" CornerRadius="2" Background="#2D8F46"/><TextBlock Text="Read cleanly"/></StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="10" Height="10" CornerRadius="2" Background="{StaticResource AmberSoft}"/><TextBlock Text="Re-read, recovered"/></StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="10" Height="10" CornerRadius="2" Background="{StaticResource Bad}"/><TextBlock Text="Could not read"/></StackPanel>
-                        <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="10" Height="10" CornerRadius="2" Background="#5E5E66"/><TextBlock Text="Reading"/></StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="10" Height="10" CornerRadius="2" Background="#8A6A1E"/><TextBlock Text="Reading"/></StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="10" Height="10" CornerRadius="2" Background="{StaticResource Rule}"/><TextBlock Text="Not read yet"/></StackPanel>
                     </StackPanel>
                 </StackPanel>
 
                 <DockPanel Margin="40,24,40,20">
-                    <Grid DockPanel.Dock="Top" ColumnDefinitions="44,*,80,110,110,84,230" Margin="16,0,16,10">
+                    <Grid DockPanel.Dock="Top" ColumnDefinitions="44,*,80,110,110,84,300" Margin="16,0,32,10">
                         <Grid.Styles><Style Selector="TextBlock"><Setter Property="FontSize" Value="12"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{StaticResource Dim}"/></Style></Grid.Styles>
                         <TextBlock Text="#"/>
                         <TextBlock Grid.Column="1" Text="TITLE"/>
@@ -277,7 +279,7 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="app:TrackRow">
                                     <Border Background="{Binding Background}" BorderBrush="{StaticResource RowRule}" BorderThickness="0,0,0,1" Height="48">
-                                        <Grid ColumnDefinitions="44,*,80,110,110,84,230" Margin="16,0" VerticalAlignment="Center">
+                                        <Grid ColumnDefinitions="44,*,80,110,110,84,300" Margin="16,0,32,0" VerticalAlignment="Center">
                                             <Grid.Styles><Style Selector="TextBlock"><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="FontSize" Value="14"/></Style></Grid.Styles>
                                             <TextBlock Text="{Binding NumberText}" Classes="mono dim"/>
                                             <TextBlock Grid.Column="1" Text="{Binding Title}" Foreground="{Binding Foreground}" TextTrimming="CharacterEllipsis" FontWeight="Medium" Margin="0,0,12,0"/>
