@@ -18,7 +18,7 @@ the spec's validation gates in order, each checked against the 309 whipper
 | G2 · Audio | Same audio as whipper, sample for sample | Offline: CRC of all 3,529 tracks in the library matches. Drive: Turnstiles (8 tracks) and Anthology of Bread (20, gap before track 1) read twice, identical, same CRC and FLAC MD5 as whipper |
 | G3 · AccurateRip | Same v1/v2 checksums as whipper | Offline: all 1,617 v1 and 3,376 v2 checksums in 309 logs match. Drive: Anthology of Bread, all 20 tracks accurate (79–87 matching rips) and equal to whipper's |
 | G4 · Output | Same tags and sidecar files, `music-audit` clean | Tags: 177 of 199 non-box albums identical (the rest is MusicBrainz drift). FLAC: byte-identical frames to whipper's. .m3u: 308 of 309 identical (the other was hand-edited, and is wrong). .cue: structure identical on all 306 comparable. Log: written and verifiable. `deadwax rip` works end to end |
-| G5 · Side by side | 10 discs through both tools | 6 of 10. Dirt: PASS but for one composer MusicBrainz added after the rip (his folder rename aside). Frontiers: a clean PASS (91 checks); its two catalog numbers stay in the .toc, the cue carries the subchannel one. H₂O: a clean PASS (91 checks), with no year given: it reproduced the hand-corrected library copy ("+" credit to the library's "&", 2004 release to 1982). Back in Black: a clean PASS (67 checks). Anthology of Bread: everything the same but the year (fixed since). Storm Front (box disc 4, both tools on the same day): FLACs, tags, logs and .toc identical; only the deliberate `"` to `'` file name differs |
+| G5 · Side by side | 10 discs through both tools | 7 of 10. КОНЦЕРТ (box disc): after `--post-rip --unbox`, identical to the library copy on every check, album tags, folder, cover.jpg and back.jpg included. Dirt: PASS but for one composer MusicBrainz added after the rip (his folder rename aside). Frontiers: a clean PASS (91 checks); its two catalog numbers stay in the .toc, the cue carries the subchannel one. H₂O: a clean PASS (91 checks), with no year given: it reproduced the hand-corrected library copy ("+" credit to the library's "&", 2004 release to 1982). Back in Black: a clean PASS (67 checks). Anthology of Bread: everything the same but the year (fixed since). Storm Front (box disc 4, both tools on the same day): FLACs, tags, logs and .toc identical; only the deliberate `"` to `'` file name differs |
 
 ## Build and run
 
@@ -41,7 +41,10 @@ v1/v2 checksums of that audio against the log: G2 and G3 without the drive. `sca
 in the drive; with `--against` it compares the TOC and IDs to that album's
 whipper log. `--full` adds a `cdrdao read-toc` pass (about two minutes) for the
 catalog number, ISRCs, CD-Text and pregaps, and compares those with the cue.
-`read` reads tracks securely through paranoia, twice, at the drive's read offset
+`rip` makes a complete album; with `--post-rip` it then runs the library
+tools (`music-unbox` with `--unbox`, `music-backart`, `music-audit`), and
+`post-rip DIR` does that for an album already ripped. `compare` checks a
+Deadwax rip against whipper's rip of the same disc. `read` reads tracks securely through paranoia, twice, at the drive's read offset
 (taken from whipper.conf), and with `--against` checks each track's audio
 against whipper's logged CRC and the MD5 stored in the existing FLAC. It writes
 nothing.

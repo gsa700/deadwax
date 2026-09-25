@@ -187,6 +187,21 @@ public sealed class RipSession(RipOptions options, Action<string> say, Action<in
         await File.WriteAllTextAsync(Path.Combine(albumDir, baseName + ".log"),
             RipLog.Write(logDisc, logTracks, Version, DateTimeOffset.UtcNow), ct);
 
+        // cover.jpg, as whipper's -C file wrote it; never embedded.
+        try
+        {
+            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+            http.DefaultRequestHeaders.UserAgent.ParseAdd($"Deadwax/{Version}");
+            var rgId = root.TryGetProperty("release-group", out var rg) ? rg.GetProperty("id").GetString() : null;
+            var cover = await CoverArt.FrontAsync(http, releaseId, rgId, ct);
+            if (cover is null) say("No front cover in the Cover Art Archive.");
+            else await File.WriteAllBytesAsync(Path.Combine(albumDir, "cover.jpg"), cover, ct);
+        }
+        catch (HttpRequestException e)
+        {
+            say($"Front cover not fetched ({e.Message}).");
+        }
+
         return new RipResult(albumDir, ripped);
     }
 

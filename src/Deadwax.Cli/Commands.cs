@@ -9,10 +9,14 @@ internal static class Commands
     private const string Usage = """
         usage:
           deadwax rip --library DIR [--release ID] [--year YYYY] [--device DEV] [--offset N]
-                      [--conventions LIBRARY] [--offline]
+                      [--conventions LIBRARY] [--offline] [--post-rip [--unbox]]
               Rip the disc into DIR/Artist/YEAR - Album/: FLACs, .toc, .cue, .m3u,
               .log. Artist spellings follow LIBRARY (default ~/Music). The year
               defaults to the album's original year. Never writes over a folder.
+              --post-rip then runs music-unbox (plan only unless --unbox),
+              music-backart and music-audit, as the wizard did.
+          deadwax post-rip ALBUM_DIR [--unbox]
+              The same library tools on an album already ripped.
           deadwax compare DEADWAX_ALBUM_DIR WHIPPER_ALBUM_DIR
               Gate G5: a Deadwax rip against whipper's rip of the same disc,
               file by file: audio frames, tags, names, logs, .m3u, .cue, .toc.
@@ -56,6 +60,7 @@ internal static class Commands
             {
                 "rip" => await RipCommand.RunAsync(args[1..]),
                 "compare" => await CompareCommand.RunAsync(args[1..]),
+                "post-rip" => await PostRipCommand.RunAsync(args[1..]),
                 "scan" => await ScanCommand.RunAsync(args[1..]),
                 "read" => await ReadCommand.RunAsync(args[1..]),
                 "check-logs" => await CheckLogsCommand.RunAsync(args[1..]),
