@@ -57,3 +57,16 @@ public class ReleaseTagsTests
         Assert.Equal("Elton John & Kiki Dee", duet.Single(t => t.Key == "ARTIST").Value);
     }
 }
+
+public class DiscTitleTests
+{
+    [Fact]
+    public void Folder_title_is_whippers_including_the_disambiguation()
+    {
+        using var release = JsonDocument.Parse(Golden.Text("original-album-classics-2.release.json"));
+        var medium = ReleaseTags.Medium(release.RootElement, discId: null, fallbackPosition: 4);
+        // The folder whipper made for this disc on 2026-09-24, same drive, same day.
+        Assert.Equal("Original Album Classics (Volume 2) (Disc 4 of 5): Storm Front",
+                     ReleaseChoice.DiscTitle(release.RootElement, medium));
+    }
+}

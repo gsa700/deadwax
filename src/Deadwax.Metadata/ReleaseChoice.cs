@@ -38,17 +38,19 @@ public static class ReleaseChoice
         return list;
     }
 
-    /// The album folder's title in whipper's disc template: a multi-disc
-    /// release's disc is "Title (Disc N of M): Medium title", which is how every
-    /// box disc in the library arrived before music-unbox refiled it.
+    /// The album folder's title, whipper's "%d" exactly (mbngs._getMetadata):
+    /// the release title, then its disambiguation comment in brackets (even on
+    /// a one-disc release: "Gish (Reissue of 2011 remaster)"), then "(Disc N of
+    /// M)" on a multi-disc release, then ": Medium title" when the medium has
+    /// one. So "Original Album Classics (Volume 2) (Disc 4 of 5): Storm Front".
     public static string DiscTitle(JsonElement release, JsonElement medium)
     {
         var title = release.GetProperty("title").GetString() ?? "";
+        if (Str(release, "disambiguation") is { } comment) title += $" ({comment})";
         var count = release.GetProperty("media").GetArrayLength();
-        if (count <= 1) return title;
-        var position = medium.GetProperty("position").GetInt32();
-        var mediumTitle = medium.TryGetProperty("title", out var t) ? t.GetString() : null;
-        return $"{title} (Disc {position} of {count})" + (string.IsNullOrEmpty(mediumTitle) ? "" : $": {mediumTitle}");
+        if (count > 1) title += $" (Disc {medium.GetProperty("position").GetInt32()} of {count})";
+        if (Str(medium, "title") is { } mediumTitle) title += $": {mediumTitle}";
+        return title;
     }
 
     private static string? Str(JsonElement e, string name) =>
