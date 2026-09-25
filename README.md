@@ -20,6 +20,12 @@ the spec's validation gates in order, each checked against the 309 whipper
 | G4 · Output | Same tags and sidecar files, `music-audit` clean | Tags: 177 of 199 non-box albums identical (the rest is MusicBrainz drift). FLAC: byte-identical frames to whipper's. .m3u: 308 of 309 identical (the other was hand-edited, and is wrong). .cue: structure identical on all 306 comparable. Log: written and verifiable. `deadwax rip` works end to end |
 | G5 · Side by side | 10 discs through both tools | **PASS, 10 of 10.** Seven identical on every check, art included; the rest differ only by the deliberate `"`→`'` file name, one composer MusicBrainz added after the rip, and his hand-renamed folder. Two naming rules (compilation year, disambiguation) found and fixed on the way |
 
+## Install
+
+`tools/install.sh` builds a self-contained Deadwax into `~/.local/share/deadwax/`
+and adds it to the app menu with its icon; rerun it after changes, and
+`tools/install.sh --remove` takes it out.
+
 ## Build and run
 
 Needs the .NET 10 SDK, libcdio (`libcdio.so.19`; the -devel package is not

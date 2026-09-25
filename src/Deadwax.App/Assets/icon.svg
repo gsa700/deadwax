@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- Deadwax: the smooth band between a record's last groove and its label,
+       where the matrix code is etched. A dark disc, its grooves, the plain
+       band, and the family's amber at the centre. -->
+  <circle cx="128" cy="128" r="120" fill="#161618"/>
+  <g fill="none" stroke="#3A3A40" stroke-width="2">
+    <circle cx="128" cy="128" r="112"/>
+    <circle cx="128" cy="128" r="104"/>
+    <circle cx="128" cy="128" r="96"/>
+    <circle cx="128" cy="128" r="88"/>
+    <circle cx="128" cy="128" r="80"/>
+    <circle cx="128" cy="128" r="72"/>
+  </g>
+  <!-- The dead wax itself: no grooves, a faint sheen. -->
+  <circle cx="128" cy="128" r="62" fill="#1C1C1E"/>
+  <path d="M 88 100 A 52 52 0 0 1 156 84" fill="none" stroke="#4A4A52" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="128" cy="128" r="42" fill="#FFB000"/>
+  <circle cx="128" cy="128" r="6" fill="#161618"/>
+</svg>

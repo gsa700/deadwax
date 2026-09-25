@@ -25,4 +25,11 @@
   <ItemGroup>
     <ProjectReference Include="..\Deadwax.Core\Deadwax.Core.csproj" />
   </ItemGroup>
+
+  <!-- The icon: Assets/icon.svg is the source; icon-256.png is rendered from it
+       (rsvg-convert -w 256 -h 256) and committed, for the window's own icon
+       and the app menu. -->
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\icon-256.png" />
+  </ItemGroup>
 </Project>

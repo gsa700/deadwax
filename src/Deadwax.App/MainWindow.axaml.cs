@@ -47,7 +47,12 @@ public sealed partial class MainWindow : Window
         _vm.DriveText = CdDrive.DefaultDevice;
         _vm.StatusText = "Put a CD in the drive.";
         _watch.Tick += async (_, _) => await WatchAsync();
-        Opened += async (_, _) => { _watch.Start(); await WatchAsync(); };
+        Opened += async (_, _) =>
+        {
+            WaylandShell.ClaimIdentity(this);   // the dash's icon, on native Wayland
+            _watch.Start();
+            await WatchAsync();
+        };
         Closing += (_, _) =>
         {
             _work?.Cancel();

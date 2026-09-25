@@ -4,6 +4,7 @@
         x:Class="Deadwax.App.MainWindow"
         x:DataType="app:MainViewModel"
         Title="Deadwax"
+        Icon="/Assets/icon-256.png"
         Width="1444" Height="1080" MinWidth="1100" MinHeight="760"
         Background="{StaticResource Ground}"
         ExtendClientAreaToDecorationsHint="True"
