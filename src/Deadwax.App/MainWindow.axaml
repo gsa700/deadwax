@@ -99,8 +99,9 @@
                                    TextWrapping="Wrap" MaxWidth="640" HorizontalAlignment="Center" TextAlignment="Center"/>
                     </StackPanel>
 
+                    <!-- Right margin keeps the overlay scroll bar off the release rows. -->
                     <ScrollViewer Grid.Row="0" IsVisible="{Binding IsDisc}">
-                        <StackPanel Spacing="24">
+                        <StackPanel Spacing="24" Margin="0,0,18,0">
                             <StackPanel Spacing="4">
                                 <TextBlock Classes="label" Text="WHICH RELEASE IS THIS?"/>
                                 <TextBlock Classes="dim" FontSize="14" Text="{Binding ReleasesHeading}"/>
@@ -287,7 +288,7 @@
                     </Grid>
                     <Border DockPanel.Dock="Top" Height="1" Background="{StaticResource Rule}"/>
                     <ScrollViewer x:Name="TrackScroll">
-                        <ItemsControl ItemsSource="{Binding Tracks}">
+                        <ItemsControl ItemsSource="{Binding Tracks}" Margin="0,0,18,0">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="app:TrackRow">
                                     <Border Background="{Binding Background}" BorderBrush="{StaticResource RowRule}" BorderThickness="0,0,0,1" Height="48">
