@@ -80,7 +80,7 @@
                             <TextBlock Grid.Row="2" Classes="dim" Text="Before track 1"/>
                             <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding GapText}"/>
                             <TextBlock Grid.Row="3" Classes="dim" Text="Catalog"/>
-                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding CatalogText}" Classes="mono" FontSize="12"/>
+                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding CatalogText}" Classes="mono" FontSize="14"/>
                             <TextBlock Grid.Row="4" Classes="dim" Text="MusicBrainz ID"/>
                             <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding DiscIdText}" Classes="mono" FontSize="12" TextWrapping="Wrap"/>
                             <TextBlock Grid.Row="5" Classes="dim" Text="AccurateRip"/>
@@ -120,14 +120,14 @@
                                                         <TextBlock Text="{Binding Note}" Classes="dim" FontSize="14" IsVisible="{Binding HasNote}" VerticalAlignment="Bottom"/>
                                                     </StackPanel>
                                                     <TextBlock Text="{Binding Detail}" Classes="soft" FontSize="13"/>
-                                                    <TextBlock Text="{Binding Printed}" Classes="dim mono" FontSize="12" IsVisible="{Binding HasPrinted}"/>
+                                                    <TextBlock Text="{Binding Printed}" Classes="soft mono" FontSize="14" IsVisible="{Binding HasPrinted}"/>
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
                                                     <Border Background="#1F3A27" CornerRadius="10" Padding="9,3" IsVisible="{Binding BarcodeMatch}">
-                                                        <TextBlock Text="✓ Barcode matches this disc" Foreground="{StaticResource Good}" FontSize="12" FontWeight="SemiBold"/>
+                                                        <TextBlock Text="✓ Barcode matches this disc" Foreground="{StaticResource Good}" FontSize="13" FontWeight="SemiBold"/>
                                                     </Border>
                                                     <Border Background="#3A3522" CornerRadius="10" Padding="9,3" IsVisible="{Binding IsSet}" HorizontalAlignment="Right">
-                                                        <TextBlock Text="Box set" Foreground="{StaticResource AmberSoft}" FontSize="12" FontWeight="SemiBold"/>
+                                                        <TextBlock Text="Box set" Foreground="{StaticResource AmberSoft}" FontSize="13" FontWeight="SemiBold"/>
                                                     </Border>
                                                 </StackPanel>
                                             </Grid>
@@ -135,6 +135,17 @@
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
+
+                            <!-- The edition in his hands may not have this disc ID attached
+                                 (a remaster whose ID sits on the box sets only). -->
+                            <StackPanel Spacing="6">
+                                <TextBlock Classes="dim" FontSize="13" Text="Not listed? Paste its MusicBrainz release link. The disc's tracks are checked against it."/>
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                    <TextBox x:Name="ReleaseLink" Classes="mono" FontSize="13"
+                                             PlaceholderText="https://musicbrainz.org/release/…" KeyDown="OnReleaseLinkKey"/>
+                                    <Button Grid.Column="1" Classes="quiet" Content="Use this release" Click="OnUseReleaseLink"/>
+                                </Grid>
+                            </StackPanel>
 
                             <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding HasSubchannelText}">
                                 <ProgressBar IsIndeterminate="True" Width="120" VerticalAlignment="Center"/>

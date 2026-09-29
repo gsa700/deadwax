@@ -68,6 +68,9 @@ public sealed class ReleasePlan : IDisposable
     internal JsonElement Medium { get; }
 
     public string ReleaseId { get; }
+    /// The disc ID is not attached to this release; its medium was found by
+    /// track count and lengths instead.
+    public bool MatchedByTracks { get; init; }
     public string? ReleaseGroupId { get; }
     public string AlbumArtist { get; }
     public string? FolderArtist { get; }
@@ -191,10 +194,14 @@ public sealed class RipSession
         try
         {
             var root = doc.RootElement;
-            var medium = ReleaseTags.Medium(root, disc.DiscId);
+            // A release he picked by hand may not have this disc ID attached;
+            // then the disc's own track lengths find it (and must, or it's the
+            // wrong release).
+            var attached = ReleaseTags.FindMedium(root, disc.DiscId);
+            var medium = attached ?? ReleaseTags.MediumByTracks(root, disc.Toc);
             var folders = await ArtistFolders.ScanAsync(conventionsLibrary);
             var albumArtistId = root.GetProperty("artist-credit")[0].GetProperty("artist").GetProperty("id").GetString()!;
-            return new ReleasePlan(doc, medium, folders.For(albumArtistId), disc);
+            return new ReleasePlan(doc, medium, folders.For(albumArtistId), disc) { MatchedByTracks = attached is null };
         }
         catch
         {

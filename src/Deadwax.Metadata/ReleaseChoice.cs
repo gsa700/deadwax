@@ -57,6 +57,34 @@ public static class ReleaseChoice
         return list;
     }
 
+    /// One release he named himself (a pasted link), with the medium the disc
+    /// was found on.
+    public static ReleaseCandidate FromRelease(JsonElement r, JsonElement medium)
+    {
+        string? label = null, catalog = null;
+        if (r.TryGetProperty("label-info", out var info) && info.ValueKind == JsonValueKind.Array && info.GetArrayLength() > 0)
+        {
+            var first = info[0];
+            label = first.TryGetProperty("label", out var l) && l.ValueKind == JsonValueKind.Object ? Str(l, "name") : null;
+            catalog = Str(first, "catalog-number");
+        }
+        return new ReleaseCandidate(
+            r.GetProperty("id").GetString()!, r.GetProperty("title").GetString() ?? "",
+            Str(r, "date"), Str(r, "country"), r.GetProperty("media").GetArrayLength(),
+            medium.GetProperty("position").GetInt32(), Str(medium, "title"),
+            Str(r, "barcode"), label, catalog, Str(r, "disambiguation"));
+    }
+
+    /// The release ID in whatever he pasted: a musicbrainz.org/release/… link
+    /// or the bare ID. Null for anything else, a release-group link included.
+    public static string? ReleaseIdFrom(string text)
+    {
+        var m = System.Text.RegularExpressions.Regex.Match(text.Trim(),
+            @"^(?:https?://(?:beta\.)?musicbrainz\.org/release/)?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:[/?#].*)?$",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        return m.Success ? m.Groups[1].Value.ToLowerInvariant() : null;
+    }
+
     /// The album folder's title in whipper's "%d" layout (mbngs._getMetadata):
     /// the release title, then "(Disc N of M)" on a multi-disc release, then
     /// ": Medium title" when the medium has one.

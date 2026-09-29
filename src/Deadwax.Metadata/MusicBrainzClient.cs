@@ -13,7 +13,7 @@ public sealed class MusicBrainzException(string message) : Exception(message);
 public sealed class MusicBrainzClient : IDisposable
 {
     public const string ReleaseIncludes =
-        "recordings+artist-credits+isrcs+release-groups+discids+recording-level-rels+work-rels+work-level-rels+artist-rels";
+        "recordings+artist-credits+labels+isrcs+release-groups+discids+recording-level-rels+work-rels+work-level-rels+artist-rels";
 
     private static readonly TimeSpan Pace = TimeSpan.FromMilliseconds(1100);
 

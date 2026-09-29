@@ -9,6 +9,7 @@ using Avalonia.VisualTree;
 using Avalonia.Threading;
 using Deadwax.Core;
 using Deadwax.Drive;
+using Deadwax.Metadata;
 
 namespace Deadwax.App;
 
@@ -132,7 +133,7 @@ public sealed partial class MainWindow : Window
 
             var first = _vm.Releases.FirstOrDefault();
             if (first is not null && _vm.Releases.Count == 1) _ = ChooseAsync(first);
-            else if (first is null) _vm.ErrorText = "MusicBrainz has no release for this disc yet. Attach it there, then read the disc again.";
+            else if (first is null) _vm.ErrorText = "No MusicBrainz release has this disc ID. Paste the release link below.";
 
             if (_libraryMatch is null) await ReadSubchannelAsync(disc, ct);
         }
@@ -181,31 +182,81 @@ public sealed partial class MainWindow : Window
         _vm.AccurateRipText = "Checked when ripping";
 
         _vm.Releases.Clear();
-        foreach (var c in disc.Candidates)
-        {
-            var detail = string.Join(" · ", new[]
-            {
-                c.Date is { Length: >= 4 } d ? d[..4] : "no date",
-                c.Country,
-                c.MediaCount > 1 ? $"disc {c.DiscPosition} of {c.MediaCount}" : "CD",
-            }.Where(x => !string.IsNullOrEmpty(x)));
-            var printed = string.Join(" · ", new[] { c.Label, c.CatalogNumber, c.Barcode is { Length: > 0 } b ? "barcode " + b : null }
-                .Where(x => !string.IsNullOrEmpty(x)));
-            _vm.Releases.Add(new ReleaseRow
-            {
-                Candidate = c,
-                Title = c.MediaCount > 1 && c.MediumTitle is not null ? $"{c.Title} · {c.MediumTitle}" : c.Title,
-                Note = c.Disambiguation is { } note ? $"({note})" : null,
-                Detail = detail,
-                Printed = printed,
-            });
-        }
+        foreach (var c in disc.Candidates) _vm.Releases.Add(Row(c));
         _vm.ReleasesChanged();
+    }
+
+    private static ReleaseRow Row(ReleaseCandidate c)
+    {
+        var detail = string.Join(" · ", new[]
+        {
+            c.Date is { Length: >= 4 } d ? d[..4] : "no date",
+            c.Country,
+            c.MediaCount > 1 ? $"disc {c.DiscPosition} of {c.MediaCount}" : "CD",
+        }.Where(x => !string.IsNullOrEmpty(x)));
+        var printed = string.Join(" · ", new[] { c.Label, c.CatalogNumber, c.Barcode is { Length: > 0 } b ? "barcode " + b : null }
+            .Where(x => !string.IsNullOrEmpty(x)));
+        return new ReleaseRow
+        {
+            Candidate = c,
+            Title = c.MediaCount > 1 && c.MediumTitle is not null ? $"{c.Title} · {c.MediumTitle}" : c.Title,
+            Note = c.Disambiguation is { } note ? $"({note})" : null,
+            Detail = detail,
+            Printed = printed,
+        };
     }
 
     private async void OnReleaseClicked(object? sender, RoutedEventArgs e)
     {
         if (sender is Button { Tag: ReleaseRow row }) await ChooseAsync(row);
+    }
+
+    private async void OnReleaseLinkKey(object? sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter) await UseReleaseLinkAsync();
+    }
+
+    private async void OnUseReleaseLink(object? sender, RoutedEventArgs e) => await UseReleaseLinkAsync();
+
+    /// A release he names by link, for a disc whose disc ID isn't attached to
+    /// it: the disc is found on it by track count and lengths, then it joins
+    /// the list, picked, like any other.
+    private async Task UseReleaseLinkAsync()
+    {
+        if (_disc is null) return;
+        var id = ReleaseChoice.ReleaseIdFrom(ReleaseLink.Text ?? "");
+        if (id is null)
+        {
+            _vm.ErrorText = "That isn't a MusicBrainz release link. Open the edition itself (musicbrainz.org/release/…), not the release group.";
+            return;
+        }
+        var existing = _vm.Releases.FirstOrDefault(r => r.Id == id);
+        if (existing is not null) { await ChooseAsync(existing); return; }
+
+        _vm.ErrorText = "";
+        var disc = _disc;
+        try
+        {
+            var candidate = await Task.Run(async () =>
+            {
+                using var mb = new MusicBrainzClient(MusicBrainzClient.DefaultCacheDir);
+                using var doc = await mb.GetReleaseAsync(id) ?? throw new MusicBrainzException("MusicBrainz has no release with that ID.");
+                var root = doc.RootElement;
+                var medium = ReleaseTags.FindMedium(root, disc.DiscId) ?? ReleaseTags.MediumByTracks(root, disc.Toc);
+                return ReleaseChoice.FromRelease(root, medium);
+            });
+            if (_disc != disc) return;
+            var row = Row(candidate);
+            row.BarcodeMatch = candidate.BarcodeMatches(disc.Catalog);
+            _vm.Releases.Add(row);
+            _vm.ReleasesChanged();
+            ReleaseLink.Text = "";
+            await ChooseAsync(row);
+        }
+        catch (Exception ex)
+        {
+            if (_disc == disc) _vm.ErrorText = ex.Message;
+        }
     }
 
     /// A release picked: plan it, show its cover, offer the years.
