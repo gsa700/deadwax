@@ -4,75 +4,94 @@
         x:Class="Deadwax.App.PrefsWindow"
         x:DataType="app:MainViewModel"
         Title="Deadwax — Preferences"
-        Width="560" Height="560" CanResize="False"
+        Width="580" Height="620" CanResize="False"
         Background="{StaticResource Ground}"
         ShowInTaskbar="False">
 
-    <!-- The family's Preferences format (AlbumWall, FlexPad, LP-100A): a proper
-         window with the system's own title bar, fixed size, one instance, no
-         Close button because the title bar has one, and every setting written
-         straight through. The Disc screen keeps only what is about this disc;
-         everything about the machine or the program lives here (his call,
-         2026-10-05). About is the last tab; new tabs go before it. -->
+    <!-- AlbumWall's Preferences format, so the two read as companions: a proper
+         window with the system's own title bar, 580 wide, fixed size, one
+         instance, no Close button because the title bar has one, settings
+         written straight through, section headings at 14 semibold with a dim
+         13 explanation under each, panel buttons, a path shown in a box.
+         The Disc screen keeps only what is about this disc; everything about
+         the machine or the program lives here (his call, 2026-10-05). About is
+         the last tab; new tabs go before it.
+
+         WORDING: for someone on a clean install who has never heard of whipper
+         or of his library tools. Nothing here names a program the reader may
+         not have, except where it only appears when that program is present. -->
     <TabControl x:Name="Tabs" Margin="12">
         <TabItem Header="Library">
-            <StackPanel Spacing="14">
-                <TextBlock Text="Library folder" FontSize="14" FontWeight="SemiBold"/>
-                <TextBlock Classes="dim" FontSize="13" TextWrapping="Wrap"
-                           Text="Albums are written here as Artist/YEAR - Album/, and the artist spellings already in it are followed."/>
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                    <TextBox x:Name="LibraryBox" Classes="mono" FontSize="13" LostFocus="OnLibraryEdited" KeyDown="OnLibraryKey"/>
-                    <Button Grid.Column="1" Classes="quiet" Content="Choose…" Click="OnChooseLibrary" Height="34" Padding="14,0" FontSize="13"/>
-                </Grid>
-                <TextBlock x:Name="LibraryNote" Classes="soft" FontSize="13" TextWrapping="Wrap"/>
+            <StackPanel Spacing="12">
+                <TextBlock Text="Where the music goes" FontSize="14" FontWeight="SemiBold"/>
+                <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
+                           Text="Each disc becomes a folder, Artist/YEAR - Album/, with the FLAC files, the cover and the rip log inside. If an artist is already in the library, their name is spelled the way it is there."/>
+                <Border CornerRadius="4" Padding="13,11" Background="{StaticResource Bar}">
+                    <TextBlock x:Name="LibraryPath" FontSize="13" Classes="mono" TextWrapping="Wrap"/>
+                </Border>
+                <TextBlock x:Name="LibraryNote" Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"/>
+                <StackPanel Orientation="Horizontal" Spacing="9">
+                    <Button Classes="panel" Content="Choose folder…" Click="OnChooseLibrary"/>
+                    <Button Classes="panel" Content="Use my Music folder" Click="OnUseDefaultLibrary"/>
+                </StackPanel>
 
-                <Border Height="1" Background="{StaticResource Rule}" Margin="0,6"/>
-                <TextBlock Text="After a rip" FontSize="14" FontWeight="SemiBold"/>
-                <CheckBox x:Name="PostRipBox" Content="Run the library tools: music-unbox, music-backart, music-audit" Click="OnPostRipToggled"/>
-                <TextBlock Classes="dim" FontSize="13" TextWrapping="Wrap"
-                           Text="Only after a rip where every track read the same twice. Leave this off on a computer without those tools."/>
+                <!-- Only on a computer that has the library tools. -->
+                <StackPanel x:Name="ToolsPanel" Spacing="12">
+                    <Border Height="1" Background="{StaticResource Rule}" Margin="0,6,0,0"/>
+                    <TextBlock Text="After a rip" FontSize="14" FontWeight="SemiBold"/>
+                    <CheckBox x:Name="PostRipBox" FontSize="13" Content="Run the library tools on the new album" Click="OnPostRipToggled"/>
+                    <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
+                               Text="music-unbox files a disc from a box set as its own album, music-backart fetches the back cover, and music-audit checks the whole library. Only after a rip where every track read the same twice."/>
+                </StackPanel>
             </StackPanel>
         </TabItem>
 
         <TabItem Header="Drive">
-            <StackPanel Spacing="14">
-                <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="10">
-                    <TextBlock Classes="dim" FontSize="13" Text="Device"/>
-                    <TextBlock Grid.Column="1" x:Name="DeviceText" Classes="mono" FontSize="13"/>
-                    <TextBlock Grid.Row="1" Classes="dim" FontSize="13" Text="Drive"/>
-                    <TextBlock Grid.Row="1" Grid.Column="1" x:Name="DriveNameText" FontSize="13" TextWrapping="Wrap"/>
-                    <TextBlock Grid.Row="2" Classes="dim" FontSize="13" Text="Read offset"/>
-                    <TextBlock Grid.Row="2" Grid.Column="1" x:Name="OffsetValueText" Classes="mono" FontSize="13"/>
-                </Grid>
-                <StackPanel Orientation="Horizontal" Spacing="12">
-                    <Button Classes="quiet" Content="Measure from the disc in the drive" Click="OnMeasure"
-                            IsEnabled="{Binding !MeasuringOffset}" Height="34" Padding="14,0" FontSize="13"/>
-                </StackPanel>
-                <TextBlock Text="{Binding OffsetText}" Classes="soft" FontSize="13" TextWrapping="Wrap"/>
-                <TextBlock Classes="dim" FontSize="13" TextWrapping="Wrap"
-                           Text="The offset comes from whipper.conf if you have one, otherwise from ~/.config/deadwax/drives.json, which Measure writes. It needs a well-known commercial CD, sometimes two."/>
+            <StackPanel Spacing="12">
+                <TextBlock Text="This drive" FontSize="14" FontWeight="SemiBold"/>
+                <Border CornerRadius="4" Padding="13,11" Background="{StaticResource Bar}">
+                    <StackPanel Spacing="4">
+                        <TextBlock x:Name="DriveNameText" FontSize="13" Classes="mono"/>
+                        <TextBlock x:Name="DeviceText" FontSize="12" Classes="mono dim"/>
+                    </StackPanel>
+                </Border>
 
-                <Border Height="1" Background="{StaticResource Rule}" Margin="0,6"/>
-                <TextBlock Text="Drive speed" FontSize="14" FontWeight="SemiBold"/>
-                <ComboBox ItemsSource="{Binding Speeds}" SelectedItem="{Binding DriveSpeed}" MinWidth="160" FontSize="13"/>
-                <TextBlock Classes="dim" FontSize="13" TextWrapping="Wrap"
-                           Text="Cap the drive for a disc that vibrates; try 4x first, then lower. The scan and rip take longer, and the cap is written in the log. A drive that cannot go as slow as asked uses its slowest speed. Remembered for the next disc."/>
-                <CheckBox IsChecked="{Binding EjectAfterRip}" Content="Eject when the rip is done"/>
+                <TextBlock Text="Read offset" FontSize="14" FontWeight="SemiBold" Margin="0,6,0,0"/>
+                <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
+                           Text="Every drive hands back audio a few samples early or late, always by the same amount. Correcting it makes your rips identical to everyone else's, which is what lets them be verified. Deadwax measures it once, from a well-known commercial CD (sometimes it needs two), and remembers it for this drive."/>
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                    <Border CornerRadius="4" Padding="13,9" Background="{StaticResource Bar}" VerticalAlignment="Center">
+                        <TextBlock x:Name="OffsetValueText" FontSize="13" Classes="mono"/>
+                    </Border>
+                    <Button Grid.Column="1" Classes="panel" HorizontalAlignment="Left" VerticalAlignment="Center"
+                            Content="Measure from the disc in the drive" Click="OnMeasure" IsEnabled="{Binding !MeasuringOffset}"/>
+                </Grid>
+                <TextBlock Text="{Binding OffsetText}" Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"/>
+
+                <Border Height="1" Background="{StaticResource Rule}" Margin="0,6,0,0"/>
+                <TextBlock Text="Speed" FontSize="14" FontWeight="SemiBold"/>
+                <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
+                           Text="A disc that is slightly out of balance vibrates at full speed and can stop the drive answering. Capping the speed cures it; try 4x first, then lower. Reading takes longer, and the cap is noted in the rip log. The setting stays until you change it."/>
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <ComboBox ItemsSource="{Binding Speeds}" SelectedItem="{Binding DriveSpeed}" MinWidth="150" FontSize="13"/>
+                    <CheckBox IsChecked="{Binding EjectAfterRip}" FontSize="13" Content="Open the tray when a rip is done" VerticalAlignment="Center"/>
+                </StackPanel>
             </StackPanel>
         </TabItem>
 
         <TabItem Header="About">
-            <StackPanel Spacing="14">
+            <StackPanel Spacing="12">
                 <TextBlock x:Name="VersionText" FontSize="20" FontWeight="SemiBold"/>
-                <TextBlock Classes="dim" FontSize="13" TextWrapping="Wrap"
-                           Text="A CD ripper for a FLAC library you own, and the companion to AlbumWall. Reads through libcdio-paranoia, verifies against AccurateRip, tags from MusicBrainz, writes whipper's log layout. GPLv3."/>
-                <StackPanel Orientation="Horizontal" Spacing="12">
-                    <Button Classes="quiet" Content="Check for updates" Click="OnCheckUpdates" Height="34" Padding="14,0" FontSize="13"/>
-                    <Button Classes="quiet" Content="Deadwax on GitHub" Click="OnOpenRepo" Height="34" Padding="14,0" FontSize="13"/>
+                <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
+                           Text="Rips CDs into a FLAC library you own, and is the companion to AlbumWall. Every track is read twice until two readings agree, then checked against AccurateRip, the database of what thousands of other drives read from the same disc. Tags come from MusicBrainz. Free software, GPLv3."/>
+                <StackPanel Orientation="Horizontal" Spacing="9">
+                    <Button Classes="panel" Content="Check for updates" Click="OnCheckUpdates"/>
+                    <Button Classes="panel" Content="Deadwax on GitHub" Click="OnOpenRepo"/>
+                    <Button Classes="panel" Content="AlbumWall" Click="OnOpenAlbumWall"/>
                 </StackPanel>
-                <TextBlock x:Name="UpdateText" Classes="soft" FontSize="13" TextWrapping="Wrap"/>
-                <TextBlock Classes="dim" FontSize="13" TextWrapping="Wrap"
-                           Text="A newer release is offered in the main window's title bar. The download is checked against the release's SHA256SUMS before it is installed."/>
+                <TextBlock x:Name="UpdateText" Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"/>
+                <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
+                           Text="Deadwax looks for a newer release a few seconds after it opens and, if there is one, offers it in the title bar. Nothing is downloaded until you ask, and the download is checked against the release's published checksum before it is installed."/>
             </StackPanel>
         </TabItem>
     </TabControl>

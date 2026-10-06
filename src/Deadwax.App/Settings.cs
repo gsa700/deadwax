@@ -22,7 +22,8 @@ public sealed class Settings
     /// Where albums go, and whose artist spellings are followed. Null = ~/Music.
     public string? Library { get; set; }
     /// Run music-unbox, music-backart and music-audit after a clean rip.
-    public bool PostRip { get; set; } = true;
+    /// Null = not decided: on if the tools are installed.
+    public bool? PostRip { get; set; }
 
     private static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config", "deadwax", "settings.json");

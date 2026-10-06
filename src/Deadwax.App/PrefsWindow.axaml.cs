@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using Avalonia.Controls;
-using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Deadwax.Drive;
@@ -23,49 +22,42 @@ public partial class PrefsWindow : Window
         InitializeComponent();
         DataContext = vm;
 
-        LibraryBox.Text = _settings.Library ?? "";
-        LibraryBox.PlaceholderText = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Music");
-        PostRipBox.IsChecked = _settings.PostRip;
-        ShowLibraryNote();
+        PostRipBox.IsChecked = _settings.PostRip ?? Deadwax.Core.PostRip.ToolsAvailable;
+        ToolsPanel.IsVisible = Deadwax.Core.PostRip.ToolsAvailable;
+        ShowLibrary();
         ShowDrive();
         VersionText.Text = $"Deadwax {UpdateService.CurrentVersion}";
-        UpdateText.Text = UpdateService.CanUpdate ? "" : "A development build: updates are not offered.";
+        UpdateText.Text = UpdateService.CanUpdate ? "" : "This is a development build, so updates are not offered.";
     }
 
     // ---- library ------------------------------------------------------------
 
-    private void OnLibraryKey(object? sender, KeyEventArgs e)
-    {
-        if (e.Key == Key.Enter) SaveLibrary();
-    }
+    private static string DefaultLibrary => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Music");
+    private string LibraryPathNow => string.IsNullOrWhiteSpace(_settings.Library) ? DefaultLibrary : _settings.Library;
 
-    private void OnLibraryEdited(object? sender, RoutedEventArgs e) => SaveLibrary();
-
-    private void SaveLibrary()
+    private void ShowLibrary()
     {
-        var text = (LibraryBox.Text ?? "").Trim();
-        if (text.StartsWith('~')) text = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + text[1..];
-        _settings.Library = text.Length == 0 ? null : text;
-        _settings.Save();
-        ShowLibraryNote();
-    }
-
-    private void ShowLibraryNote()
-    {
-        var path = string.IsNullOrWhiteSpace(_settings.Library)
-            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Music")
-            : _settings.Library;
+        var path = LibraryPathNow;
+        LibraryPath.Text = path;
         LibraryNote.Text = Directory.Exists(path)
-            ? $"{Directory.EnumerateDirectories(path).Count()} artist folders in {path}"
-            : $"{path} does not exist yet; it is created by the first rip.";
+            ? $"{Directory.EnumerateDirectories(path).Count()} artist folders there now."
+            : "That folder does not exist yet; the first rip creates it.";
     }
 
     private async void OnChooseLibrary(object? sender, RoutedEventArgs e)
     {
         var picked = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = "Library folder", AllowMultiple = false });
         if (picked.Count == 0 || picked[0].TryGetLocalPath() is not { } path) return;
-        LibraryBox.Text = path;
-        SaveLibrary();
+        _settings.Library = path == DefaultLibrary ? null : path;
+        _settings.Save();
+        ShowLibrary();
+    }
+
+    private void OnUseDefaultLibrary(object? sender, RoutedEventArgs e)
+    {
+        _settings.Library = null;
+        _settings.Save();
+        ShowLibrary();
     }
 
     private void OnPostRipToggled(object? sender, RoutedEventArgs e)
@@ -83,15 +75,14 @@ public partial class PrefsWindow : Window
         if (drive is null)
         {
             DriveNameText.Text = "Put a disc in to see the drive.";
-            OffsetValueText.Text = "";
+            OffsetValueText.Text = "—";
             return;
         }
         DriveNameText.Text = DriveOffsets.Key(drive.Vendor, drive.Model, drive.Revision);
         var fromWhipper = WhipperConfig.ReadOffset(drive.Vendor, drive.Model, drive.Revision);
-        var fromDeadwax = DriveOffsets.ReadOffset(drive.Vendor, drive.Model, drive.Revision);
         OffsetValueText.Text = _main.CurrentOffset is { } o
-            ? $"{o:+0;-0;0} samples" + (fromWhipper is not null ? "  (whipper.conf)" : fromDeadwax is not null ? "  (drives.json)" : "")
-            : "unknown";
+            ? $"{o:+0;-0;0} samples" + (fromWhipper is not null ? "  (from whipper's settings)" : "")
+            : "not known yet";
     }
 
     private async void OnMeasure(object? sender, RoutedEventArgs e)
@@ -112,14 +103,17 @@ public partial class PrefsWindow : Window
         else if (info.UpdateAvailable && info.AssetUrl is not null)
         {
             _main.OfferUpdate(info);
-            UpdateText.Text = $"{info.LatestTag} is available; the main window's title bar has the button.";
+            UpdateText.Text = $"{info.LatestTag.TrimStart('v')} is out. The button to install it is in the main window's title bar.";
         }
-        else UpdateText.Text = $"{UpdateService.CurrentVersion} is the latest.";
+        else UpdateText.Text = $"You have the latest, {UpdateService.CurrentVersion}.";
     }
 
-    private void OnOpenRepo(object? sender, RoutedEventArgs e)
+    private void OnOpenRepo(object? sender, RoutedEventArgs e) => Open(UpdateService.ProjectUrl);
+    private void OnOpenAlbumWall(object? sender, RoutedEventArgs e) => Open("https://github.com/gsa700/albumwall");
+
+    private static void Open(string url)
     {
-        try { Process.Start(new ProcessStartInfo(UpdateService.ProjectUrl) { UseShellExecute = true }); }
+        try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
         catch { }
     }
 }

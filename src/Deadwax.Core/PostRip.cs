@@ -73,6 +73,11 @@ public static partial class PostRip
 
     /// His tools live in ~/.local/bin, which a non-login environment may not
     /// have on PATH.
+    /// Whether any of the library tools is installed: the window hides the
+    /// options that need them on a computer without them.
+    public static bool ToolsAvailable => Tool("music-unbox") is not null || Tool("music-backart") is not null || Tool("music-audit") is not null;
+    public static bool UnboxAvailable => Tool("music-unbox") is not null;
+
     private static string? Tool(string name)
     {
         var local = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "bin", name);

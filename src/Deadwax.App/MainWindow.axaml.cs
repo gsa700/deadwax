@@ -142,7 +142,7 @@ public sealed partial class MainWindow : Window
 
             var first = _vm.Releases.FirstOrDefault();
             if (first is not null && _vm.Releases.Count == 1) _ = ChooseAsync(first);
-            else if (first is null) _vm.ErrorText = "No MusicBrainz release has this disc ID. Paste the release link below.";
+            else if (first is null) _vm.ErrorText = "MusicBrainz has no release for this disc. Paste a release link below, or describe the disc yourself.";
 
             if (_libraryMatch is null) await ReadSubchannelAsync(disc, ct);
         }
@@ -150,9 +150,11 @@ public sealed partial class MainWindow : Window
         catch (Exception e)
         {
             Reset("The disc could not be read.");
-            _vm.ErrorText = e.Message;
             // DriveOffsets.Advice: the one failure the window can fix itself.
             _vm.NeedsOffset = e is RipException && e.Message.StartsWith("No read offset is known", StringComparison.Ordinal);
+            _vm.ErrorText = _vm.NeedsOffset
+                ? "Deadwax does not know this drive's read offset yet. Every drive reads a few samples early or late; measuring it once, from a well-known commercial CD, makes your rips match everyone else's."
+                : e.Message;
         }
     }
 
@@ -513,7 +515,7 @@ public sealed partial class MainWindow : Window
             _vm.EditionYear = plan.EditionYear ?? plan.DefaultYear;
             _vm.HasYearChoice = _vm.OriginalYear != _vm.EditionYear;
             _vm.UseOriginal = plan.DefaultYear == _vm.OriginalYear;
-            _vm.IsSetDisc = plan.MediaCount > 1;
+            _vm.IsSetDisc = plan.MediaCount > 1 && Deadwax.Core.PostRip.UnboxAvailable;
             _vm.NoteText = plan.Disambiguation ?? "";
             _vm.KeepNote = false;
             _vm.YearNote = !_vm.HasYearChoice
@@ -545,7 +547,7 @@ public sealed partial class MainWindow : Window
         var first = _plan.Tracks.FirstOrDefault();
         _vm.OutputFiles = first is null ? "" :
             $"  {first.FileName}\n  … {_plan.Tracks.Count - 1} more tracks\n  .cue  .log  .m3u  .toc  cover.jpg" +
-            (_vm.IsSetDisc && _vm.Unbox ? "\n  then filed as its own album by music-unbox" : "  back.jpg");
+            (_vm.IsSetDisc && _vm.Unbox ? "\n  then filed as its own album" : Deadwax.Core.PostRip.ToolsAvailable ? "  back.jpg" : "");
         var exists = Directory.Exists(dir);
         if (_libraryMatch is not null)
             _vm.ErrorText = $"Already in your library: {Path.GetRelativePath(Library, _libraryMatch)}";
@@ -651,7 +653,7 @@ public sealed partial class MainWindow : Window
             });
 
             var dir = result.AlbumDirectory;
-            if (result.AllOk && _settings.PostRip)
+            if (result.AllOk && (_settings.PostRip ?? Deadwax.Core.PostRip.ToolsAvailable))
             {
                 _vm.NowText = "Into the library: music-unbox, music-backart, music-audit...";
                 var after = await Task.Run(() => PostRip.RunAsync(dir, unbox, observer.Say, ct), ct);

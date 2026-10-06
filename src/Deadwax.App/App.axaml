@@ -73,6 +73,29 @@
             <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
 
+        <!-- Title-bar glyph buttons and Preferences buttons, AlbumWall's. -->
+        <Style Selector="Button.chrome">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <Style Selector="Button.chrome:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#26FFFFFF"/>
+        </Style>
+        <Style Selector="Button.panel">
+            <Setter Property="Background" Value="#26FFFFFF"/>
+            <Setter Property="Foreground" Value="{StaticResource Text}"/>
+            <Setter Property="BorderBrush" Value="#33FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="15,6"/>
+        </Style>
+        <Style Selector="Button.panel:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#3AFFFFFF"/>
+            <Setter Property="Foreground" Value="{StaticResource Text}"/>
+        </Style>
+
         <!-- Preferences tabs: AlbumWall's chrome in the neutral palette. -->
         <Style Selector="TabControl">
             <Setter Property="Padding" Value="0"/>
