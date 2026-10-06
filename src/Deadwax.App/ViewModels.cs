@@ -122,6 +122,12 @@ public sealed class StepRow
     public string Mark => Ok ? "✓" : "!";
 }
 
+/// A row of the drive-speed list; null = the drive's own choice.
+public sealed record SpeedChoice(int? Limit)
+{
+    public override string ToString() => Limit is { } n ? $"{n}x" : "Full speed";
+}
+
 public sealed class MainViewModel : Observable
 {
     private Stage _stage = Stage.Waiting;
@@ -191,13 +197,14 @@ public sealed class MainViewModel : Observable
     public bool Unbox { get => _unbox; set => Set(ref _unbox, value); }
     public event Action? YearChanged;
 
-    /// The drive speed cap (Settings.SlowSpinSpeed), for a disc that vibrates.
-    private bool _slowSpin;
-    private int _slowSpinSpeed = Settings.DefaultSlowSpinSpeed;
-    public bool SlowSpin { get => _slowSpin; set { if (Set(ref _slowSpin, value)) SlowSpinChanged?.Invoke(); } }
-    public int SlowSpinSpeed { get => _slowSpinSpeed; set { if (Set(ref _slowSpinSpeed, value)) Raise(nameof(SlowSpinLabel)); } }
-    public string SlowSpinLabel => $"Slow spin: limit the drive to {SlowSpinSpeed}x";
-    public event Action? SlowSpinChanged;
+    /// The drive speed cap, for a disc that vibrates: one of Speeds, where
+    /// "Full speed" is no cap. Kept in settings (SlowSpin + SlowSpinSpeed).
+    public static readonly IReadOnlyList<SpeedChoice> AllSpeeds =
+        [new(null), new(16), new(8), new(4), new(2), new(1)];
+    public IReadOnlyList<SpeedChoice> Speeds => AllSpeeds;   // an instance property, for the binding
+    private SpeedChoice _driveSpeed = AllSpeeds[0];
+    public SpeedChoice DriveSpeed { get => _driveSpeed; set { if (Set(ref _driveSpeed, value)) SpeedChanged?.Invoke(); } }
+    public event Action? SpeedChanged;
 
     /// A newer release on GitHub: the title-bar button, and its state while
     /// the download runs.

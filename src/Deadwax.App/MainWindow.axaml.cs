@@ -39,9 +39,10 @@ public sealed partial class MainWindow : Window
         if (_settings.Maximized) WindowState = WindowState.Maximized;
         DataContext = _vm;
         _vm.YearChanged += UpdateOutputPreview;
-        _vm.SlowSpinSpeed = Math.Max(1, _settings.SlowSpinSpeed);
-        _vm.SlowSpin = _settings.SlowSpin;
-        _vm.SlowSpinChanged += OnSlowSpinChanged;
+        _vm.DriveSpeed = _settings.SlowSpin
+            ? MainViewModel.AllSpeeds.FirstOrDefault(c => c.Limit == _settings.SlowSpinSpeed) ?? new SpeedChoice(Math.Max(1, _settings.SlowSpinSpeed))
+            : MainViewModel.AllSpeeds[0];
+        _vm.SpeedChanged += OnSpeedChanged;
         _vm.Log.CollectionChanged += (_, _) => Dispatcher.UIThread.Post(() => LogScroll.ScrollToEnd(), DispatcherPriority.Background);
         BuildWindowButtons();
         AddHandler(PointerPressedEvent, OnPointerPressedForResize, RoutingStrategies.Tunnel);
@@ -149,7 +150,7 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private int? SpeedLimit => _vm.SlowSpin ? _vm.SlowSpinSpeed : null;
+    private int? SpeedLimit => _vm.DriveSpeed.Limit;
 
     // ---- updates ----------------------------------------------------------
 
@@ -196,12 +197,13 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    /// The box was ticked or cleared. Saved for next time, and sent to the
-    /// drive now if a disc is in: the cap takes effect on the next read, so a
-    /// scan already under way slows down from here.
-    private void OnSlowSpinChanged()
+    /// A speed was chosen. Saved for next time, and sent to the drive now if
+    /// a disc is in: the cap takes effect on the next read, so a scan already
+    /// under way slows down from here.
+    private void OnSpeedChanged()
     {
-        _settings.SlowSpin = _vm.SlowSpin;
+        _settings.SlowSpin = SpeedLimit is not null;
+        if (SpeedLimit is { } chosen) _settings.SlowSpinSpeed = chosen;
         _settings.Save();
         var device = _disc?.Device;
         if (device is null) return;
@@ -439,7 +441,7 @@ public sealed partial class MainWindow : Window
     private async void OnRip(object? sender, RoutedEventArgs e)
     {
         if (_disc is null || _plan is null) return;
-        var disc = _disc with { SpeedLimit = SpeedLimit };   // the box as it stands when Rip is pressed
+        var disc = _disc with { SpeedLimit = SpeedLimit };   // the speed as chosen when Rip is pressed
         var plan = _plan;
         var year = ChosenYear;
         var unbox = _vm.IsSetDisc && _vm.Unbox;

@@ -38,9 +38,9 @@ have one, otherwise from `~/.config/deadwax/drives.json`, a map of the drive's
 name to its offset in samples, for example `{"PIONEER BD-RW BDR-209D 1.10": 667}`.
 The number for your drive is in the [AccurateRip list](https://www.accuraterip.com/driveoffsets.htm).
 
-For a disc that vibrates in the drive, tick **Slow spin** on the Disc screen: the
-drive is capped at 4x (changeable in `~/.config/deadwax/settings.json`) for
-the scan and the rip, and the cap is recorded in the log.
+For a disc that vibrates in the drive, choose a **Drive speed** on the Disc
+screen (16x down to 1x; try 4x first). The cap holds for the scan and the rip,
+is remembered for the next disc, and is recorded in the log.
 
 ## Status
 

@@ -95,10 +95,10 @@
                              scan spins the disc up, and it is remembered between runs. -->
                         <Border Height="1" Background="{StaticResource Rule}"/>
                         <StackPanel Spacing="8">
-                            <TextBlock Classes="label" Text="DRIVE"/>
-                            <CheckBox IsChecked="{Binding SlowSpin}" Content="{Binding SlowSpinLabel}"/>
+                            <TextBlock Classes="label" Text="DRIVE SPEED"/>
+                            <ComboBox ItemsSource="{Binding Speeds}" SelectedItem="{Binding DriveSpeed}" MinWidth="160" FontSize="13"/>
                             <TextBlock Classes="soft" FontSize="13" TextWrapping="Wrap"
-                                       Text="For a disc that vibrates in the drive. The scan and rip take longer, and the cap is written in the log."/>
+                                       Text="Cap the drive for a disc that vibrates; try 4x first, then lower. The scan and rip take longer, and the cap is written in the log. A drive that cannot go as slow as asked uses its slowest speed."/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
