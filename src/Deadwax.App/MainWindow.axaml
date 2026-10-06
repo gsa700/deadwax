@@ -244,9 +244,9 @@
                             <Border Background="{StaticResource Bar}" CornerRadius="8" Padding="20,18" IsVisible="{Binding IsSetDisc}">
                                 <StackPanel Spacing="8">
                                     <TextBlock Classes="label" Text="PART OF A SET"/>
-                                    <CheckBox IsChecked="{Binding Unbox}" Content="File it as its own album after the rip"/>
+                                    <CheckBox IsChecked="{Binding Unbox}" Content="File it as the album it is, not as a disc of the set"/>
                                     <TextBlock Classes="soft" FontSize="13" TextWrapping="Wrap"
-                                               Text="The disc is ripped under the set's name first; the library tools then retag it as the album inside, with its own year and cover."/>
+                                               Text="MusicBrainz lists this disc as part of a box set, so it would be filed as 'Set Name (Disc N of M)'. Ticked, it is ripped that way first and then refiled under the album's own name, year and cover, like a normal release."/>
                                 </StackPanel>
                             </Border>
 

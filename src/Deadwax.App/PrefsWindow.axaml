@@ -41,7 +41,7 @@
                     <TextBlock Text="After a rip" FontSize="14" FontWeight="SemiBold"/>
                     <CheckBox x:Name="PostRipBox" FontSize="13" Content="Run the library tools on the new album" Click="OnPostRipToggled"/>
                     <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
-                               Text="music-unbox files a disc from a box set as its own album, music-backart fetches the back cover, and music-audit checks the whole library. Only after a rip where every track read the same twice."/>
+                               Text="Three small programs that tidy a new album into the library. music-unbox is for box sets: a disc from one is tagged as 'Box Set Name (Disc 2 of 5)', which is how MusicBrainz lists it; unbox finds the album that disc actually is and refiles it under its own name, year and cover, so it sits in the library like a normal release. music-backart fetches the back cover as back.jpg. music-audit then checks the whole library for anything out of place. They run only after a rip where every track read the same twice."/>
                 </StackPanel>
             </StackPanel>
         </TabItem>
