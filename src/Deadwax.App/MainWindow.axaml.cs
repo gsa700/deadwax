@@ -314,6 +314,81 @@ public sealed partial class MainWindow : Window
         _vm.Releases.Clear();
         foreach (var c in disc.Candidates) _vm.Releases.Add(Row(c));
         _vm.ReleasesChanged();
+
+        // The description card: the tracks from the TOC, filled from what he
+        // typed for this disc before, open by itself when MusicBrainz has nothing.
+        var saved = DiscDescription.Load(disc.DiscId);
+        _vm.DescribeArtist = saved?.Artist ?? "";
+        _vm.DescribeAlbum = saved?.Album ?? "";
+        _vm.DescribeYear = saved?.Year ?? "";
+        _vm.DescribeNote = saved is null ? "" : "Filled in from last time.";
+        _vm.DescribeTracks.Clear();
+        var i = 0;
+        foreach (var t in disc.Toc.IdTracks.Where(t => t.IsAudio))
+        {
+            var s = (disc.Toc.EndLsn(t) - t.StartLsn) / Toc.SectorsPerSecond;
+            var title = saved is not null && i < saved.Titles.Count ? saved.Titles[i] : $"Track {t.Number}";
+            _vm.DescribeTracks.Add(new DescribeTrack { Number = t.Number, Length = $"{s / 60}:{s % 60:D2}", Title = title });
+            i++;
+        }
+        _vm.DescribeOpen = disc.Candidates.Count == 0;
+    }
+
+    private async void OnChooseCover(object? sender, RoutedEventArgs e)
+    {
+        var picked = await StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
+        {
+            Title = "Cover image",
+            AllowMultiple = false,
+            FileTypeFilter = [new Avalonia.Platform.Storage.FilePickerFileType("JPEG image") { Patterns = ["*.jpg", "*.jpeg"] }],
+        });
+        if (picked.Count == 0) return;
+        try
+        {
+            await using var stream = await picked[0].OpenReadAsync();
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            var bytes = ms.ToArray();
+            if (bytes.Length < 4 || bytes[0] != 0xFF || bytes[1] != 0xD8) { _vm.DescribeNote = "That is not a JPEG file."; return; }
+            _coverBytes = bytes;
+            _vm.Cover = new Bitmap(new MemoryStream(bytes));
+            _vm.DescribeNote = $"Cover: {picked[0].Name}";
+        }
+        catch (Exception ex)
+        {
+            _vm.DescribeNote = "Could not read that file: " + ex.Message;
+        }
+    }
+
+    private void OnUseDescription(object? sender, RoutedEventArgs e)
+    {
+        if (_disc is null) return;
+        var description = new DiscDescription(_vm.DescribeArtist.Trim(), _vm.DescribeAlbum.Trim(), _vm.DescribeYear.Trim(),
+            _vm.DescribeTracks.Select(t => t.Title.Trim()).ToList());
+        if (description.Problem() is { } problem) { _vm.DescribeNote = problem; return; }
+        var version = ++_planVersion;
+        try
+        {
+            var plan = RipSession.PlanSelfDescribed(_disc, description);
+            description.Save(_disc.DiscId);
+            foreach (var r in _vm.Releases) r.IsSelected = false;
+            _plan?.Dispose();
+            _plan = plan;
+            _vm.OriginalYear = _vm.EditionYear = description.Year;
+            _vm.HasYearChoice = false;
+            _vm.UseOriginal = true;
+            _vm.IsSetDisc = false;
+            _vm.NoteText = "";
+            _vm.KeepNote = false;
+            _vm.YearNote = $"{description.Year}, as you described it.";
+            _vm.DescribeNote = "Using this description." + (_coverBytes is null ? " No cover chosen." : "");
+            _vm.ErrorText = "";
+            UpdateOutputPreview();
+        }
+        catch (RipException ex)
+        {
+            if (version == _planVersion) _vm.DescribeNote = ex.Message;
+        }
     }
 
     private static ReleaseRow Row(ReleaseCandidate c)
@@ -572,7 +647,7 @@ public sealed partial class MainWindow : Window
             _vm.AlbumDirectory = dir.Replace(Home, "~") + "/";
             _vm.Files.Clear();
             var flacs = Directory.EnumerateFiles(dir, "*.flac").Count();
-            _vm.Files.Add($"  {flacs} × FLAC, tagged, with MusicBrainz IDs");
+            _vm.Files.Add(plan.IsSelfDescribed ? $"  {flacs} × FLAC, tagged from your description" : $"  {flacs} × FLAC, tagged, with MusicBrainz IDs");
             foreach (var f in Directory.EnumerateFiles(dir).Where(f => !f.EndsWith(".flac")).Select(Path.GetFileName).Order())
                 _vm.Files.Add("  " + f);
             _lastAlbum = dir;

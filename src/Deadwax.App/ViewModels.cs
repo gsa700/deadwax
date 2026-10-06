@@ -49,6 +49,15 @@ public static class Tone
     public static readonly IBrush RowRule = Brush.Parse("#3C3C42");
 }
 
+/// One line of the self-description card: a track and the title he gives it.
+public sealed class DescribeTrack : Observable
+{
+    private string _title = "";
+    public int Number { get; init; }
+    public string Length { get; init; } = "";
+    public string Title { get => _title; set => Set(ref _title, value); }
+}
+
 public sealed class ReleaseRow : Observable
 {
     public required Deadwax.Metadata.ReleaseCandidate Candidate { get; init; }
@@ -180,6 +189,16 @@ public sealed class MainViewModel : Observable
     public string AccurateRipText { get => _ar; set => Set(ref _ar, value); }
 
     public ObservableCollection<ReleaseRow> Releases { get; } = [];
+
+    /// The self-description card (DiscDescription).
+    private bool _describeOpen;
+    private string _describeArtist = "", _describeAlbum = "", _describeYear = "", _describeNote = "";
+    public bool DescribeOpen { get => _describeOpen; set => Set(ref _describeOpen, value); }
+    public string DescribeArtist { get => _describeArtist; set => Set(ref _describeArtist, value); }
+    public string DescribeAlbum { get => _describeAlbum; set => Set(ref _describeAlbum, value); }
+    public string DescribeYear { get => _describeYear; set => Set(ref _describeYear, value); }
+    public string DescribeNote { get => _describeNote; set => Set(ref _describeNote, value); }
+    public ObservableCollection<DescribeTrack> DescribeTracks { get; } = [];
     public string ReleasesHeading => Releases.Count switch
     {
         0 => "This disc is not on any MusicBrainz release.",

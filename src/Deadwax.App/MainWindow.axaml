@@ -170,6 +170,44 @@
                                 </Grid>
                             </StackPanel>
 
+                            <!-- A disc MusicBrainz does not have (a bootleg, a private pressing):
+                                 he describes it, and it rips like any other, minus the IDs. -->
+                            <Expander IsExpanded="{Binding DescribeOpen}" Padding="0" Margin="0,4,0,0">
+                                <Expander.Header>
+                                    <TextBlock Text="Not on MusicBrainz? Describe it yourself" FontSize="14"/>
+                                </Expander.Header>
+                                <Border Background="{StaticResource Bar}" CornerRadius="8" Padding="20,18">
+                                    <StackPanel Spacing="10">
+                                        <Grid ColumnDefinitions="90,*,70,80" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="8">
+                                            <TextBlock Classes="dim" FontSize="13" VerticalAlignment="Center" Text="Artist"/>
+                                            <TextBox Grid.Column="1" Text="{Binding DescribeArtist}" FontSize="13"/>
+                                            <TextBlock Grid.Column="2" Classes="dim" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Right" Text="Year"/>
+                                            <TextBox Grid.Column="3" Text="{Binding DescribeYear}" FontSize="13" MaxLength="4"/>
+                                            <TextBlock Grid.Row="1" Classes="dim" FontSize="13" VerticalAlignment="Center" Text="Album"/>
+                                            <TextBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding DescribeAlbum}" FontSize="13"/>
+                                        </Grid>
+                                        <ItemsControl ItemsSource="{Binding DescribeTracks}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="app:DescribeTrack">
+                                                    <Grid ColumnDefinitions="28,52,*" ColumnSpacing="10" Margin="0,2">
+                                                        <TextBlock Text="{Binding Number}" Classes="dim mono" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                                                        <TextBlock Grid.Column="1" Text="{Binding Length}" Classes="dim mono" FontSize="13" VerticalAlignment="Center"/>
+                                                        <TextBox Grid.Column="2" Text="{Binding Title}" FontSize="13"/>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <StackPanel Orientation="Horizontal" Spacing="10">
+                                            <Button Classes="quiet" Content="Choose a cover image (JPEG)…" Click="OnChooseCover"/>
+                                            <Button Classes="quiet" Content="Use this description" Click="OnUseDescription"/>
+                                            <TextBlock Text="{Binding DescribeNote}" Classes="soft" FontSize="13" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <TextBlock Classes="soft" FontSize="13" TextWrapping="Wrap"
+                                                   Text="Rips like any other disc: folder, tags, cue, log, AccurateRip. No MusicBrainz IDs are written. Remembered for this disc."/>
+                                    </StackPanel>
+                                </Border>
+                            </Expander>
+
                             <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding HasSubchannelText}">
                                 <ProgressBar IsIndeterminate="True" Width="120" VerticalAlignment="Center"/>
                                 <TextBlock Text="{Binding SubchannelText}" Classes="dim" FontSize="13" VerticalAlignment="Center"/>

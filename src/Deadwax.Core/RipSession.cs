@@ -67,10 +67,12 @@ public sealed record PlannedTrack(int Number, string Title, string? Artist, int 
 public sealed class ReleasePlan : IDisposable
 {
     internal JsonDocument Document { get; }
-    internal JsonElement Root => Document.RootElement;
-    internal JsonElement Medium { get; }
+    public JsonElement Root => Document.RootElement;
+    public JsonElement Medium { get; }
 
-    public string ReleaseId { get; }
+    /// Null for a disc he described himself (SelfDescribed): no release exists.
+    public string? ReleaseId { get; }
+    public bool IsSelfDescribed => ReleaseId is null;
     /// The disc ID is not attached to this release; its medium was found by
     /// track count and lengths instead.
     public bool MatchedByTracks { get; init; }
@@ -97,7 +99,7 @@ public sealed class ReleasePlan : IDisposable
         Document = doc;
         Medium = medium;
         var root = doc.RootElement;
-        ReleaseId = root.GetProperty("id").GetString()!;
+        ReleaseId = root.TryGetProperty("id", out var idp) ? idp.GetString() : null;
         var rg = root.TryGetProperty("release-group", out var g) ? g : default;
         ReleaseGroupId = rg.ValueKind == JsonValueKind.Object ? rg.GetProperty("id").GetString() : null;
         IsCompilation = rg.ValueKind == JsonValueKind.Object && rg.TryGetProperty("secondary-types", out var types) &&
@@ -195,6 +197,43 @@ public sealed class RipSession
         if (!cdrdaoToc.Tracks.SequenceEqual(disc.Toc.Tracks) || cdrdaoToc.LeadoutLsn != disc.Toc.LeadoutLsn)
             throw new RipException("cdrdao and libcdio disagree about the TOC; not ripping.");
         return disc with { Cdrdao = cdrdao };
+    }
+
+    /// A plan from his own description of the disc (a bootleg, a private
+    /// pressing, anything MusicBrainz lacks): the same tags and files as a
+    /// release gives, minus every MusicBrainz ID. The description is shaped
+    /// like a one-medium release so ReleaseTags reads it unchanged.
+    public static ReleasePlan PlanSelfDescribed(PreparedDisc disc, DiscDescription description)
+    {
+        var audio = disc.Toc.IdTracks.Where(t => t.IsAudio).ToList();
+        if (description.Titles.Count != audio.Count)
+            throw new RipException($"The description has {description.Titles.Count} titles for {audio.Count} audio tracks.");
+        var credit = new[] { new { name = description.Artist, joinphrase = "", artist = new { } } };
+        var release = new
+        {
+            title = description.Album,
+            date = description.Year,
+            status = "Self-described",
+            artistCredit = credit,
+            media = new[]
+            {
+                new
+                {
+                    position = 1,
+                    trackCount = audio.Count,
+                    tracks = audio.Select((t, i) => new
+                    {
+                        position = t.Number,
+                        title = description.Titles[i],
+                        artistCredit = credit,
+                        recording = new { },
+                    }).ToArray(),
+                },
+            },
+        };
+        var json = JsonSerializer.Serialize(release, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.KebabCaseLower });
+        var doc = JsonDocument.Parse(json);
+        return new ReleasePlan(doc, doc.RootElement.GetProperty("media")[0], null, disc);
     }
 
     public static async Task<ReleasePlan> PlanAsync(PreparedDisc disc, string releaseId, string conventionsLibrary, CancellationToken ct = default)
@@ -358,10 +397,11 @@ public sealed class RipSession
     /// the archive cannot be reached.
     public static async Task<byte[]?> FrontCoverAsync(ReleasePlan plan, CancellationToken ct = default)
     {
+        if (plan.ReleaseId is null) return null;   // nothing to look up for a self-described disc
         try
         {
             using var http = Http(30);
-            return await CoverArt.FrontAsync(http, plan.ReleaseId, plan.ReleaseGroupId, ct);
+            return await CoverArt.FrontAsync(http, plan.ReleaseId!, plan.ReleaseGroupId, ct);
         }
         catch (HttpRequestException)
         {
