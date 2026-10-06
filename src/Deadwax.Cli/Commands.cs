@@ -31,6 +31,10 @@ internal static class Commands
               whipper.conf unless given). With --against, check the audio equals
               whipper's rip: logged CRC and the FLAC's stored MD5 (gate G2), and
               AccurateRip v1/v2 checksums equal whipper's (G3). Writes nothing.
+          deadwax offset [--device DEV] [--save]
+              Measure the drive's read offset from a well-known disc: one track
+              read once, every offset from -2000 to +2000 checked against
+              AccurateRip. --save records it in ~/.config/deadwax/drives.json.
           deadwax check-audio [LIBRARY|LOG] [--limit N]
               Decode whipper's FLACs and check Deadwax's copy CRC and AccurateRip
               v1/v2 checksums of that audio equal the logged ones (G2/G3, no drive).
@@ -65,6 +69,7 @@ internal static class Commands
                 "post-rip" => await PostRipCommand.RunAsync(args[1..]),
                 "scan" => await ScanCommand.RunAsync(args[1..]),
                 "read" => await ReadCommand.RunAsync(args[1..]),
+                "offset" => await OffsetCommand.RunAsync(args[1..]),
                 "check-logs" => await CheckLogsCommand.RunAsync(args[1..]),
                 "check-audio" => await CheckAudioCommand.RunAsync(args[1..]),
                 "check-tags" => await CheckTagsCommand.RunAsync(args[1..]),

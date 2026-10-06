@@ -158,6 +158,13 @@ public sealed class MainViewModel : Observable
     public string ErrorText { get => _error; set { if (Set(ref _error, value)) Raise(nameof(HasError)); } }
     public bool HasError => ErrorText.Length > 0;
 
+    /// The drive has no read offset on file; the Disc screen offers to measure it.
+    private bool _needsOffset, _measuringOffset;
+    private string _offsetText = "";
+    public bool NeedsOffset { get => _needsOffset; set => Set(ref _needsOffset, value); }
+    public bool MeasuringOffset { get => _measuringOffset; set => Set(ref _measuringOffset, value); }
+    public string OffsetText { get => _offsetText; set => Set(ref _offsetText, value); }
+
     // The Disc screen.
     private Bitmap? _cover;
     public Bitmap? Cover { get => _cover; set { if (Set(ref _cover, value)) Raise(nameof(HasCover), nameof(NoCover)); } }
@@ -205,6 +212,10 @@ public sealed class MainViewModel : Observable
     private SpeedChoice _driveSpeed = AllSpeeds[0];
     public SpeedChoice DriveSpeed { get => _driveSpeed; set { if (Set(ref _driveSpeed, value)) SpeedChanged?.Invoke(); } }
     public event Action? SpeedChanged;
+
+    private bool _ejectAfterRip;
+    public bool EjectAfterRip { get => _ejectAfterRip; set { if (Set(ref _ejectAfterRip, value)) EjectChanged?.Invoke(); } }
+    public event Action? EjectChanged;
 
     /// A newer release on GitHub: the title-bar button, and its state while
     /// the download runs.

@@ -1,3 +1,4 @@
+using System.Net.Http;
 using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
@@ -8,6 +9,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.VisualTree;
 using Avalonia.Threading;
 using Deadwax.Core;
+using Deadwax.Verify;
 using Deadwax.Drive;
 using Deadwax.Metadata;
 
@@ -43,6 +45,8 @@ public sealed partial class MainWindow : Window
             ? MainViewModel.AllSpeeds.FirstOrDefault(c => c.Limit == _settings.SlowSpinSpeed) ?? new SpeedChoice(Math.Max(1, _settings.SlowSpinSpeed))
             : MainViewModel.AllSpeeds[0];
         _vm.SpeedChanged += OnSpeedChanged;
+        _vm.EjectAfterRip = _settings.EjectAfterRip;
+        _vm.EjectChanged += () => { _settings.EjectAfterRip = _vm.EjectAfterRip; _settings.Save(); };
         _vm.Log.CollectionChanged += (_, _) => Dispatcher.UIThread.Post(() => LogScroll.ScrollToEnd(), DispatcherPriority.Background);
         BuildWindowButtons();
         AddHandler(PointerPressedEvent, OnPointerPressedForResize, RoutingStrategies.Tunnel);
@@ -147,10 +151,64 @@ public sealed partial class MainWindow : Window
         {
             Reset("The disc could not be read.");
             _vm.ErrorText = e.Message;
+            // DriveOffsets.Advice: the one failure the window can fix itself.
+            _vm.NeedsOffset = e is RipException && e.Message.StartsWith("No read offset is known", StringComparison.Ordinal);
         }
     }
 
     private int? SpeedLimit => _vm.DriveSpeed.Limit;
+
+    // ---- read offset ------------------------------------------------------
+
+    /// What earlier discs allowed, while he swaps in another (OffsetFinder:
+    /// one disc often matches several pressings' shifts as well as the drive).
+    private OffsetSearch? _offsetSoFar;
+
+    private async void OnMeasureOffset(object? sender, RoutedEventArgs e)
+    {
+        if (_vm.MeasuringOffset) return;
+        _vm.MeasuringOffset = true;
+        _vm.ErrorText = "";
+        try
+        {
+            var say = new Progress<string>(m => _vm.OffsetText = m);
+            var read = new Progress<(int, int)>(p => _vm.OffsetText = $"Reading... {p.Item1 * 100 / Math.Max(p.Item2, 1)}%");
+            var search = await Task.Run(() => OffsetFinder.FindAsync(null,
+                m => ((IProgress<string>)say).Report(m), (d, t) => ((IProgress<(int, int)>)read).Report((d, t))));
+            if (search.Candidates.Count == 0)
+            {
+                _vm.OffsetText = $"Nothing from -{OffsetFinder.Range} to +{OffsetFinder.Range} matched AccurateRip on track {search.Track}. Try another well-known commercial CD.";
+                return;
+            }
+            var combined = _offsetSoFar?.Intersect(search) ?? search;
+            if (combined.Candidates.Count == 0)
+            {
+                _offsetSoFar = null;
+                _vm.OffsetText = "No offset fits every disc tried; starting over. Put in another well-known CD and measure again.";
+                return;
+            }
+            if (combined.Best is { } best && search.Drive is { } drive)
+            {
+                DriveOffsets.Write(drive.Vendor, drive.Model, drive.Revision, best.Offset);
+                _offsetSoFar = null;
+                _vm.OffsetText = $"Read offset {best.Offset:+0;-0;0}, agreed by {best.Confidence} rips of track {best.Track}. Saved for {DriveOffsets.Key(drive.Vendor, drive.Model, drive.Revision)}.";
+                _vm.NeedsOffset = false;
+                await ScanAsync();
+                return;
+            }
+            _offsetSoFar = combined;
+            var list = string.Join(", ", combined.Candidates.Select(c => c.Offset.ToString("+0;-0;0")));
+            _vm.OffsetText = $"{combined.Candidates.Count} offsets match ({list}): other pressings of this disc sit a few samples apart. Put in ANOTHER well-known CD and measure again; the drive's offset is the one both allow.";
+        }
+        catch (Exception ex) when (ex is RipException or DriveException or HttpRequestException)
+        {
+            _vm.OffsetText = ex.Message;
+        }
+        finally
+        {
+            _vm.MeasuringOffset = false;
+        }
+    }
 
     // ---- updates ----------------------------------------------------------
 
@@ -434,6 +492,7 @@ public sealed partial class MainWindow : Window
         ClearDisc();
         _vm.Stage = Stage.Waiting;
         _vm.StatusText = status;
+        _vm.NeedsOffset = false;
     }
 
     // ------------------------------------------------------------ the rip
@@ -518,6 +577,8 @@ public sealed partial class MainWindow : Window
                 _vm.Files.Add("  " + f);
             _lastAlbum = dir;
             _vm.Stage = Stage.Intake;
+            // As whipper did; the Intake screen's "Eject, next disc" still works for the rest.
+            if (_settings.EjectAfterRip) await EjectAsync();
         }
         catch (OperationCanceledException)
         {

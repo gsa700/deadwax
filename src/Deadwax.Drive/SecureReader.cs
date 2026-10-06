@@ -138,8 +138,19 @@ public sealed class SecureReader : IDisposable
         if (!track.IsAudio) throw new ArgumentException($"Track {trackNumber} is data, not audio.");
 
         var w = ReadWindow.For(toc, track, offsetSamples);
-        var (firstSector, endSector, readableStart, readableEnd) = (w.FirstSector, w.EndSector, w.ReadableStart, w.ReadableEnd);
+        var (window, report) = ReadSectors(w.FirstSector, w.EndSector, w.ReadableStart, w.ReadableEnd, maxRetries, progress, ct);
+        return (window.AsSpan(w.TrackStartInWindow, w.TrackBytes).ToArray(), report);
+    }
 
+    /// One pass over a run of sectors, through paranoia: [firstSector, endSector)
+    /// comes back as bytes, of which only [readableStart, readableEnd) is read
+    /// from the disc; the rest stays zero (before the disc, or past the audio).
+    /// ReadTrack cuts a track out of this; OffsetFinder reads a track with a
+    /// margin on both sides and slides over it.
+    public (byte[] Window, ReadReport Report) ReadSectors(
+        int firstSector, int endSector, int readableStart, int readableEnd,
+        int maxRetries = DefaultMaxRetries, Action<int, int>? progress = null, CancellationToken ct = default)
+    {
         var window = new byte[(long)(endSector - firstSector) * LibParanoia.SectorBytes];
         var report = new ReadReport(firstSector, endSector - firstSector);
         var clock = Stopwatch.StartNew();
@@ -179,8 +190,7 @@ public sealed class SecureReader : IDisposable
             LibParanoia.cdio_paranoia_free(paranoia);
         }
         report.Elapsed = clock.Elapsed;
-
-        return (window.AsSpan(w.TrackStartInWindow, w.TrackBytes).ToArray(), report);
+        return (window, report);
     }
 
     /// paranoia calls back from inside a read on the calling thread, with no

@@ -99,6 +99,7 @@
                             <ComboBox ItemsSource="{Binding Speeds}" SelectedItem="{Binding DriveSpeed}" MinWidth="160" FontSize="13"/>
                             <TextBlock Classes="soft" FontSize="13" TextWrapping="Wrap"
                                        Text="Cap the drive for a disc that vibrates; try 4x first, then lower. The scan and rip take longer, and the cap is written in the log. A drive that cannot go as slow as asked uses its slowest speed."/>
+                            <CheckBox IsChecked="{Binding EjectAfterRip}" Content="Eject when the rip is done" Margin="0,6,0,0"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
@@ -111,6 +112,13 @@
                         <ProgressBar IsIndeterminate="True" Width="320" IsVisible="{Binding IsScanning}"/>
                         <TextBlock Text="{Binding ErrorText}" Foreground="{StaticResource Bad}" IsVisible="{Binding HasError}"
                                    TextWrapping="Wrap" MaxWidth="640" HorizontalAlignment="Center" TextAlignment="Center"/>
+                        <!-- A drive with no offset on file: measure it from the disc (OffsetFinder). -->
+                        <StackPanel Spacing="10" HorizontalAlignment="Center" IsVisible="{Binding NeedsOffset}" Margin="0,12,0,0">
+                            <Button Classes="quiet" HorizontalAlignment="Center" Content="Measure the read offset from this disc"
+                                    IsEnabled="{Binding !MeasuringOffset}" Click="OnMeasureOffset"/>
+                            <TextBlock Text="{Binding OffsetText}" Classes="dim" FontSize="13" TextWrapping="Wrap" MaxWidth="640"
+                                       HorizontalAlignment="Center" TextAlignment="Center"/>
+                        </StackPanel>
                     </StackPanel>
 
                     <!-- Right margin keeps the overlay scroll bar off the release rows. -->

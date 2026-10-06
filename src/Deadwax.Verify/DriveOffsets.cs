@@ -33,6 +33,27 @@ public static class DriveOffsets
         return null;
     }
 
+    /// Records a measured offset, keeping any other drives in the file.
+    public static void Write(string vendor, string model, string revision, int offset, string? path = null)
+    {
+        path ??= DefaultPath;
+        var map = new SortedDictionary<string, int>(StringComparer.Ordinal);
+        if (File.Exists(path))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(File.ReadAllText(path));
+                if (doc.RootElement.ValueKind == JsonValueKind.Object)
+                    foreach (var p in doc.RootElement.EnumerateObject())
+                        if (p.Value.TryGetInt32(out var n)) map[Key(p.Name, "", "")] = n;
+            }
+            catch (JsonException) { }
+        }
+        map[Key(vendor, model, revision)] = offset;
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, JsonSerializer.Serialize(map, new JsonSerializerOptions { WriteIndented = true }) + "\n");
+    }
+
     /// What to tell someone whose drive has no offset on file.
     public static string Advice(string vendor, string model, string revision) =>
         $"No read offset is known for {Key(vendor, model, revision)}. Put it in {DefaultPath} as " +

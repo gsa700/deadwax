@@ -17,6 +17,8 @@ public sealed class Settings
     public bool SlowSpin { get; set; }
     public int SlowSpinSpeed { get; set; } = DefaultSlowSpinSpeed;
     public const int DefaultSlowSpinSpeed = 4;
+    /// Open the tray when the rip and post-rip steps are done, as whipper did.
+    public bool EjectAfterRip { get; set; }
 
     private static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config", "deadwax", "settings.json");
