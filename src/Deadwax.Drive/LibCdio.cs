@@ -31,6 +31,12 @@ internal static partial class LibCdio
     [LibraryImport(Lib)]
     public static partial void cdio_destroy(IntPtr cdio);
 
+    /// cdio/device.h: caps the drive's read speed, in multiples of 1x (176 kB/s),
+    /// MMC SET CD SPEED underneath. 0 = success. The drive keeps the cap until
+    /// the disc is changed or it is reset.
+    [LibraryImport(Lib)]
+    public static partial int cdio_set_speed(IntPtr cdio, int speed);
+
     [LibraryImport(Lib)]
     public static partial byte cdio_get_first_track_num(IntPtr cdio);
 

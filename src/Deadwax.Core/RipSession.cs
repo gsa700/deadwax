@@ -24,6 +24,9 @@ public sealed record RipOptions
     public bool AccurateRip { get; init; } = true;
     /// Put MusicBrainz's disambiguation note in the folder name, as whipper did.
     public bool KeepDisambiguation { get; init; }
+    /// Cap the drive at this many times 1x, for a disc that vibrates (spec §8).
+    /// Null = the drive's own choice.
+    public int? SpeedLimit { get; init; }
 }
 
 public sealed class RipException(string message) : Exception(message);
@@ -49,7 +52,7 @@ public sealed record RipResult(string AlbumDirectory, IReadOnlyList<RippedTrack>
 /// for it.
 public sealed record PreparedDisc(
     string Device, DriveIdentity? Identity, Toc Toc, int Offset, string DiscId, uint Cddb,
-    Cdrdao.Result? Cdrdao, IReadOnlyList<ReleaseCandidate> Candidates)
+    Cdrdao.Result? Cdrdao, IReadOnlyList<ReleaseCandidate> Candidates, int? SpeedLimit = null)
 {
     public int AudioTracks => Toc.Tracks.Count(t => t.IsAudio);
     public string? Catalog => Cdrdao?.Toc.EffectiveCatalog;
@@ -151,13 +154,17 @@ public sealed class RipSession
     public const string Version = "0.1";
 
     public static async Task<PreparedDisc> PrepareAsync(
-        string? device, int? offsetOverride, Action<string> say, bool readSubchannel = true, CancellationToken ct = default)
+        string? device, int? offsetOverride, Action<string> say, bool readSubchannel = true,
+        int? speedLimit = null, CancellationToken ct = default)
     {
         device ??= CdDrive.DefaultDevice;
         DriveIdentity? identity;
         Toc toc;
         using (var drive = CdDrive.Open(device))
         {
+            // Before anything spins the disc up: the cap is what keeps an
+            // unbalanced disc readable, and the subchannel pass is at full speed.
+            if (speedLimit is { } s) drive.LimitSpeed(s);
             identity = drive.ReadIdentity();
             toc = drive.ReadToc();
         }
@@ -170,9 +177,9 @@ public sealed class RipSession
         using var mb = new MusicBrainzClient(MusicBrainzClient.DefaultCacheDir);
         using var lookup = await mb.GetDiscAsync(discId, ct);
         var candidates = lookup is null ? [] : ReleaseChoice.FromDiscLookup(lookup.RootElement, discId);
-        var disc = new PreparedDisc(device, identity, toc, offset, discId, cddb, null, candidates);
+        var disc = new PreparedDisc(device, identity, toc, offset, discId, cddb, null, candidates, speedLimit);
         if (!readSubchannel) return disc;
-        say($"Disc {discId}, {disc.AudioTracks} audio tracks. Reading ISRCs, CD-Text and pregaps (about two minutes)...");
+        say($"Disc {discId}, {disc.AudioTracks} audio tracks. Reading ISRCs, CD-Text and pregaps ({(speedLimit is null ? "about two minutes" : $"longer at {speedLimit}x")})...");
         return await ReadSubchannelAsync(disc, ct);
     }
 
@@ -249,6 +256,14 @@ public sealed class RipSession
         var ripped = new List<RippedTrack>();
         var logTracks = new List<LogTrack>();
         var sidecarTracks = new List<SidecarTrack>();
+
+        // Set again here: the cap is lost if the disc was taken out and put
+        // back between the scan and the rip.
+        if (disc.SpeedLimit is { } speed)
+        {
+            CdDrive.LimitSpeed(disc.Device, speed);
+            observer.Say($"Drive speed limited to {speed}x.");
+        }
 
         using (var reader = SecureReader.Open(disc.Device))
         {
@@ -327,7 +342,8 @@ public sealed class RipSession
         var identity = disc.Identity;
         var driveName = identity is null ? disc.Device : $"{identity.Vendor} {identity.Model} (revision {identity.Revision})";
         var logDisc = new LogDisc(driveName, CdDrive.EngineDescription, disc.Offset, cdrdao.Version, false,
-            plan.AlbumArtist, plan.DiscTitle, disc.Cddb, disc.DiscId, DiscIds.MusicBrainzAttachUrl(toc), plan.ReleaseId, toc);
+            plan.AlbumArtist, plan.DiscTitle, disc.Cddb, disc.DiscId, DiscIds.MusicBrainzAttachUrl(toc), plan.ReleaseId, toc,
+            disc.SpeedLimit);
         await File.WriteAllTextAsync(Path.Combine(albumDir, baseName + ".log"),
             RipLog.Write(logDisc, logTracks, Version, DateTimeOffset.UtcNow), ct);
 
@@ -353,7 +369,7 @@ public sealed class RipSession
     /// The command line: all three steps in a row.
     public static async Task<RipResult> RunAsync(RipOptions options, IRipObserver observer, CancellationToken ct = default)
     {
-        var disc = await PrepareAsync(options.Device, options.Offset, observer.Say, ct: ct);
+        var disc = await PrepareAsync(options.Device, options.Offset, observer.Say, speedLimit: options.SpeedLimit, ct: ct);
         var releaseId = options.ReleaseId ?? disc.Candidates.Count switch
         {
             0 => throw new RipException($"Disc {disc.DiscId} is not on any MusicBrainz release. Attach it there, or give a release with --release."),

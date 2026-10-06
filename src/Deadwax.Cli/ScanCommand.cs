@@ -14,6 +14,7 @@ internal static class ScanCommand
     {
         var options = new Options(args);
         var device = options.Value("--device") ?? CdDrive.DefaultDevice;
+        var speed = options.Value("--speed");
         var against = options.Value("--against");
         var full = options.Flag("--full");
         var online = options.Flag("--online");
@@ -31,6 +32,7 @@ internal static class ScanCommand
         Toc toc;
         using (var drive = CdDrive.Open(device))
         {
+            if (speed is not null) drive.LimitSpeed(int.Parse(speed));
             identity = drive.ReadIdentity();
             toc = drive.ReadToc();
         }

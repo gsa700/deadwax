@@ -97,6 +97,27 @@ public sealed class CdDrive : IDisposable
         }
     }
 
+    /// Caps the drive's read speed at `speed` times 1x. For a disc that is out
+    /// of balance: Now and Zen (2026-10-05) vibrated at full speed and the
+    /// BDR-209D went silent mid-command on cdrdao's subchannel pass, twice;
+    /// at 4x it scanned and ripped 13/13 accurate. The drive holds the cap
+    /// until the disc is changed, so it is set once before the scan and once
+    /// more before the rip, in case the disc was reinserted between.
+    /// Null lifts the cap (CDROM_SELECT_SPEED 0: the drive chooses again).
+    public void LimitSpeed(int? speed)
+    {
+        if (speed is < 1) throw new ArgumentOutOfRangeException(nameof(speed));
+        if (LibCdio.cdio_set_speed(Handle, speed ?? 0) != 0)
+            throw new DriveException($"{Device} did not accept a {speed}x speed limit.");
+    }
+
+    /// Opens the device just long enough to set or lift the cap.
+    public static void LimitSpeed(string? device, int? speed)
+    {
+        using var drive = Open(device);
+        drive.LimitSpeed(speed);
+    }
+
     private IntPtr Handle => _cdio != IntPtr.Zero ? _cdio : throw new ObjectDisposedException(nameof(CdDrive));
 
     /// "libcdio-paranoia (libcdio 2.3.0)", for the rip log.

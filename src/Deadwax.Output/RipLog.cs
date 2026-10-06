@@ -15,7 +15,7 @@ public sealed record LogTrack(
 public sealed record LogDisc(
     string Drive, string Engine, int ReadOffset, string GapDetection, bool IsCdr,
     string AlbumArtist, string Album, uint CddbId, string MusicBrainzId, string MusicBrainzLookupUrl,
-    string? ReleaseId, Toc Toc);
+    string? ReleaseId, Toc Toc, int? SpeedLimit = null);
 
 /// The rip log: a record of what the drive returned, written only by the rip it
 /// describes. It is never regenerated and never written for audio that was not
@@ -43,6 +43,8 @@ public static class RipLog
         L("  Defeat audio cache: false");
         L($"  Read offset correction: {disc.ReadOffset}");
         L("  Overread into lead-out: false");
+        // Only when a cap was set, so every log before this line existed reads the same.
+        if (disc.SpeedLimit is { } speed) L($"  Drive speed limit: {speed}x");
         L($"  Gap detection: {disc.GapDetection}");
         L($"  CD-R detected: {(disc.IsCdr ? "true" : "false")}");
         L();

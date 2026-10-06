@@ -17,6 +17,7 @@ internal static class RipCommand
         var release = options.Value("--release");
         var year = options.Value("--year");
         var offset = options.Value("--offset");
+        var speed = options.Value("--speed");   // cap the drive, for a disc that vibrates
         var offline = options.Flag("--offline");
         var postRip = options.Flag("--post-rip");
         var unbox = options.Flag("--unbox");
@@ -33,6 +34,7 @@ internal static class RipCommand
             Offset = offset is null ? null : int.Parse(offset),
             AccurateRip = !offline,
             KeepDisambiguation = keepNote,
+            SpeedLimit = speed is null ? null : int.Parse(speed),
         };
 
         try

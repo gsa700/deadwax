@@ -8,7 +8,7 @@ internal static class Commands
 {
     private const string Usage = """
         usage:
-          deadwax rip [--library DIR] [--release ID] [--year YYYY] [--device DEV] [--offset N]
+          deadwax rip [--library DIR] [--release ID] [--year YYYY] [--device DEV] [--offset N] [--speed N]
                       [--conventions LIBRARY] [--offline] [--keep-note] [--post-rip [--unbox]]
               Rip the disc into DIR/Artist/YEAR - Album/ (DIR defaults to ~/Music): FLACs, .toc, .cue, .m3u,
               .log. Artist spellings follow LIBRARY (default ~/Music). The year
@@ -22,11 +22,11 @@ internal static class Commands
           deadwax compare DEADWAX_ALBUM_DIR WHIPPER_ALBUM_DIR
               Gate G5: a Deadwax rip against whipper's rip of the same disc,
               file by file: audio frames, tags, names, logs, .m3u, .cue, .toc.
-          deadwax scan [--device DEV] [--full] [--online] [--against ALBUM_DIR|LOG]
+          deadwax scan [--device DEV] [--speed N] [--full] [--online] [--against ALBUM_DIR|LOG]
               Read the disc's TOC and print its IDs; --full adds catalog, ISRCs,
               CD-Text and pregaps via cdrdao (~2 min). With --against, compare them
               with the whipper log of the same disc (gate G1).
-          deadwax read [--device DEV] [--tracks N,N|all] [--offset N] [--retries N] [--offline] [--against ALBUM_DIR]
+          deadwax read [--device DEV] [--tracks N,N|all] [--offset N] [--retries N] [--speed N] [--offline] [--against ALBUM_DIR]
               Read tracks securely, twice, with the drive's read offset (from
               whipper.conf unless given). With --against, check the audio equals
               whipper's rip: logged CRC and the FLAC's stored MD5 (gate G2), and

@@ -86,6 +86,15 @@
                             <TextBlock Grid.Row="5" Classes="dim" Text="AccurateRip"/>
                             <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding AccurateRipText}" TextWrapping="Wrap"/>
                         </Grid>
+                        <!-- Shown with or without a disc: the cap matters most before the
+                             scan spins the disc up, and it is remembered between runs. -->
+                        <Border Height="1" Background="{StaticResource Rule}"/>
+                        <StackPanel Spacing="8">
+                            <TextBlock Classes="label" Text="DRIVE"/>
+                            <CheckBox IsChecked="{Binding SlowSpin}" Content="{Binding SlowSpinLabel}"/>
+                            <TextBlock Classes="soft" FontSize="13" TextWrapping="Wrap"
+                                       Text="For a disc that vibrates in the drive. The scan and rip take longer, and the cap is written in the log."/>
+                        </StackPanel>
                     </StackPanel>
                 </Border>
 

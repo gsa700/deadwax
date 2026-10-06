@@ -191,6 +191,14 @@ public sealed class MainViewModel : Observable
     public bool Unbox { get => _unbox; set => Set(ref _unbox, value); }
     public event Action? YearChanged;
 
+    /// The drive speed cap (Settings.SlowSpinSpeed), for a disc that vibrates.
+    private bool _slowSpin;
+    private int _slowSpinSpeed = Settings.DefaultSlowSpinSpeed;
+    public bool SlowSpin { get => _slowSpin; set { if (Set(ref _slowSpin, value)) SlowSpinChanged?.Invoke(); } }
+    public int SlowSpinSpeed { get => _slowSpinSpeed; set { if (Set(ref _slowSpinSpeed, value)) Raise(nameof(SlowSpinLabel)); } }
+    public string SlowSpinLabel => $"Slow spin: limit the drive to {SlowSpinSpeed}x";
+    public event Action? SlowSpinChanged;
+
     private bool _canRip;
     public bool CanRip { get => _canRip; set => Set(ref _canRip, value); }
 

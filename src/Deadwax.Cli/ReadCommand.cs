@@ -14,6 +14,7 @@ internal static partial class ReadCommand
     {
         var options = new Options(args);
         var device = options.Value("--device") ?? CdDrive.DefaultDevice;
+        var speedText = options.Value("--speed");
         var tracksText = options.Value("--tracks") ?? "all";
         var offsetText = options.Value("--offset");
         var retriesText = options.Value("--retries");
@@ -25,6 +26,7 @@ internal static partial class ReadCommand
         Toc toc;
         using (var drive = CdDrive.Open(device))
         {
+            if (speedText is not null) drive.LimitSpeed(int.Parse(speedText));
             identity = drive.ReadIdentity();
             toc = drive.ReadToc();
         }

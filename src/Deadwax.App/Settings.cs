@@ -11,6 +11,12 @@ public sealed class Settings
     public double Width { get; set; } = 1444;
     public double Height { get; set; } = 1080;
     public bool Maximized { get; set; }
+    /// The drive speed cap, kept between runs: a vibrating disc is usually
+    /// one of several. 4x is what read Now and Zen (2026-10-05); the number
+    /// is here for anyone whose drive wants a different one.
+    public bool SlowSpin { get; set; }
+    public int SlowSpinSpeed { get; set; } = DefaultSlowSpinSpeed;
+    public const int DefaultSlowSpinSpeed = 4;
 
     private static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config", "deadwax", "settings.json");
