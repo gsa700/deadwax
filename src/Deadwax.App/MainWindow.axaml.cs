@@ -20,7 +20,7 @@ public sealed partial class MainWindow : Window
     private static readonly string Home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
     /// His library, where rips go since G5 passed (2026-09-24), and whose artist
     /// spellings every rip follows.
-    private static readonly string Library = Path.Combine(Home, "Music");
+    private string Library => string.IsNullOrWhiteSpace(_settings.Library) ? Path.Combine(Home, "Music") : _settings.Library;
 
     private readonly MainViewModel _vm = new();
     private readonly DispatcherTimer _watch = new() { Interval = TimeSpan.FromSeconds(3) };
@@ -158,13 +158,42 @@ public sealed partial class MainWindow : Window
 
     private int? SpeedLimit => _vm.DriveSpeed.Limit;
 
+    // ---- preferences ------------------------------------------------------
+
+    private PrefsWindow? _prefs;
+
+    /// One instance, brought forward if open, as AlbumWall's.
+    private void OnPreferences(object? sender, RoutedEventArgs e)
+    {
+        if (_prefs is null)
+        {
+            _prefs = new PrefsWindow(this, _vm, _settings);
+            _prefs.Closed += (_, _) => _prefs = null;
+            _prefs.Show(this);
+        }
+        _prefs.Activate();
+    }
+
+    internal DriveIdentity? CurrentDrive => _disc?.Identity;
+    internal int? CurrentOffset => _disc?.Offset;
+    internal UpdateInfo? LatestUpdate => _update;
+    internal Task<UpdateInfo> CheckForUpdateNowAsync() => UpdateService.CheckAsync();
+    internal void OfferUpdate(UpdateInfo info)
+    {
+        _update = info;
+        _vm.UpdateTip = $"Deadwax {info.CurrentVersion} is running; {info.LatestTag} is on GitHub. Downloads, checks the SHA-256, then restarts.";
+        _vm.UpdateLabel = $"Update to {info.LatestTag.TrimStart('v')}";
+    }
+
     // ---- read offset ------------------------------------------------------
 
     /// What earlier discs allowed, while he swaps in another (OffsetFinder:
     /// one disc often matches several pressings' shifts as well as the drive).
     private OffsetSearch? _offsetSoFar;
 
-    private async void OnMeasureOffset(object? sender, RoutedEventArgs e)
+    private async void OnMeasureOffset(object? sender, RoutedEventArgs e) => await MeasureOffsetAsync();
+
+    internal async Task MeasureOffsetAsync()
     {
         if (_vm.MeasuringOffset) return;
         _vm.MeasuringOffset = true;
@@ -622,7 +651,7 @@ public sealed partial class MainWindow : Window
             });
 
             var dir = result.AlbumDirectory;
-            if (result.AllOk)
+            if (result.AllOk && _settings.PostRip)
             {
                 _vm.NowText = "Into the library: music-unbox, music-backart, music-audit...";
                 var after = await Task.Run(() => PostRip.RunAsync(dir, unbox, observer.Say, ct), ct);

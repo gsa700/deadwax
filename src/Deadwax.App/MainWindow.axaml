@@ -53,6 +53,7 @@
                     <!-- Shown only when a newer release is on GitHub (UpdateService). -->
                     <Button Classes="quiet" Content="{Binding UpdateLabel}" IsVisible="{Binding HasUpdate}"
                             IsEnabled="{Binding !Updating}" Click="OnUpdate" ToolTip.Tip="{Binding UpdateTip}"/>
+                    <Button Classes="quiet" Content="Preferences" Click="OnPreferences" Height="32" Padding="14,0" FontSize="13"/>
                     <TextBlock Text="{Binding DriveText}" Classes="dim mono" FontSize="12"
                                VerticalAlignment="Center" IsHitTestVisible="False"/>
                 </StackPanel>
@@ -91,16 +92,8 @@
                             <TextBlock Grid.Row="5" Classes="dim" Text="AccurateRip"/>
                             <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding AccurateRipText}" TextWrapping="Wrap"/>
                         </Grid>
-                        <!-- Shown with or without a disc: the cap matters most before the
-                             scan spins the disc up, and it is remembered between runs. -->
-                        <Border Height="1" Background="{StaticResource Rule}"/>
-                        <StackPanel Spacing="8">
-                            <TextBlock Classes="label" Text="DRIVE SPEED"/>
-                            <ComboBox ItemsSource="{Binding Speeds}" SelectedItem="{Binding DriveSpeed}" MinWidth="160" FontSize="13"/>
-                            <TextBlock Classes="soft" FontSize="13" TextWrapping="Wrap"
-                                       Text="Cap the drive for a disc that vibrates; try 4x first, then lower. The scan and rip take longer, and the cap is written in the log. A drive that cannot go as slow as asked uses its slowest speed."/>
-                            <CheckBox IsChecked="{Binding EjectAfterRip}" Content="Eject when the rip is done" Margin="0,6,0,0"/>
-                        </StackPanel>
+                        <!-- The drive's speed cap and the rest of the machine settings live in
+                             Preferences (his call, 2026-10-05: keep the Disc screen for this disc). -->
                     </StackPanel>
                 </Border>
 

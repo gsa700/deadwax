@@ -19,6 +19,10 @@ public sealed class Settings
     public const int DefaultSlowSpinSpeed = 4;
     /// Open the tray when the rip and post-rip steps are done, as whipper did.
     public bool EjectAfterRip { get; set; }
+    /// Where albums go, and whose artist spellings are followed. Null = ~/Music.
+    public string? Library { get; set; }
+    /// Run music-unbox, music-backart and music-audit after a clean rip.
+    public bool PostRip { get; set; } = true;
 
     private static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config", "deadwax", "settings.json");
