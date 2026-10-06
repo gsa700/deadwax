@@ -59,13 +59,11 @@
                 <TextBlock Text="Read offset" FontSize="14" FontWeight="SemiBold" Margin="0,6,0,0"/>
                 <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
                            Text="Every drive hands back audio a few samples early or late, always by the same amount. Correcting it makes your rips identical to everyone else's, which is what lets them be verified. Deadwax measures it once, from a well-known commercial CD (sometimes it needs two), and remembers it for this drive."/>
-                <StackPanel Orientation="Horizontal" Spacing="12">
-                    <Border CornerRadius="4" Padding="13,9" Background="{StaticResource Bar}" VerticalAlignment="Center">
-                        <TextBlock x:Name="OffsetValueText" FontSize="13" Classes="mono"/>
-                    </Border>
-                    <Button Classes="panel" VerticalAlignment="Center" Content="Measure from the disc in the drive…"
-                            Click="OnMeasure" IsEnabled="{Binding !MeasuringOffset}"/>
-                </StackPanel>
+                <Border CornerRadius="4" Padding="13,11" Background="{StaticResource Bar}">
+                    <TextBlock x:Name="OffsetValueText" FontSize="13" Classes="mono"/>
+                </Border>
+                <Button Classes="panel" HorizontalAlignment="Left" Content="Measure from the disc in the drive…"
+                        Click="OnMeasure" IsEnabled="{Binding !MeasuringOffset}"/>
                 <TextBlock Text="{Binding OffsetText}" Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"/>
 
                 <Border Height="1" Background="{StaticResource Rule}" Margin="0,6,0,0"/>
