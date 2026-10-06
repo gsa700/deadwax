@@ -56,6 +56,7 @@ public sealed partial class MainWindow : Window
             WaylandShell.ClaimIdentity(this);   // the dash's icon, on native Wayland
             _watch.Start();
             await WatchAsync();
+            _ = CheckForUpdateAsync();
         };
         Closing += (_, _) =>
         {
@@ -149,6 +150,51 @@ public sealed partial class MainWindow : Window
     }
 
     private int? SpeedLimit => _vm.SlowSpin ? _vm.SlowSpinSpeed : null;
+
+    // ---- updates ----------------------------------------------------------
+
+    private UpdateInfo? _update;
+
+    /// A few seconds after launch, so the disc comes first. Only a published
+    /// single-file copy is offered anything; a development build is not.
+    private async Task CheckForUpdateAsync()
+    {
+        if (UpdateService.ConsumeUpdateFailed())
+            _vm.ErrorText = "The last update could not replace the program; this is still the old version.";
+        if (!UpdateService.CanUpdate) return;
+        await Task.Delay(TimeSpan.FromSeconds(7));
+        var info = await UpdateService.CheckAsync();
+        if (!info.UpdateAvailable || info.AssetUrl is null) return;
+        _update = info;
+        _vm.UpdateTip = $"Deadwax {info.CurrentVersion} is running; {info.LatestTag} is on GitHub. Downloads, checks the SHA-256, then restarts.";
+        _vm.UpdateLabel = $"Update to {info.LatestTag.TrimStart('v')}";
+    }
+
+    private async void OnUpdate(object? sender, RoutedEventArgs e)
+    {
+        if (_update is null || _vm.Updating) return;
+        if (_vm.IsRipping)
+        {
+            _vm.ErrorText = "Finish or stop the rip first; the update restarts Deadwax.";
+            return;
+        }
+        _vm.Updating = true;
+        var label = _vm.UpdateLabel;
+        try
+        {
+            var progress = new Progress<double>(f => _vm.UpdateLabel = $"Downloading {f * 100:0}%");
+            var staged = await UpdateService.DownloadAndStageAsync(_update, progress);
+            _vm.UpdateLabel = "Restarting...";
+            UpdateService.ApplyAndRestart(staged);
+            Close();
+        }
+        catch (Exception ex)
+        {
+            _vm.UpdateLabel = label;
+            _vm.Updating = false;
+            _vm.ErrorText = "Update failed: " + ex.Message;
+        }
+    }
 
     /// The box was ticked or cleared. Saved for next time, and sent to the
     /// drive now if a disc is in: the cap takes effect on the next read, so a

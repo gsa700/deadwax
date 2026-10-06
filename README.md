@@ -5,10 +5,42 @@ A CD ripper for a FLAC library you own, and the companion to
 through libcdio-paranoia, verifies every rip against AccurateRip, and files the
 album into the library the way the library wants it.
 
-Deadwax rips: `deadwax rip --library DIR --post-rip` takes a disc to a library-ready album. Validation gates G1–G5 are done; it has not yet been pointed at ~/Music. The design is in the spec (kept outside the repo,
-`~/Documents/Projects/Deadwax/deadwax-spec.md`), and the build is going through
-the spec's validation gates in order, each checked against the 309 whipper
-0.10.0 rips already in the library.
+It is in daily use on the author's library since 2026-09-24: every disc
+is read twice until two passes agree, checked against AccurateRip, encoded with
+libFLAC, tagged from MusicBrainz and written with `.cue`, `.m3u`, `.toc` and a
+rip log in whipper's layout, so a library ripped with whipper and one ripped
+with Deadwax look the same. The window shows the disc, its MusicBrainz
+releases (with a barcode match against the disc's catalog number), the rip as
+it happens with a read map of the disc surface, and the post-rip filing steps.
+
+Linux only for now; the drive layer is libcdio-paranoia and cdrdao. The design
+is in a spec kept outside the repository, and the build went through its
+validation gates in order, each checked against the 309 whipper 0.10.0 rips
+already in the library.
+
+## Download
+
+Each [release](https://github.com/gsa700/deadwax/releases) carries
+`Deadwax-linux-x64.zip`: one self-contained program, no .NET needed. Unpack it
+anywhere and run `Deadwax`. It needs these from your distribution: `libcdio`,
+`libcdio-paranoia`, `cdrdao` and `flac` (libFLAC). On Fedora:
+
+```
+sudo dnf install libcdio libcdio-paranoia cdrdao flac-libs
+```
+
+A running copy checks GitHub for a newer release a few seconds after launch
+and, if there is one, offers it in the title bar. The update is verified against
+the release's `SHA256SUMS` before it is installed, and Deadwax restarts into it.
+
+The drive's read offset is taken from `~/.config/whipper/whipper.conf` if you
+have one, otherwise from `~/.config/deadwax/drives.json`, a map of the drive's
+name to its offset in samples, for example `{"PIONEER BD-RW BDR-209D 1.10": 667}`.
+The number for your drive is in the [AccurateRip list](https://www.accuraterip.com/driveoffsets.htm).
+
+For a disc that vibrates in the drive, tick **Slow spin** on the Disc screen: the
+drive is capped at 4x (changeable in `~/.config/deadwax/settings.json`) for
+the scan and the rip, and the cap is recorded in the log.
 
 ## Status
 

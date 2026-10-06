@@ -199,6 +199,16 @@ public sealed class MainViewModel : Observable
     public string SlowSpinLabel => $"Slow spin: limit the drive to {SlowSpinSpeed}x";
     public event Action? SlowSpinChanged;
 
+    /// A newer release on GitHub: the title-bar button, and its state while
+    /// the download runs.
+    private string _updateLabel = "";
+    private string _updateTip = "";
+    private bool _updating;
+    public string UpdateLabel { get => _updateLabel; set { if (Set(ref _updateLabel, value)) Raise(nameof(HasUpdate)); } }
+    public string UpdateTip { get => _updateTip; set => Set(ref _updateTip, value); }
+    public bool HasUpdate => _updateLabel.Length > 0;
+    public bool Updating { get => _updating; set => Set(ref _updating, value); }
+
     private bool _canRip;
     public bool CanRip { get => _canRip; set => Set(ref _canRip, value); }
 
