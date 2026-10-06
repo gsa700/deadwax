@@ -251,7 +251,7 @@ public sealed partial class MainWindow : Window
     {
         if (UpdateService.ConsumeUpdateFailed())
             _vm.ErrorText = "The last update could not replace the program; this is still the old version.";
-        if (!UpdateService.CanUpdate) return;
+        if (!UpdateService.CanUpdate || !_settings.CheckForUpdates) return;
         await Task.Delay(TimeSpan.FromSeconds(7));
         var info = await UpdateService.CheckAsync();
         if (!info.UpdateAvailable || info.AssetUrl is null) return;

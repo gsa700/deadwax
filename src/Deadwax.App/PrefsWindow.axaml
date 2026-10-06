@@ -59,13 +59,13 @@
                 <TextBlock Text="Read offset" FontSize="14" FontWeight="SemiBold" Margin="0,6,0,0"/>
                 <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
                            Text="Every drive hands back audio a few samples early or late, always by the same amount. Correcting it makes your rips identical to everyone else's, which is what lets them be verified. Deadwax measures it once, from a well-known commercial CD (sometimes it needs two), and remembers it for this drive."/>
-                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                <StackPanel Orientation="Horizontal" Spacing="12">
                     <Border CornerRadius="4" Padding="13,9" Background="{StaticResource Bar}" VerticalAlignment="Center">
                         <TextBlock x:Name="OffsetValueText" FontSize="13" Classes="mono"/>
                     </Border>
-                    <Button Grid.Column="1" Classes="panel" HorizontalAlignment="Left" VerticalAlignment="Center"
-                            Content="Measure from the disc in the drive" Click="OnMeasure" IsEnabled="{Binding !MeasuringOffset}"/>
-                </Grid>
+                    <Button Classes="panel" VerticalAlignment="Center" Content="Measure from the disc in the drive…"
+                            Click="OnMeasure" IsEnabled="{Binding !MeasuringOffset}"/>
+                </StackPanel>
                 <TextBlock Text="{Binding OffsetText}" Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"/>
 
                 <Border Height="1" Background="{StaticResource Rule}" Margin="0,6,0,0"/>
@@ -81,17 +81,26 @@
 
         <TabItem Header="About">
             <StackPanel Spacing="12">
-                <TextBlock x:Name="VersionText" FontSize="20" FontWeight="SemiBold"/>
+                <!-- The icon beside the name, as a program's About page has. -->
+                <StackPanel Orientation="Horizontal" Spacing="18" Margin="0,4,0,6">
+                    <Image Source="/Assets/icon-256.png" Width="96" Height="96" VerticalAlignment="Center"/>
+                    <StackPanel VerticalAlignment="Center" Spacing="4">
+                        <TextBlock Text="Deadwax" FontSize="26" FontWeight="Bold"/>
+                        <TextBlock x:Name="VersionText" Classes="dim" FontSize="14"/>
+                        <TextBlock Text="The companion to AlbumWall" Classes="dim" FontSize="13"/>
+                    </StackPanel>
+                </StackPanel>
                 <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
-                           Text="Rips CDs into a FLAC library you own, and is the companion to AlbumWall. Every track is read twice until two readings agree, then checked against AccurateRip, the database of what thousands of other drives read from the same disc. Tags come from MusicBrainz. Free software, GPLv3."/>
+                           Text="Rips CDs into a FLAC library you own. Every track is read twice until two readings agree, then checked against AccurateRip, the database of what thousands of other drives read from the same disc. Tags come from MusicBrainz. Free software, GPLv3."/>
                 <StackPanel Orientation="Horizontal" Spacing="9">
                     <Button Classes="panel" Content="Check for updates" Click="OnCheckUpdates"/>
                     <Button Classes="panel" Content="Deadwax on GitHub" Click="OnOpenRepo"/>
                     <Button Classes="panel" Content="AlbumWall" Click="OnOpenAlbumWall"/>
                 </StackPanel>
                 <TextBlock x:Name="UpdateText" Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"/>
+                <CheckBox x:Name="AutoCheckBox" FontSize="13" Content="Look for a newer release when Deadwax opens" Click="OnAutoCheckToggled"/>
                 <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
-                           Text="Deadwax looks for a newer release a few seconds after it opens and, if there is one, offers it in the title bar. Nothing is downloaded until you ask, and the download is checked against the release's published checksum before it is installed."/>
+                           Text="A newer release is offered in the title bar; nothing is downloaded until you ask, and the download is checked against the release's published checksum before it is installed."/>
             </StackPanel>
         </TabItem>
     </TabControl>

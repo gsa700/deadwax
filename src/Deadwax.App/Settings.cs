@@ -21,6 +21,8 @@ public sealed class Settings
     public bool EjectAfterRip { get; set; }
     /// Where albums go, and whose artist spellings are followed. Null = ~/Music.
     public string? Library { get; set; }
+    /// Look for a newer release a few seconds after launch (About tab).
+    public bool CheckForUpdates { get; set; } = true;
     /// Run music-unbox, music-backart and music-audit after a clean rip.
     /// Null = not decided: on if the tools are installed.
     public bool? PostRip { get; set; }

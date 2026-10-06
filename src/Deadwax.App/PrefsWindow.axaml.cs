@@ -26,7 +26,8 @@ public partial class PrefsWindow : Window
         ToolsPanel.IsVisible = Deadwax.Core.PostRip.ToolsAvailable;
         ShowLibrary();
         ShowDrive();
-        VersionText.Text = $"Deadwax {UpdateService.CurrentVersion}";
+        VersionText.Text = $"Version {UpdateService.CurrentVersion}";
+        AutoCheckBox.IsChecked = _settings.CheckForUpdates;
         UpdateText.Text = UpdateService.CanUpdate ? "" : "This is a development build, so updates are not offered.";
     }
 
@@ -106,6 +107,12 @@ public partial class PrefsWindow : Window
             UpdateText.Text = $"{info.LatestTag.TrimStart('v')} is out. The button to install it is in the main window's title bar.";
         }
         else UpdateText.Text = $"You have the latest, {UpdateService.CurrentVersion}.";
+    }
+
+    private void OnAutoCheckToggled(object? sender, RoutedEventArgs e)
+    {
+        _settings.CheckForUpdates = AutoCheckBox.IsChecked == true;
+        _settings.Save();
     }
 
     private void OnOpenRepo(object? sender, RoutedEventArgs e) => Open(UpdateService.ProjectUrl);
