@@ -179,13 +179,18 @@ public sealed partial class MainWindow : Window
 
     internal DriveIdentity? CurrentDrive => _disc?.Identity;
     internal int? CurrentOffset => _disc?.Offset;
-    internal UpdateInfo? LatestUpdate => _update;
-    internal Task<UpdateInfo> CheckForUpdateNowAsync() => UpdateService.CheckAsync();
-    internal void OfferUpdate(UpdateInfo info)
+    /// The last answer from GitHub, if any; the About tab reads and refreshes it.
+    internal UpdateInfo? LatestUpdate { get => _update; set => _update = value; }
+    /// The previous update was staged but could not replace the program.
+    internal bool LastUpdateFailed { get; private set; }
+
+    /// The dot on the gear: a newer version exists (or the last update failed).
+    /// As AlbumWall's. Nothing is downloaded until asked for on the About tab.
+    internal void ShowUpdateDot(bool on)
     {
-        _update = info;
-        _vm.UpdateTip = $"Deadwax {info.CurrentVersion} is running; {info.LatestTag} is on GitHub. Downloads, checks the SHA-256, then restarts.";
-        _vm.UpdateLabel = $"Update to {info.LatestTag.TrimStart('v')}";
+        UpdateDot.IsVisible = on;
+        ToolTip.SetTip(SettingsButton, on ? "Preferences \u2014 a newer version is available" : "Preferences");
+        _prefs?.FillUpdate();
     }
 
     // ---- read offset ------------------------------------------------------
@@ -247,44 +252,28 @@ public sealed partial class MainWindow : Window
     private UpdateInfo? _update;
 
     /// A few seconds after launch, so the disc comes first. Only a published
-    /// single-file copy is offered anything; a development build is not.
+    /// single-file copy is offered anything; a development build is not. All
+    /// this ever does is light the dot on the gear (AlbumWall's rule).
     private async Task CheckForUpdateAsync()
     {
-        if (UpdateService.ConsumeUpdateFailed())
-            _vm.ErrorText = "The last update could not replace the program; this is still the old version.";
+        LastUpdateFailed = UpdateService.ConsumeUpdateFailed();
+        if (LastUpdateFailed) ShowUpdateDot(true);
         if (!UpdateService.CanUpdate || !_settings.CheckForUpdates) return;
         await Task.Delay(TimeSpan.FromSeconds(7));
         var info = await UpdateService.CheckAsync();
-        if (!info.UpdateAvailable || info.AssetUrl is null) return;
         _update = info;
-        _vm.UpdateTip = $"Deadwax {info.CurrentVersion} is running; {info.LatestTag} is on GitHub. Downloads, checks the SHA-256, then restarts.";
-        _vm.UpdateLabel = $"Update to {info.LatestTag.TrimStart('v')}";
+        ShowUpdateDot(info.UpdateAvailable || LastUpdateFailed);
     }
 
-    private async void OnUpdate(object? sender, RoutedEventArgs e)
+    /// Fetches the known newer release, checks it, and restarts into it. Called
+    /// from the About tab's button. Throws with a plain sentence when it cannot.
+    internal async Task ApplyUpdateAsync(UpdateInfo info, IProgress<double> progress)
     {
-        if (_update is null || _vm.Updating) return;
         if (_vm.IsRipping)
-        {
-            _vm.ErrorText = "Finish or stop the rip first; the update restarts Deadwax.";
-            return;
-        }
-        _vm.Updating = true;
-        var label = _vm.UpdateLabel;
-        try
-        {
-            var progress = new Progress<double>(f => _vm.UpdateLabel = $"Downloading {f * 100:0}%");
-            var staged = await UpdateService.DownloadAndStageAsync(_update, progress);
-            _vm.UpdateLabel = "Restarting...";
-            UpdateService.ApplyAndRestart(staged);
-            Close();
-        }
-        catch (Exception ex)
-        {
-            _vm.UpdateLabel = label;
-            _vm.Updating = false;
-            _vm.ErrorText = "Update failed: " + ex.Message;
-        }
+            throw new InvalidOperationException("Finish or stop the rip first; the update restarts Deadwax.");
+        var staged = await UpdateService.DownloadAndStageAsync(info, progress);
+        UpdateService.ApplyAndRestart(staged);
+        Close();
     }
 
     /// A speed was chosen. Saved for next time, and sent to the drive now if

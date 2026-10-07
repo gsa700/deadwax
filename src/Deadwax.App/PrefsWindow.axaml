@@ -91,11 +91,18 @@
                 <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
                            Text="Rips CDs into a FLAC library you own. Every track is read twice until two readings agree, then checked against AccurateRip, the database of what thousands of other drives read from the same disc. Tags come from MusicBrainz. Free software, GPLv3."/>
                 <StackPanel Orientation="Horizontal" Spacing="9">
-                    <Button Classes="panel" Content="Check for updates" Click="OnCheckUpdates"/>
+                    <Button x:Name="UpdateButton" Classes="panel" Content="Check for updates" Click="OnCheckUpdates"/>
                     <Button Classes="panel" Content="Deadwax on GitHub" Click="OnOpenRepo"/>
                     <Button Classes="panel" Content="AlbumWall" Click="OnOpenAlbumWall"/>
                 </StackPanel>
+                <!-- As AlbumWall's About tab: one button that checks, then reads
+                     "Update to X and restart" when there is something to install,
+                     and a bar while it downloads. The check at launch only ever
+                     lights the dot on the gear; nothing is fetched until this. -->
                 <TextBlock x:Name="UpdateText" Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"/>
+                <Border x:Name="UpdateBar" Height="4" CornerRadius="2" IsVisible="False" Background="{StaticResource Bar}">
+                    <Border x:Name="UpdateFill" Height="4" CornerRadius="2" Width="0" HorizontalAlignment="Left" Background="{StaticResource Text}"/>
+                </Border>
                 <CheckBox x:Name="AutoCheckBox" FontSize="13" Content="Look for a newer release when Deadwax opens" Click="OnAutoCheckToggled"/>
                 <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
                            Text="A newer release is offered in the title bar; nothing is downloaded until you ask, and the download is checked against the release's published checksum before it is installed."/>

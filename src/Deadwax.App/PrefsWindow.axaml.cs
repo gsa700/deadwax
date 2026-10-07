@@ -28,7 +28,7 @@ public partial class PrefsWindow : Window
         ShowDrive();
         VersionText.Text = $"Version {UpdateService.CurrentVersion}";
         AutoCheckBox.IsChecked = _settings.CheckForUpdates;
-        UpdateText.Text = UpdateService.CanUpdate ? "" : "This is a development build, so updates are not offered.";
+        FillUpdate();
     }
 
     // ---- library ------------------------------------------------------------
@@ -94,19 +94,72 @@ public partial class PrefsWindow : Window
 
     // ---- about --------------------------------------------------------------
 
+    private bool _updating;
+    private string? _updateNote;
+
+    /// Where things stand, from whatever is known: the launch-time check may
+    /// have answered already, and the last update may have failed to apply.
+    internal void FillUpdate()
+    {
+        if (_updating) return;
+        var have = UpdateService.CurrentVersion;
+        var info = _main.LatestUpdate;
+        UpdateButton.IsVisible = UpdateService.CanUpdate;
+        UpdateButton.IsEnabled = true;
+        UpdateButton.Content = info is { UpdateAvailable: true, AssetUrl: not null }
+            ? $"Update to {info.LatestTag.TrimStart('v', 'V')} and restart"
+            : "Check for updates";
+        UpdateText.Text = _updateNote
+            ?? (!UpdateService.CanUpdate ? "This is a development build, so updates are not offered."
+              : _main.LastUpdateFailed ? $"The last update could not be put in place, so this is still {have}. Try it again."
+              : info is null ? $"This is version {have}."
+              : info.Error is { } error ? error
+              : info.NothingPublished ? $"No release has been published yet. This is version {have}."
+              : !info.UpdateAvailable ? $"This is the latest version, {have}."
+              : info.AssetUrl is null ? $"{info.LatestTag} is out, but it has no build for this kind of computer."
+              : $"Version {info.LatestTag.TrimStart('v', 'V')} is available. This is {have}. Downloads, checks the SHA-256, then restarts.");
+    }
+
+    /// One button, two jobs, as AlbumWall's: with nothing newer known it checks;
+    /// with something newer known it fetches it, checks it, and restarts into it.
     private async void OnCheckUpdates(object? sender, RoutedEventArgs e)
     {
-        if (!UpdateService.CanUpdate) return;
-        UpdateText.Text = "Checking...";
-        var info = await _main.CheckForUpdateNowAsync();
-        if (info.Error is not null) UpdateText.Text = info.Error;
-        else if (info.NothingPublished) UpdateText.Text = "No release is published yet.";
-        else if (info.UpdateAvailable && info.AssetUrl is not null)
+        if (_updating || !UpdateService.CanUpdate) return;
+        _updateNote = null;
+
+        if (_main.LatestUpdate is not { UpdateAvailable: true, AssetUrl: not null })
         {
-            _main.OfferUpdate(info);
-            UpdateText.Text = $"{info.LatestTag.TrimStart('v')} is out. The button to install it is in the main window's title bar.";
+            UpdateButton.IsEnabled = false;
+            UpdateText.Text = "Looking\u2026";
+            _main.LatestUpdate = await UpdateService.CheckAsync();
+            _main.ShowUpdateDot(_main.LatestUpdate.UpdateAvailable);   // also refills this tab
+            FillUpdate();
+            return;
         }
-        else UpdateText.Text = $"You have the latest, {UpdateService.CurrentVersion}.";
+
+        var info = _main.LatestUpdate;
+        _updating = true;
+        UpdateButton.IsEnabled = false;
+        UpdateBar.IsVisible = true;
+        try
+        {
+            var progress = new Progress<double>(f =>
+            {
+                UpdateFill.Width = f * UpdateBar.Bounds.Width;
+                UpdateText.Text = $"Downloading {info.LatestTag.TrimStart('v', 'V')}\u2026 {f:P0}";
+            });
+            await _main.ApplyUpdateAsync(info, progress);
+            UpdateText.Text = "Checked. Restarting into the new version\u2026";
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[update] failed: {ex.Message}");
+            _updating = false;
+            UpdateBar.IsVisible = false;
+            UpdateFill.Width = 0;
+            _updateNote = ex.Message;
+            FillUpdate();
+        }
     }
 
     private void OnAutoCheckToggled(object? sender, RoutedEventArgs e)
