@@ -69,7 +69,7 @@
                                     M12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
                         <Ellipse x:Name="UpdateDot" Width="7" Height="7" IsVisible="False"
                                  HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-2,-4,0"
-                                 Fill="{StaticResource Text}"/>
+                                 Fill="{StaticResource Bad}"/>
                         </Panel>
                     </Button>
                     <TextBlock Text="{Binding DriveText}" Classes="dim mono" FontSize="12"
