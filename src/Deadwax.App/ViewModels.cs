@@ -220,7 +220,9 @@ public sealed class MainViewModel : Observable
     public string OutputFolder { get => _output; set => Set(ref _output, value); }
     public string OutputFiles { get => _folderPreview; set => Set(ref _folderPreview, value); }
     public bool IsSetDisc { get => _isSet; set => Set(ref _isSet, value); }
-    public bool Unbox { get => _unbox; set => Set(ref _unbox, value); }
+    public bool Unbox { get => _unbox; set { if (Set(ref _unbox, value)) Raise(nameof(KeepSet)); } }
+    /// The other radio button: the set stays a set. Same shape as UseEdition.
+    public bool KeepSet { get => !_unbox; set => Unbox = !value; }
     public event Action? YearChanged;
 
     /// The drive speed cap, for a disc that vibrates: one of Speeds, where

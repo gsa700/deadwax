@@ -244,9 +244,16 @@
                             <Border Background="{StaticResource Bar}" CornerRadius="8" Padding="20,18" IsVisible="{Binding IsSetDisc}">
                                 <StackPanel Spacing="8">
                                     <TextBlock Classes="label" Text="PART OF A SET"/>
-                                    <CheckBox IsChecked="{Binding Unbox}" Content="File it as the album it is, not as a disc of the set"/>
                                     <TextBlock Classes="soft" FontSize="13" TextWrapping="Wrap"
-                                               Text="MusicBrainz lists this disc as part of a box set, so it would be filed as 'Set Name (Disc N of M)'. Ticked, it is ripped that way first and then refiled under the album's own name, year and cover, like a normal release."/>
+                                               Text="MusicBrainz lists this disc as one of a multi-disc set. How should it go into the library?"/>
+                                    <StackPanel Spacing="2">
+                                        <RadioButton GroupName="set" IsChecked="{Binding KeepSet}" Content="Keep the set together, as it was sold"/>
+                                        <TextBlock Classes="soft" FontSize="13" TextWrapping="Wrap" Margin="28,0,0,6"
+                                                   Text="Filed as 'Set Name (Disc N of M)'. Music players show the whole set as one collection. Right for compilations, live boxes and anthologies."/>
+                                        <RadioButton GroupName="set" IsChecked="{Binding Unbox}" Content="File this disc as the album it originally was"/>
+                                        <TextBlock Classes="soft" FontSize="13" TextWrapping="Wrap" Margin="28,0,0,0"
+                                                   Text="For a set that bundles albums once sold on their own. The disc is refiled under that album's own name, year and cover, and players show it as that album, not as part of the set."/>
+                                    </StackPanel>
                                 </StackPanel>
                             </Border>
 
