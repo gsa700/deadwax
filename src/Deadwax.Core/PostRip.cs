@@ -55,8 +55,14 @@ public static partial class PostRip
         if (Tool("music-backart") is { } backart)
         {
             say("Back cover (music-backart)...");
-            await RunToolAsync(backart, ["--only", $"{artist}/{folder}", "--write", root], ct);
-            if (!File.Exists(Path.Combine(albumDir, "back.jpg"))) notes.Add("No back.jpg: the Cover Art Archive may not have one.");
+            // The archive's image host (archive.org) sometimes drops connections
+            // for minutes at a time (2026-10-06). music-backart now gives up on
+            // its own after ~90 s; this is the backstop so the wizard can never
+            // sit on "Into the library..." indefinitely because of a back cover.
+            var (rc, output) = await RunToolAsync(backart, ["--only", $"{artist}/{folder}", "--write", root], ct, BackArtLimit);
+            if (rc == TimedOut) notes.Add($"music-backart took longer than {BackArtLimit.TotalMinutes:0} minutes and was stopped; no back.jpg. Run it again later.");
+            else if (output.Contains("FAILED", StringComparison.Ordinal)) notes.Add("music-backart: the Cover Art Archive did not answer; no back.jpg. Run it again later.");
+            else if (!File.Exists(Path.Combine(albumDir, "back.jpg"))) notes.Add("No back.jpg: the Cover Art Archive may not have one.");
         }
 
         var clean = true;
@@ -87,14 +93,39 @@ public static partial class PostRip
         return null;
     }
 
-    private static async Task<(int Code, string Output)> RunToolAsync(string tool, string[] args, CancellationToken ct)
+    /// How long the back-cover fetch may take before it is killed. Generous
+    /// against the tool's own ~90 s budget, so this only fires if the tool
+    /// itself is wedged.
+    public static readonly TimeSpan BackArtLimit = TimeSpan.FromMinutes(3);
+    public const int TimedOut = -2;
+
+    /// Runs one of his tools to completion. With a limit, a tool that is still
+    /// running when it expires is killed (with its children) and reported as
+    /// TimedOut; the caller's own cancellation still propagates as usual.
+    private static async Task<(int Code, string Output)> RunToolAsync(string tool, string[] args, CancellationToken ct, TimeSpan? limit = null)
     {
         var start = new ProcessStartInfo(tool) { RedirectStandardOutput = true, RedirectStandardError = true };
         foreach (var a in args) start.ArgumentList.Add(a);
         using var p = Process.Start(start)!;
-        var stdout = p.StandardOutput.ReadToEndAsync(ct);
-        var stderr = p.StandardError.ReadToEndAsync(ct);
-        await p.WaitForExitAsync(ct);
+        using var timer = limit is { } l ? new CancellationTokenSource(l) : null;
+        using var linked = timer is null ? null : CancellationTokenSource.CreateLinkedTokenSource(ct, timer.Token);
+        var token = linked?.Token ?? ct;
+        var stdout = p.StandardOutput.ReadToEndAsync(token);
+        var stderr = p.StandardError.ReadToEndAsync(token);
+        try
+        {
+            await p.WaitForExitAsync(token);
+        }
+        catch (OperationCanceledException) when (timer is { IsCancellationRequested: true } && !ct.IsCancellationRequested)
+        {
+            try { p.Kill(entireProcessTree: true); } catch { }
+            return (TimedOut, "");
+        }
+        catch (OperationCanceledException)
+        {
+            try { p.Kill(entireProcessTree: true); } catch { }
+            throw;
+        }
         return (p.ExitCode, await stdout + await stderr);
     }
 
