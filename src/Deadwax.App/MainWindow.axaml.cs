@@ -47,6 +47,7 @@ public sealed partial class MainWindow : Window
         _vm.SpeedChanged += OnSpeedChanged;
         _vm.EjectAfterRip = _settings.EjectAfterRip;
         _vm.EjectChanged += () => { _settings.EjectAfterRip = _vm.EjectAfterRip; _settings.Save(); };
+        _vm.SetChoiceChanged += UpdateOutputPreview;    // Rip disc enables once a set has its answer
         _vm.Log.CollectionChanged += (_, _) => Dispatcher.UIThread.Post(() => LogScroll.ScrollToEnd(), DispatcherPriority.Background);
         BuildWindowButtons();
         AddHandler(PointerPressedEvent, OnPointerPressedForResize, RoutingStrategies.Tunnel);
@@ -516,6 +517,11 @@ public sealed partial class MainWindow : Window
             _vm.HasYearChoice = _vm.OriginalYear != _vm.EditionYear;
             _vm.UseOriginal = plan.DefaultYear == _vm.OriginalYear;
             _vm.IsSetDisc = plan.MediaCount > 1 && Deadwax.Core.PostRip.UnboxAvailable;
+            _vm.SetChoice = _vm.IsSetDisc && plan.ReleaseId is { } setId && _settings.SetChoices.TryGetValue(setId, out var remembered)
+                ? remembered : null;
+            _vm.SetChoiceNote = _vm.SetChoice is null
+                ? "Pick one before ripping. Deadwax remembers it for the other discs of this set."
+                : "Remembered from an earlier disc of this set. Change it here if you like.";
             _vm.NoteText = plan.Disambiguation ?? "";
             _vm.KeepNote = false;
             _vm.YearNote = !_vm.HasYearChoice
@@ -553,7 +559,8 @@ public sealed partial class MainWindow : Window
             _vm.ErrorText = $"Already in your library: {Path.GetRelativePath(Library, _libraryMatch)}";
         else
             _vm.ErrorText = exists ? "That folder is already in the library. Deadwax never writes over an album." : "";
-        _vm.CanRip = !exists && _libraryMatch is null && _disc?.Cdrdao is not null;
+        _vm.CanRip = !exists && _libraryMatch is null && _disc?.Cdrdao is not null
+                     && (!_vm.IsSetDisc || _vm.SetChoice is not null);
     }
 
     private async void OnRescan(object? sender, RoutedEventArgs e) => await ScanAsync();
@@ -610,6 +617,11 @@ public sealed partial class MainWindow : Window
         var plan = _plan;
         var year = ChosenYear;
         var unbox = _vm.IsSetDisc && _vm.Unbox;
+        if (_vm.IsSetDisc && plan.ReleaseId is { } setId)
+        {
+            _settings.SetChoices[setId] = unbox;
+            _settings.Save();
+        }
         var cover = _coverBytes;
         var albumDir = plan.AlbumDirectory(Library, year);
 

@@ -254,6 +254,7 @@
                                         <TextBlock Classes="soft" FontSize="13" TextWrapping="Wrap" Margin="28,0,0,0"
                                                    Text="For a set that bundles albums once sold on their own. The disc is refiled under that album's own name, year and cover, and players show it as that album, not as part of the set."/>
                                     </StackPanel>
+                                    <TextBlock Classes="soft" FontSize="13" TextWrapping="Wrap" Text="{Binding SetChoiceNote}"/>
                                 </StackPanel>
                             </Border>
 

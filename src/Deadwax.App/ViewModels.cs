@@ -208,7 +208,9 @@ public sealed class MainViewModel : Observable
     public void ReleasesChanged() => Raise(nameof(ReleasesHeading));
 
     private string _originalYear = "", _editionYear = "", _yearNote = "", _output = "", _folderPreview = "";
-    private bool _useOriginal = true, _yearChoice, _isSet, _unbox = true;
+    private bool _useOriginal = true, _yearChoice, _isSet;
+    private bool? _setChoice;
+    private string _setChoiceNote = "";
     public string OriginalYear { get => _originalYear; set { if (Set(ref _originalYear, value)) Raise(nameof(OriginalLabel)); } }
     public string EditionYear { get => _editionYear; set { if (Set(ref _editionYear, value)) Raise(nameof(EditionLabel)); } }
     public string OriginalLabel => $"{OriginalYear}, the album's first release";
@@ -220,9 +222,23 @@ public sealed class MainViewModel : Observable
     public string OutputFolder { get => _output; set => Set(ref _output, value); }
     public string OutputFiles { get => _folderPreview; set => Set(ref _folderPreview, value); }
     public bool IsSetDisc { get => _isSet; set => Set(ref _isSet, value); }
-    public bool Unbox { get => _unbox; set { if (Set(ref _unbox, value)) Raise(nameof(KeepSet)); } }
-    /// The other radio button: the set stays a set. Same shape as UseEdition.
-    public bool KeepSet { get => !_unbox; set => Unbox = !value; }
+    /// What to do with a disc of a set: true = file it as its own album
+    /// (music-unbox), false = keep the set together, null = not chosen yet.
+    /// There is no default on purpose (his call, 2026-10-06): a compilation
+    /// and a box of reissued albums want opposite answers, and a wrong
+    /// default refiles a disc silently. The choice is remembered per set, so
+    /// disc 2 and 3 inherit what was picked for disc 1.
+    public bool? SetChoice
+    {
+        get => _setChoice;
+        set { if (Set(ref _setChoice, value)) { Raise(nameof(Unbox), nameof(KeepSet)); SetChoiceChanged?.Invoke(); } }
+    }
+    /// The two radio buttons. A RadioButton writes false to the one being
+    /// left; that must not clear the choice, so only true is acted on.
+    public bool Unbox { get => _setChoice == true; set { if (value) SetChoice = true; } }
+    public bool KeepSet { get => _setChoice == false; set { if (value) SetChoice = false; } }
+    public string SetChoiceNote { get => _setChoiceNote; set => Set(ref _setChoiceNote, value); }
+    public event Action? SetChoiceChanged;
     public event Action? YearChanged;
 
     /// The drive speed cap, for a disc that vibrates: one of Speeds, where

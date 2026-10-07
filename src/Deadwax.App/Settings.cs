@@ -26,6 +26,11 @@ public sealed class Settings
     /// Run music-unbox, music-backart and music-audit after a clean rip.
     /// Null = not decided: on if the tools are installed.
     public bool? PostRip { get; set; }
+    /// For each multi-disc set (keyed by its MusicBrainz release id), whether
+    /// its discs are filed as their own albums (true) or kept together
+    /// (false). Written when Rip is pressed, so the other discs of the set
+    /// offer the same answer. There is no default for a set not listed here.
+    public Dictionary<string, bool> SetChoices { get; set; } = new();
 
     private static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config", "deadwax", "settings.json");
