@@ -627,6 +627,7 @@ public sealed partial class MainWindow : Window
         for (var i = 0; i < cells; i++) _vm.Map.Add(new MapCell());
         _vm.Log.Clear();
         _vm.Overall = 0;
+        _vm.NowText = "Starting: AccurateRip, the front cover, then the drive...";
         _vm.Stage = Stage.Ripping;
         _watch.Stop();
 

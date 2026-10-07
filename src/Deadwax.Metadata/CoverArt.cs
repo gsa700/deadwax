@@ -9,16 +9,23 @@ namespace Deadwax.Metadata;
 /// within seconds (music-unbox, 2026-09-23), and a failed fetch read as "no
 /// cover" kept a box's slipcase where the album's front belonged. So every
 /// fetch retries with a growing pause, and only a 404 means "none".
+///
+/// The other failure is the archive being down for everyone (its image host
+/// reset every connection for most of an evening, 2026-10-06): then five tries
+/// with a pause between them, for two URLs, is minutes of waiting for nothing.
+/// A caller with somewhere better to be asks for one attempt.
 public static class CoverArt
 {
-    public static async Task<byte[]?> FrontAsync(HttpClient http, string releaseId, string? releaseGroupId, CancellationToken ct = default)
+    public const int DefaultAttempts = 5;
+
+    public static async Task<byte[]?> FrontAsync(HttpClient http, string releaseId, string? releaseGroupId, CancellationToken ct = default, int attempts = DefaultAttempts)
     {
-        return await FetchAsync(http, $"https://coverartarchive.org/release/{releaseId}/front-500", ct)
+        return await FetchAsync(http, $"https://coverartarchive.org/release/{releaseId}/front-500", ct, attempts)
                ?? (releaseGroupId is null ? null
-                   : await FetchAsync(http, $"https://coverartarchive.org/release-group/{releaseGroupId}/front-500", ct));
+                   : await FetchAsync(http, $"https://coverartarchive.org/release-group/{releaseGroupId}/front-500", ct, attempts));
     }
 
-    private static async Task<byte[]?> FetchAsync(HttpClient http, string url, CancellationToken ct)
+    private static async Task<byte[]?> FetchAsync(HttpClient http, string url, CancellationToken ct, int attempts)
     {
         for (var attempt = 1; ; attempt++)
         {
@@ -28,9 +35,9 @@ public static class CoverArt
                 if (response.StatusCode == HttpStatusCode.NotFound) return null;
                 if (response.IsSuccessStatusCode) return await response.Content.ReadAsByteArrayAsync(ct);
             }
-            catch (HttpRequestException) when (attempt < 5) { }
-            catch (TaskCanceledException) when (!ct.IsCancellationRequested && attempt < 5) { }
-            if (attempt >= 5) return null;
+            catch (HttpRequestException) when (attempt < attempts) { }
+            catch (TaskCanceledException) when (!ct.IsCancellationRequested && attempt < attempts) { }
+            if (attempt >= attempts) return null;
             await Task.Delay(TimeSpan.FromSeconds(2 * attempt), ct);
         }
     }

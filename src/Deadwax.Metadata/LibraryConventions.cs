@@ -87,7 +87,8 @@ public sealed class ArtistFolders
         return folders;
     }
 
-    private static async Task<string?> FirstTagAsync(string flac, string key)
+    /// One tag's first value, read with metaflac; null when the file has none.
+    public static async Task<string?> FirstTagAsync(string flac, string key)
     {
         var start = new ProcessStartInfo("metaflac") { RedirectStandardOutput = true };
         start.ArgumentList.Add($"--show-tag={key}");

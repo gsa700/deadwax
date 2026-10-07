@@ -290,8 +290,17 @@ public sealed class RipSession
 
         // cover.jpg first, as whipper's -C file wrote it (never embedded): the
         // album is visible in AlbumWall while it rips, and he listens along.
-        cover ??= await FrontCoverAsync(plan, ct);
-        if (cover is null) observer.Say("No front cover in the Cover Art Archive.");
+        // One quick try only: the window has usually fetched it already, and
+        // when the archive is down the disc should not wait on it (`deadwax art`
+        // fetches it later).
+        if (cover is null && plan.ReleaseId is not null)
+        {
+            observer.Say("Front cover: one quick try at the Cover Art Archive...");
+            cover = await FrontCoverAsync(plan, ct, quick: true);
+        }
+        if (cover is null)
+            observer.Say(plan.ReleaseId is null ? "No front cover: the disc is self-described."
+                : $"No front cover reachable; ripping without it. Later: deadwax art \"{albumDir}\"");
         else await File.WriteAllBytesAsync(Path.Combine(albumDir, "cover.jpg"), cover, ct);
 
         var audioTracks = toc.IdTracks.Where(t => t.IsAudio).ToList();
@@ -394,18 +403,23 @@ public sealed class RipSession
 
     /// The release's 500-pixel front (then its release group's), for cover.jpg
     /// and for the Disc screen while he chooses. Null when there is none, or
-    /// the archive cannot be reached.
-    public static async Task<byte[]?> FrontCoverAsync(ReleasePlan plan, CancellationToken ct = default)
+    /// the archive cannot be reached. Patient by default (retries, 30 s each);
+    /// `quick` is one try with ten seconds, for when a rip is waiting on it.
+    public static async Task<byte[]?> FrontCoverAsync(ReleasePlan plan, CancellationToken ct = default, bool quick = false)
     {
         if (plan.ReleaseId is null) return null;   // nothing to look up for a self-described disc
         try
         {
-            using var http = Http(30);
-            return await CoverArt.FrontAsync(http, plan.ReleaseId!, plan.ReleaseGroupId, ct);
+            using var http = Http(quick ? 10 : 30);
+            return await CoverArt.FrontAsync(http, plan.ReleaseId!, plan.ReleaseGroupId, ct, quick ? 1 : CoverArt.DefaultAttempts);
         }
         catch (HttpRequestException)
         {
             return null;
+        }
+        catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return null;   // the last try timed out: an unreachable archive is "no cover", never a failed rip
         }
     }
 
@@ -425,7 +439,10 @@ public sealed class RipSession
             options.MaxRetries, options.MaxPasses, options.AccurateRip, ct: ct);
     }
 
-    private static HttpClient Http(int seconds)
+    private static HttpClient Http(int seconds) => NewHttp(seconds);
+
+    /// An HttpClient with Deadwax's user agent and a timeout in seconds.
+    public static HttpClient NewHttp(int seconds)
     {
         var http = new HttpClient { Timeout = TimeSpan.FromSeconds(seconds) };
         http.DefaultRequestHeaders.UserAgent.ParseAdd($"Deadwax/{Version}");

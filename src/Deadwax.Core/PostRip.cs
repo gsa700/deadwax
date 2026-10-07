@@ -52,18 +52,7 @@ public static partial class PostRip
             }
         }
 
-        if (Tool("music-backart") is { } backart)
-        {
-            say("Back cover (music-backart)...");
-            // The archive's image host (archive.org) sometimes drops connections
-            // for minutes at a time (2026-10-06). music-backart now gives up on
-            // its own after ~90 s; this is the backstop so the wizard can never
-            // sit on "Into the library..." indefinitely because of a back cover.
-            var (rc, output) = await RunToolAsync(backart, ["--only", $"{artist}/{folder}", "--write", root], ct, BackArtLimit);
-            if (rc == TimedOut) notes.Add($"music-backart took longer than {BackArtLimit.TotalMinutes:0} minutes and was stopped; no back.jpg. Run it again later.");
-            else if (output.Contains("FAILED", StringComparison.Ordinal)) notes.Add("music-backart: the Cover Art Archive did not answer; no back.jpg. Run it again later.");
-            else if (!File.Exists(Path.Combine(albumDir, "back.jpg"))) notes.Add("No back.jpg: the Cover Art Archive may not have one.");
-        }
+        await BackArtAsync(albumDir, say, notes, ct);
 
         var clean = true;
         if (Tool("music-audit") is { } audit)
@@ -76,6 +65,29 @@ public static partial class PostRip
         }
         return new Result(albumDir, clean, notes);
     }
+
+    /// back.jpg for one album through music-backart, when it is installed.
+    /// True when the album has a back.jpg afterwards; what went wrong, if
+    /// anything, is added to notes.
+    public static async Task<bool> BackArtAsync(string albumDir, Action<string> say, List<string> notes, CancellationToken ct = default)
+    {
+        if (Tool("music-backart") is not { } backart) return File.Exists(Path.Combine(albumDir, "back.jpg"));
+        var root = Path.GetDirectoryName(Path.GetDirectoryName(albumDir)!)!;
+        var artist = Path.GetFileName(Path.GetDirectoryName(albumDir)!);
+        var folder = Path.GetFileName(albumDir);
+        say("Back cover (music-backart)...");
+        // The archive's image host (archive.org) sometimes drops connections
+        // for minutes at a time (2026-10-06). music-backart now gives up on
+        // its own after ~90 s; this is the backstop so the wizard can never
+        // sit on "Into the library..." indefinitely because of a back cover.
+        var (rc, output) = await RunToolAsync(backart, ["--only", $"{artist}/{folder}", "--write", root], ct, BackArtLimit);
+        if (rc == TimedOut) notes.Add($"music-backart took longer than {BackArtLimit.TotalMinutes:0} minutes and was stopped; no back.jpg. Run it again later.");
+        else if (output.Contains("FAILED", StringComparison.Ordinal)) notes.Add("music-backart: the Cover Art Archive did not answer; no back.jpg. Run it again later.");
+        else if (!File.Exists(Path.Combine(albumDir, "back.jpg"))) notes.Add("No back.jpg: the Cover Art Archive may not have one.");
+        return File.Exists(Path.Combine(albumDir, "back.jpg"));
+    }
+
+    public static bool BackArtAvailable => Tool("music-backart") is not null;
 
     /// His tools live in ~/.local/bin, which a non-login environment may not
     /// have on PATH.

@@ -19,6 +19,11 @@ internal static class Commands
               music-backart and music-audit, as the wizard did.
           deadwax post-rip ALBUM_DIR [--unbox]
               The same library tools on an album already ripped.
+          deadwax art ALBUM_DIR [--replace]
+              cover.jpg (Cover Art Archive, by the release ids in the album's
+              tags) and back.jpg (music-backart) for an album that has none,
+              such as a rip made while the archive was down. --replace fetches
+              both again.
           deadwax compare DEADWAX_ALBUM_DIR WHIPPER_ALBUM_DIR
               Gate G5: a Deadwax rip against whipper's rip of the same disc,
               file by file: audio frames, tags, names, logs, .m3u, .cue, .toc.
@@ -67,6 +72,7 @@ internal static class Commands
                 "rip" => await RipCommand.RunAsync(args[1..]),
                 "compare" => await CompareCommand.RunAsync(args[1..]),
                 "post-rip" => await PostRipCommand.RunAsync(args[1..]),
+                "art" => await ArtCommand.RunAsync(args[1..]),
                 "scan" => await ScanCommand.RunAsync(args[1..]),
                 "read" => await ReadCommand.RunAsync(args[1..]),
                 "offset" => await OffsetCommand.RunAsync(args[1..]),
