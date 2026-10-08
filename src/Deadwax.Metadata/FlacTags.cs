@@ -1,4 +1,4 @@
-namespace Deadwax.Output;
+namespace Deadwax.Metadata;
 
 /// Reading and changing the Vorbis comments of a FLAC already in the library,
 /// through TagLibSharp as FlacWriter writes them. Never touches the audio.

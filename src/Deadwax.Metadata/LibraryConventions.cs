@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Text.Json;
 
 namespace Deadwax.Metadata;
@@ -79,23 +78,16 @@ public sealed class ArtistFolders
                 if (flac is null) continue;
                 // The spelling is the tag's, not the folder's: a folder name has
                 // had "/" replaced ("AC_DC" holds AC/DC).
-                var id = await FirstTagAsync(flac, "MUSICBRAINZ_ALBUMARTISTID");
-                var name = await FirstTagAsync(flac, "ALBUMARTIST");
+                // Read in-process (TagLib), not with metaflac: no external tool
+                // to install, and no two processes per album on every rip.
+                IReadOnlyList<KeyValuePair<string, string>> tags;
+                try { tags = await Task.Run(() => FlacTags.Read(flac)); }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException or TagLib.CorruptFileException or TagLib.UnsupportedFormatException) { continue; }
+                var id = tags.FirstOrDefault(t => t.Key == "MUSICBRAINZ_ALBUMARTISTID").Value;
+                var name = tags.FirstOrDefault(t => t.Key == "ALBUMARTIST").Value;
                 if (id is not null && name is not null) folders._byId.TryAdd(id, name);
             }
         }
         return folders;
-    }
-
-    /// One tag's first value, read with metaflac; null when the file has none.
-    public static async Task<string?> FirstTagAsync(string flac, string key)
-    {
-        var start = new ProcessStartInfo("metaflac") { RedirectStandardOutput = true };
-        start.ArgumentList.Add($"--show-tag={key}");
-        start.ArgumentList.Add(flac);
-        using var p = Process.Start(start)!;
-        var line = (await p.StandardOutput.ReadLineAsync())?.Split('=', 2);
-        await p.WaitForExitAsync();
-        return line is { Length: 2 } ? line[1] : null;
     }
 }
