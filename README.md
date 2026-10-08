@@ -42,6 +42,51 @@ For a disc that vibrates in the drive, choose a **Drive speed** on the Disc
 screen (16x down to 1x; try 4x first). The cap holds for the scan and the rip,
 is remembered for the next disc, and is recorded in the log.
 
+## After the rip
+
+When every track read the same twice, Deadwax finishes the album for the
+library (Preferences, Library tab, **After a rip**; on by default). Nothing
+else needs to be installed for this.
+
+- **Front cover.** `cover.jpg` is the Cover Art Archive's 500-pixel front for
+  the release, or for its release group when the release has none. It is
+  fetched before the rip starts; if the archive is down, the rip goes ahead
+  without it.
+- **Back cover.** `back.jpg` is the release's own back when the archive has
+  one, otherwise the back of another edition of the same album: the same
+  country first, then the nearest year. An image filed as the front is never
+  taken for the back, even when it is flagged as both. Every back written is
+  recorded, with where it came from, in `~/.local/state/deadwax/back-covers.tsv`,
+  and one from another edition says so in the log.
+- **A disc from a set.** For a release of several discs, the Disc screen asks
+  once per set, and remembers the answer for the set's other discs:
+  - *Keep the set together, as it was sold*: one album in the library, the way
+    a career compilation or a live box should be.
+  - *File this disc as the album it originally was*: for "Original Album
+    Classics" and other boxes of complete albums. The disc is retagged with
+    that album's own title, first-release year and front cover, its folder
+    becomes `YYYY - Title`, and the box's back is replaced. This happens only
+    when the disc's title is found in MusicBrainz as an album or EP by that
+    artist; a disc called "Bonus Tracks" or "Dawn to Dusk" stays with its set.
+    The old tags and art are kept in `~/.local/state/deadwax/unbox-backup/`
+    first, and an existing folder is never written over.
+- **Library check.** If `music-audit` is on the `PATH` (it is the author's own
+  tool, not part of Deadwax), it then checks the whole library.
+
+When the archive was down at rip time, `deadwax art ALBUM_DIR` fetches the
+missing covers later (`--replace` fetches both again).
+
+## Files outside the library
+
+| Path | What |
+|---|---|
+| `~/.config/deadwax/settings.json` | the window's settings, including each set's choice |
+| `~/.config/deadwax/drives.json` | drive read offsets |
+| `~/.config/deadwax/discs/` | discs described by hand when MusicBrainz has no match |
+| `~/.cache/deadwax/musicbrainz/` | MusicBrainz release data (safe to delete) |
+| `~/.local/state/deadwax/back-covers.tsv` | where each `back.jpg` came from |
+| `~/.local/state/deadwax/unbox-backup/` | tags and art of set discs before they were refiled |
+
 ## Status
 
 | Gate | What it proves | State |
@@ -79,10 +124,10 @@ v1/v2 checksums of that audio against the log: G2 and G3 without the drive. `sca
 in the drive; with `--against` it compares the TOC and IDs to that album's
 whipper log. `--full` adds a `cdrdao read-toc` pass (about two minutes) for the
 catalog number, ISRCs, CD-Text and pregaps, and compares those with the cue.
-`rip` makes a complete album; with `--post-rip` it then files a set's disc as
-the album it originally was (with `--unbox`), fetches back.jpg, and runs
-`music-audit` where installed; `post-rip DIR` does that for an album already
-ripped. `compare` checks a
+`rip` makes a complete album; with `--post-rip` it then does the steps under
+[After the rip](#after-the-rip) (a set's disc is refiled only with
+`--unbox`), and `post-rip DIR` does them for an album already ripped. `art DIR`
+fetches a missing `cover.jpg` and `back.jpg`. `compare` checks a
 Deadwax rip against whipper's rip of the same disc. `read` reads tracks securely through paranoia, twice, at the drive's read offset
 (taken from whipper.conf), and with `--against` checks each track's audio
 against whipper's logged CRC and the MD5 stored in the existing FLAC. It writes
@@ -94,16 +139,17 @@ nothing.
 src/Deadwax.Drive      libcdio via P/Invoke (TOC, drive identity); cdrdao TOC files
                        (catalog, ISRCs, CD-Text, pregaps); libcdio-paranoia secure
                        reads with offset correction
-src/Deadwax.Metadata   disc IDs; MusicBrainz client, tags and library conventions
+src/Deadwax.Metadata   disc IDs; MusicBrainz client, tags and library conventions;
+                       front and back covers from the Cover Art Archive
 src/Deadwax.Verify     AccurateRip IDs, database and checksums; CRC32/MD5 audio
                        checks; whipper log, cue and config readers
 src/Deadwax.Output     libFLAC encoding, tags, file names, .cue/.m3u, the rip log
-src/Deadwax.Core       the rip session, shared by the command line and the window
+src/Deadwax.Core       the rip session and the steps after it (set discs refiled,
+                       back cover), shared by the command line and the window
 src/Deadwax.Cli        the deadwax command
+src/Deadwax.App        the window (Avalonia, native Wayland) and its updater
 tests/Deadwax.Tests    golden files from real rips
 ```
-
-The App project arrives with the window.
 
 ## Licence
 
