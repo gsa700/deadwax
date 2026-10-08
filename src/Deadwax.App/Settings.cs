@@ -23,7 +23,7 @@ public sealed class Settings
     public string? Library { get; set; }
     /// Look for a newer release a few seconds after launch (About tab).
     public bool CheckForUpdates { get; set; } = true;
-    /// After a clean rip: back.jpg, then music-unbox and music-audit where installed.
+    /// After a clean rip: a set disc filed as its album when chosen, back.jpg, then music-audit where installed.
     /// Null = not decided: on if the tools are installed.
     public bool? PostRip { get; set; }
     /// For each multi-disc set (keyed by its MusicBrainz release id), whether

@@ -505,7 +505,7 @@ public sealed partial class MainWindow : Window
             _vm.EditionYear = plan.EditionYear ?? plan.DefaultYear;
             _vm.HasYearChoice = _vm.OriginalYear != _vm.EditionYear;
             _vm.UseOriginal = plan.DefaultYear == _vm.OriginalYear;
-            _vm.IsSetDisc = plan.MediaCount > 1 && Deadwax.Core.PostRip.UnboxAvailable;
+            _vm.IsSetDisc = plan.MediaCount > 1;
             _vm.SetChoice = _vm.IsSetDisc && plan.ReleaseId is { } setId && _settings.SetChoices.TryGetValue(setId, out var remembered)
                 ? remembered : null;
             _vm.SetChoiceNote = _vm.SetChoice is null
@@ -657,7 +657,7 @@ public sealed partial class MainWindow : Window
             var dir = result.AlbumDirectory;
             if (result.AllOk && (_settings.PostRip ?? true))
             {
-                _vm.NowText = "Into the library: the back cover, then a library check...";
+                _vm.NowText = unbox ? "Into the library: filing it as its own album, then the back cover..." : "Into the library: the back cover...";
                 var after = await Task.Run(() => PostRip.RunAsync(dir, unbox, observer.Say, ct), ct);
                 if (after.AlbumDirectory != dir)
                     steps.Add(new StepRow { Name = "Filed as its own album", Ok = true, Detail = Path.GetFileName(after.AlbumDirectory) });

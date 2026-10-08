@@ -25,6 +25,11 @@ public static class CoverArt
                    : await FetchAsync(http, $"https://coverartarchive.org/release-group/{releaseGroupId}/front-500", ct, attempts));
     }
 
+    /// The release group's front only: for a box disc refiled as its album,
+    /// where no single release of that album is known.
+    public static Task<byte[]?> GroupFrontAsync(HttpClient http, string releaseGroupId, CancellationToken ct = default, int attempts = DefaultAttempts) =>
+        FetchAsync(http, $"https://coverartarchive.org/release-group/{releaseGroupId}/front-500", ct, attempts);
+
     private static async Task<byte[]?> FetchAsync(HttpClient http, string url, CancellationToken ct, int attempts)
     {
         for (var attempt = 1; ; attempt++)

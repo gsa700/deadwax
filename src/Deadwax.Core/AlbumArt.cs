@@ -1,4 +1,5 @@
 using Deadwax.Metadata;
+using Deadwax.Output;
 
 namespace Deadwax.Core;
 
@@ -21,8 +22,8 @@ public static class AlbumArt
         if (File.Exists(coverPath) && !replace) say("cover.jpg is already there (--replace fetches it again).");
         else
         {
-            var releaseId = await ArtistFolders.FirstTagAsync(flac, "MUSICBRAINZ_ALBUMID");
-            var groupId = await ArtistFolders.FirstTagAsync(flac, "MUSICBRAINZ_RELEASEGROUPID");
+            var releaseId = FlacTags.First(flac, "MUSICBRAINZ_ALBUMID");
+            var groupId = FlacTags.First(flac, "MUSICBRAINZ_RELEASEGROUPID");
             if (releaseId is null) notes.Add("No MusicBrainz release id in the tags, so there is nothing to look up for the front.");
             else
             {

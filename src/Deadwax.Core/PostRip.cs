@@ -1,20 +1,19 @@
 using System.Diagnostics;
-using System.Text.RegularExpressions;
 using Deadwax.Metadata;
+using Deadwax.Output;
 
 namespace Deadwax.Core;
 
 /// After a clean rip, in the order the wizard's post-rip hook ran his library
 /// tools (spec §7: v1 called them; they are being brought in one at a time).
 ///
-/// 1. music-unbox, when installed and the folder is a disc of a set
-///    ("(Disc N of M)"): the plan always; the split only when asked. It
-///    retags the disc as its own album, fetches that album's front, and
-///    renames the folder "YYYY - Album".
-/// 2. back.jpg for the album: built in (BackCover) since 0.2.5; it was
-///    music-backart.
+/// 1. When the folder is a disc of a set ("(Disc N of M)"): the plan always,
+///    the split only when asked (Unbox; it was music-unbox). It retags the
+///    disc as its own album, fetches that album's front, and renames the
+///    folder "YYYY - Album".
+/// 2. back.jpg for the album (BackCover; it was music-backart).
 /// 3. music-audit over the library, when installed: must report 0 issues.
-public static partial class PostRip
+public static class PostRip
 {
     /// Audited: whether music-audit ran at all (it is his, not part of Deadwax).
     public sealed record Result(string AlbumDirectory, bool Audited, bool AuditClean, IReadOnlyList<string> Notes);
@@ -24,34 +23,31 @@ public static partial class PostRip
         var notes = new List<string>();
         var root = Path.GetDirectoryName(Path.GetDirectoryName(albumDir)!)!;
         var artist = Path.GetFileName(Path.GetDirectoryName(albumDir)!);
-        var folder = Path.GetFileName(albumDir);
 
-        if (DiscOfSet().IsMatch(folder) && Tool("music-unbox") is { } unboxTool)
+        if (Unbox.IsSetDisc(albumDir))
         {
-            say("This disc is part of a set; asking music-unbox for a plan...");
-            var (_, plan) = await RunToolAsync(unboxTool, ["--only", artist, root], ct);
-            var planned = plan.Contains("->", StringComparison.Ordinal);
-            foreach (var line in plan.Split('\n').Where(l => l.Contains("->") || l.Contains('!') || l.Contains("left alone") || l.Contains("KEEP")))
-                say("  " + line.Trim());
-            if (!planned) notes.Add("music-unbox: nothing to split; left as a set.");
-            else if (!unbox) notes.Add("music-unbox would split this disc into its own album; rerun with --unbox to do it.");
+            say("This disc is part of a set; looking up the album it originally was...");
+            Unbox.Decision decision;
+            using (var mb = new MusicBrainzClient())
+                decision = await Unbox.PlanAsync(albumDir, mb, ct);
+            if (decision.Plan is not { } plan)
+            {
+                say($"  left as part of the set: {decision.Reason}.");
+                if (unbox) notes.Add($"Not filed as its own album: {decision.Reason}.");
+            }
+            else if (!unbox)
+            {
+                say($"  kept with the set; as its own album it would be {Path.GetFileName(plan.Target)}.");
+                notes.Add($"Kept as part of the set. Filed as its own album it would be {Path.GetFileName(plan.Target)} (deadwax post-rip --unbox).");
+            }
             else
             {
-                say("Splitting it into its own album...");
-                var (rc, output) = await RunToolAsync(unboxTool, ["--only", artist, "--write", root], ct);
-                if (rc != 0) notes.Add($"music-unbox --write exited {rc}.");
-                if (output.Contains("SLIPCASE", StringComparison.Ordinal))
-                    notes.Add("music-unbox kept the slipcase front; often a Cover Art Archive blip, check the cover.");
-                // music-unbox renames to "YYYY - Album" beside the old folder and
-                // prints "  ok  YYYY - Album  (N tracks...".
-                var renamed = Renamed().Match(output);
-                if (renamed.Success && Directory.Exists(Path.Combine(root, artist, renamed.Groups[1].Value)))
-                {
-                    folder = renamed.Groups[1].Value;
-                    albumDir = Path.Combine(root, artist, folder);
-                    say($"Now {artist}/{folder}");
-                }
-                else if (!Directory.Exists(albumDir)) notes.Add("music-unbox renamed the folder, but not in a form Deadwax recognised.");
+                say($"  -> {Path.GetFileName(plan.Target)}");
+                var done = await Unbox.ApplyAsync(albumDir, plan, say, ct);
+                if (!done.FrontReplaced)
+                    notes.Add("Filed as its own album, but the album's front could not be fetched, so cover.jpg is still the set's. Often a Cover Art Archive blip: deadwax art --replace later.");
+                albumDir = done.AlbumDirectory;
+                say($"Now {artist}/{Path.GetFileName(albumDir)}");
             }
         }
 
@@ -79,8 +75,8 @@ public static partial class PostRip
         var dest = Path.Combine(albumDir, "back.jpg");
         if (File.Exists(dest)) return true;
         var flac = Directory.EnumerateFiles(albumDir, "*.flac").Order(StringComparer.Ordinal).FirstOrDefault();
-        var releaseId = flac is null ? null : await ArtistFolders.FirstTagAsync(flac, "MUSICBRAINZ_ALBUMID");
-        var groupId = flac is null ? null : await ArtistFolders.FirstTagAsync(flac, "MUSICBRAINZ_RELEASEGROUPID");
+        var releaseId = flac is null ? null : FlacTags.First(flac, "MUSICBRAINZ_ALBUMID");
+        var groupId = flac is null ? null : FlacTags.First(flac, "MUSICBRAINZ_RELEASEGROUPID");
         if (releaseId is null && groupId is null)
         {
             notes.Add("No back.jpg: no MusicBrainz ids in the tags to look it up by.");
@@ -144,10 +140,6 @@ public static partial class PostRip
         catch (UnauthorizedAccessException) { }
     }
 
-    /// Whether music-unbox is installed: the window offers the box-set split
-    /// only on a computer that has it.
-    public static bool UnboxAvailable => Tool("music-unbox") is not null;
-
     /// His tools live in ~/.local/bin, which a non-login environment may not
     /// have on PATH.
     private static string? Tool(string name)
@@ -162,29 +154,18 @@ public static partial class PostRip
     /// How long the back cover may take before it is stopped. Generous against
     /// BackCover's own ~90 s budget, so this only fires if something is wedged.
     public static readonly TimeSpan BackArtLimit = TimeSpan.FromMinutes(3);
-    public const int TimedOut = -2;
 
-    /// Runs one of his tools to completion. With a limit, a tool that is still
-    /// running when it expires is killed (with its children) and reported as
-    /// TimedOut; the caller's own cancellation still propagates as usual.
-    private static async Task<(int Code, string Output)> RunToolAsync(string tool, string[] args, CancellationToken ct, TimeSpan? limit = null)
+    /// Runs one of his tools to completion.
+    private static async Task<(int Code, string Output)> RunToolAsync(string tool, string[] args, CancellationToken ct)
     {
         var start = new ProcessStartInfo(tool) { RedirectStandardOutput = true, RedirectStandardError = true };
         foreach (var a in args) start.ArgumentList.Add(a);
         using var p = Process.Start(start)!;
-        using var timer = limit is { } l ? new CancellationTokenSource(l) : null;
-        using var linked = timer is null ? null : CancellationTokenSource.CreateLinkedTokenSource(ct, timer.Token);
-        var token = linked?.Token ?? ct;
-        var stdout = p.StandardOutput.ReadToEndAsync(token);
-        var stderr = p.StandardError.ReadToEndAsync(token);
+        var stdout = p.StandardOutput.ReadToEndAsync(ct);
+        var stderr = p.StandardError.ReadToEndAsync(ct);
         try
         {
-            await p.WaitForExitAsync(token);
-        }
-        catch (OperationCanceledException) when (timer is { IsCancellationRequested: true } && !ct.IsCancellationRequested)
-        {
-            try { p.Kill(entireProcessTree: true); } catch { }
-            return (TimedOut, "");
+            await p.WaitForExitAsync(ct);
         }
         catch (OperationCanceledException)
         {
@@ -193,10 +174,4 @@ public static partial class PostRip
         }
         return (p.ExitCode, await stdout + await stderr);
     }
-
-    [GeneratedRegex(@"\(Disc \d+ of \d+\)")]
-    private static partial Regex DiscOfSet();
-
-    [GeneratedRegex(@"(?m)^ +ok +(\d{4} - .+?[^ ]) +\(\d+ tracks")]
-    private static partial Regex Renamed();
 }

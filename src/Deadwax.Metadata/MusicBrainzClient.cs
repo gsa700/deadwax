@@ -67,6 +67,15 @@ public sealed class MusicBrainzClient : IDisposable
         return body is null ? null : JsonDocument.Parse(body);
     }
 
+    /// A release-group search. query is a Lucene query, encoded here as a
+    /// whole: encoding the artist and title separately and leaving the quotes
+    /// and ANDs raw matched nothing at all (music-unbox, 2026-09-20).
+    public async Task<JsonDocument?> SearchReleaseGroupsAsync(string query, int limit = 5, CancellationToken ct = default)
+    {
+        var body = await GetAsync($"release-group/?query={Uri.EscapeDataString(query)}&fmt=json&limit={limit}", ct);
+        return body is null ? null : JsonDocument.Parse(body);
+    }
+
     private async Task<byte[]?> GetAsync(string path, CancellationToken ct)
     {
         for (var attempt = 1; ; attempt++)

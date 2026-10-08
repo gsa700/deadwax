@@ -40,7 +40,7 @@
                     <TextBlock Text="After a rip" FontSize="14" FontWeight="SemiBold"/>
                     <CheckBox x:Name="PostRipBox" FontSize="13" Content="Finish the new album for the library" Click="OnPostRipToggled"/>
                     <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
-                               Text="Fetches the back cover from the Cover Art Archive as back.jpg: this pressing's when it has one, otherwise another edition's of the same album. Where they are installed, music-unbox then refiles a box-set disc as the album it actually is, and music-audit checks the whole library for anything out of place. Runs only after a rip where every track read the same twice."/>
+                               Text="A disc from a set, when you chose to file it as the album it originally was, is retagged with that album's own title, year and front cover, and its folder renamed. Then the back cover is fetched from the Cover Art Archive as back.jpg: this pressing's when it has one, otherwise another edition's of the same album. Where music-audit is installed, it then checks the whole library. Runs only after a rip where every track read the same twice."/>
                 </StackPanel>
             </StackPanel>
         </TabItem>

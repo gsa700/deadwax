@@ -79,9 +79,10 @@ v1/v2 checksums of that audio against the log: G2 and G3 without the drive. `sca
 in the drive; with `--against` it compares the TOC and IDs to that album's
 whipper log. `--full` adds a `cdrdao read-toc` pass (about two minutes) for the
 catalog number, ISRCs, CD-Text and pregaps, and compares those with the cue.
-`rip` makes a complete album; with `--post-rip` it then fetches back.jpg and
-runs the library tools where installed (`music-unbox` with `--unbox`,
-`music-audit`), and `post-rip DIR` does that for an album already ripped. `compare` checks a
+`rip` makes a complete album; with `--post-rip` it then files a set's disc as
+the album it originally was (with `--unbox`), fetches back.jpg, and runs
+`music-audit` where installed; `post-rip DIR` does that for an album already
+ripped. `compare` checks a
 Deadwax rip against whipper's rip of the same disc. `read` reads tracks securely through paranoia, twice, at the drive's read offset
 (taken from whipper.conf), and with `--against` checks each track's audio
 against whipper's logged CRC and the MD5 stored in the existing FLAC. It writes
