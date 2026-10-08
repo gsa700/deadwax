@@ -22,8 +22,7 @@ public partial class PrefsWindow : Window
         InitializeComponent();
         DataContext = vm;
 
-        PostRipBox.IsChecked = _settings.PostRip ?? Deadwax.Core.PostRip.ToolsAvailable;
-        ToolsPanel.IsVisible = Deadwax.Core.PostRip.ToolsAvailable;
+        PostRipBox.IsChecked = _settings.PostRip ?? true;
         ShowLibrary();
         ShowDrive();
         VersionText.Text = $"Version {UpdateService.CurrentVersion}";

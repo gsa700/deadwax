@@ -3,8 +3,7 @@ using Deadwax.Metadata;
 namespace Deadwax.Core;
 
 /// Artwork for an album already in the library: cover.jpg from the Cover Art
-/// Archive by the release ids in the album's own tags, then back.jpg through
-/// music-backart. For a rip that went in without art because the archive was
+/// Archive by the release ids in the album's own tags, then back.jpg. For a rip that went in without art because the archive was
 /// down at the time (2026-10-06), and for any folder that lost its cover.
 public static class AlbumArt
 {
@@ -49,7 +48,6 @@ public static class AlbumArt
 
         var backPath = Path.Combine(albumDir, "back.jpg");
         if (File.Exists(backPath) && !replace) say("back.jpg is already there (--replace fetches it again).");
-        else if (!PostRip.BackArtAvailable) say("No music-backart on this computer; back.jpg skipped.");
         else
         {
             if (replace && File.Exists(backPath)) File.Delete(backPath);

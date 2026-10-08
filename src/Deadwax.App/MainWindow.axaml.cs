@@ -542,7 +542,7 @@ public sealed partial class MainWindow : Window
         var first = _plan.Tracks.FirstOrDefault();
         _vm.OutputFiles = first is null ? "" :
             $"  {first.FileName}\n  … {_plan.Tracks.Count - 1} more tracks\n  .cue  .log  .m3u  .toc  cover.jpg" +
-            (_vm.IsSetDisc && _vm.Unbox ? "\n  then filed as its own album" : Deadwax.Core.PostRip.ToolsAvailable ? "  back.jpg" : "");
+            (_vm.IsSetDisc && _vm.Unbox ? "\n  then filed as its own album" : (_settings.PostRip ?? true) ? "  back.jpg" : "");
         var exists = Directory.Exists(dir);
         if (_libraryMatch is not null)
             _vm.ErrorText = $"Already in your library: {Path.GetRelativePath(Library, _libraryMatch)}";
@@ -655,16 +655,17 @@ public sealed partial class MainWindow : Window
             });
 
             var dir = result.AlbumDirectory;
-            if (result.AllOk && (_settings.PostRip ?? Deadwax.Core.PostRip.ToolsAvailable))
+            if (result.AllOk && (_settings.PostRip ?? true))
             {
-                _vm.NowText = "Into the library: music-unbox, music-backart, music-audit...";
+                _vm.NowText = "Into the library: the back cover, then a library check...";
                 var after = await Task.Run(() => PostRip.RunAsync(dir, unbox, observer.Say, ct), ct);
                 if (after.AlbumDirectory != dir)
                     steps.Add(new StepRow { Name = "Filed as its own album", Ok = true, Detail = Path.GetFileName(after.AlbumDirectory) });
                 dir = after.AlbumDirectory;
                 steps.Add(new StepRow { Name = "Front cover", Ok = File.Exists(Path.Combine(dir, "cover.jpg")), Detail = File.Exists(Path.Combine(dir, "cover.jpg")) ? "cover.jpg" : "None in the Cover Art Archive" });
                 steps.Add(new StepRow { Name = "Back cover", Ok = File.Exists(Path.Combine(dir, "back.jpg")), Detail = File.Exists(Path.Combine(dir, "back.jpg")) ? "back.jpg" : "None in the Cover Art Archive" });
-                steps.Add(new StepRow { Name = "Library audit", Ok = after.AuditClean, Detail = after.AuditClean ? "music-audit: no issues" : "music-audit found issues; see the engine log" });
+                if (after.Audited)
+                    steps.Add(new StepRow { Name = "Library audit", Ok = after.AuditClean, Detail = after.AuditClean ? "music-audit: no issues" : "music-audit found issues; see the engine log" });
                 foreach (var note in after.Notes) _vm.Log.Add("note: " + note);
             }
 

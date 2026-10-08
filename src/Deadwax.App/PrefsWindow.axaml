@@ -35,13 +35,12 @@
                     <Button Classes="panel" Content="Use my Music folder" Click="OnUseDefaultLibrary"/>
                 </StackPanel>
 
-                <!-- Only on a computer that has the library tools. -->
-                <StackPanel x:Name="ToolsPanel" Spacing="12">
+                <StackPanel Spacing="12">
                     <Border Height="1" Background="{StaticResource Rule}" Margin="0,6,0,0"/>
                     <TextBlock Text="After a rip" FontSize="14" FontWeight="SemiBold"/>
-                    <CheckBox x:Name="PostRipBox" FontSize="13" Content="Run the library tools on the new album" Click="OnPostRipToggled"/>
+                    <CheckBox x:Name="PostRipBox" FontSize="13" Content="Finish the new album for the library" Click="OnPostRipToggled"/>
                     <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
-                               Text="Three small programs that tidy a new album into the library. music-unbox is for box sets: a disc from one is tagged as 'Box Set Name (Disc 2 of 5)', which is how MusicBrainz lists it; unbox finds the album that disc actually is and refiles it under its own name, year and cover, so it sits in the library like a normal release. music-backart fetches the back cover as back.jpg. music-audit then checks the whole library for anything out of place. They run only after a rip where every track read the same twice."/>
+                               Text="Fetches the back cover from the Cover Art Archive as back.jpg: this pressing's when it has one, otherwise another edition's of the same album. Where they are installed, music-unbox then refiles a box-set disc as the album it actually is, and music-audit checks the whole library for anything out of place. Runs only after a rip where every track read the same twice."/>
                 </StackPanel>
             </StackPanel>
         </TabItem>

@@ -15,13 +15,13 @@ internal static class Commands
               defaults to the album's original year. Never writes over a folder.
               --keep-note keeps MusicBrainz's disambiguation note in the folder
               name, as whipper did.
-              --post-rip then runs music-unbox (plan only unless --unbox),
-              music-backart and music-audit, as the wizard did.
+              --post-rip then fetches back.jpg, and runs music-unbox (plan
+              only unless --unbox) and music-audit where they are installed.
           deadwax post-rip ALBUM_DIR [--unbox]
-              The same library tools on an album already ripped.
+              The same steps on an album already ripped.
           deadwax art ALBUM_DIR [--replace]
               cover.jpg (Cover Art Archive, by the release ids in the album's
-              tags) and back.jpg (music-backart) for an album that has none,
+              tags) and back.jpg (this release's, else another edition's) for an album that has none,
               such as a rip made while the archive was down. --replace fetches
               both again.
           deadwax compare DEADWAX_ALBUM_DIR WHIPPER_ALBUM_DIR

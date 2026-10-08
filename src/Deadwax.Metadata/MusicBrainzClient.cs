@@ -58,6 +58,15 @@ public sealed class MusicBrainzClient : IDisposable
         return body is null ? null : JsonDocument.Parse(body);
     }
 
+    /// Every edition in a release group, each with the Cover Art Archive's
+    /// `cover-art-archive: {front, back, count}` inline: one request says which
+    /// editions have a back, instead of asking the archive about each.
+    public async Task<JsonDocument?> BrowseReleasesAsync(string releaseGroupId, CancellationToken ct = default)
+    {
+        var body = await GetAsync($"release?release-group={releaseGroupId}&limit=100&fmt=json", ct);
+        return body is null ? null : JsonDocument.Parse(body);
+    }
+
     private async Task<byte[]?> GetAsync(string path, CancellationToken ct)
     {
         for (var attempt = 1; ; attempt++)
