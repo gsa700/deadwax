@@ -5,7 +5,9 @@ namespace Deadwax.Output;
 
 /// The slice of libFLAC's stream encoder Deadwax calls (libFLAC.so.14, FLAC
 /// 1.5.0: the same library, and so the same vendor string, as every rip in the
-/// library). FLAC__bool is a C int.
+/// library). FLAC 1.4 (libFLAC.so.12, Debian 12 and Ubuntu 24.04) has the same
+/// calls; its files are the same audio with that version's vendor string.
+/// FLAC__bool is a C int.
 internal static unsafe partial class LibFlac
 {
     private const string Lib = "FLAC";
@@ -31,12 +33,13 @@ internal static unsafe partial class LibFlac
     [LibraryImport(Lib)] public static partial int FLAC__stream_encoder_get_state(IntPtr encoder);
 
     // Like libcdio, only the -devel package installs the bare libFLAC.so.
+    // Fedora has FLAC 1.5 (.so.14); Debian and Ubuntu are on 1.4 (.so.12).
     static LibFlac() => NativeLibrary.SetDllImportResolver(typeof(LibFlac).Assembly, Resolve);
 
     private static IntPtr Resolve(string name, Assembly assembly, DllImportSearchPath? path)
     {
         if (name != Lib) return IntPtr.Zero;
-        foreach (var candidate in new[] { "libFLAC.so.14", "libFLAC.so" })
+        foreach (var candidate in new[] { "libFLAC.so.14", "libFLAC.so.12", "libFLAC.so" })
             if (NativeLibrary.TryLoad(candidate, assembly, path, out var handle)) return handle;
         return IntPtr.Zero;
     }
