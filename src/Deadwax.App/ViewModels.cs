@@ -42,6 +42,9 @@ public static class Tone
     /// needed to stand out from "not read yet".
     public static readonly IBrush Reading = Brush.Parse("#8A6A1E");
     public static readonly IBrush MapGood = Brush.Parse("#2D8F46");
+    /// Read a second time, waiting on the track's verdict: between "reading"
+    /// and "read cleanly", so the copy pass is seen sweeping (2026-10-08).
+    public static readonly IBrush Copied = Brush.Parse("#4F6B2A");
     public static readonly IBrush ActiveRow = Brush.Parse("#26262C");
     public static readonly IBrush Selected = Brush.Parse("#2C2C30");
     public static readonly IBrush Unselected = Brush.Parse("#232326");

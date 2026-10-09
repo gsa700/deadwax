@@ -142,6 +142,8 @@ public interface IRipObserver
     void TrackStarted(int track) { }
     void Progress(int track, string pass, int done, int total);
     void PassFinished(int track, string pass, ReadReport report) { }
+    /// A sector turned Recovered or Skipped, reported while the pass runs.
+    void SectorDamaged(int track, string pass, int sector, SectorState state) { }
     void TrackFinished(RippedTrack track) { }
 }
 
@@ -328,7 +330,8 @@ public sealed class RipSession
 
                 // Read until two passes agree: the first is the test, each later
                 // one a copy compared with the pass before it.
-                var (audio, report) = reader.ReadTrack(toc, n, disc.Offset, maxRetries, (d, t) => observer.Progress(n, "test", d, t), ct);
+                var (audio, report) = reader.ReadTrack(toc, n, disc.Offset, maxRetries, (d, t) => observer.Progress(n, "test", d, t), ct,
+                    (s, state) => observer.SectorDamaged(n, "test", s, state));
                 observer.PassFinished(n, "test", report);
                 var testCrc = AudioChecks.Crc32(audio);
                 var previousCrc = testCrc;
@@ -340,7 +343,8 @@ public sealed class RipSession
                 var elapsed = report.Elapsed;
                 while (passes < maxPasses)
                 {
-                    (audio, report) = reader.ReadTrack(toc, n, disc.Offset, maxRetries, (d, t) => observer.Progress(n, "copy", d, t), ct);
+                    (audio, report) = reader.ReadTrack(toc, n, disc.Offset, maxRetries, (d, t) => observer.Progress(n, "copy", d, t), ct,
+                        (s, state) => observer.SectorDamaged(n, "copy", s, state));
                     observer.PassFinished(n, "copy", report);
                     passes++;
                     copyCrc = AudioChecks.Crc32(audio);

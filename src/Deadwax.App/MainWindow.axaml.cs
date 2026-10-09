@@ -849,13 +849,36 @@ public sealed partial class MainWindow : Window
                 vm.NowText = $"Track {track} of {vm.Tracks.Count} · {pass} pass";
                 if (speed > 0) vm.SpeedText = $"{speed:0.0}×";
                 vm.ElapsedText = _clock.Elapsed.ToString(@"m\:ss");
-                if (pass == "test")
-                {
-                    var last = (t.StartLsn + done) / SectorsPerCell;
-                    for (var c = t.StartLsn / SectorsPerCell; c <= last && c < vm.Map.Count; c++)
-                        if (!_worst.ContainsKey(c) && vm.Map[c].Fill == Tone.Unread) vm.Map[c].Fill = Tone.Reading;
-                }
+                // Both passes sweep: the test turns cells "reading", each copy
+                // "read twice"; damage already painted stays.
+                var (from, to) = pass == "test" ? (Tone.Unread, Tone.Reading) : (Tone.Reading, Tone.Copied);
+                var last = (t.StartLsn + done) / SectorsPerCell;
+                for (var c = t.StartLsn / SectorsPerCell; c <= last && c < vm.Map.Count; c++)
+                    if (vm.Map[c].Fill == from) vm.Map[c].Fill = to;
             });
+        }
+
+        /// On the reading thread, as paranoia reports it. Only a cell that gets
+        /// worse crosses to the UI, so a badly scratched patch costs one post
+        /// per cell, not one per sector.
+        public void SectorDamaged(int track, string pass, int sector, SectorState state)
+        {
+            var cell = sector / SectorsPerCell;
+            if (cell < 0) return;
+            var brush = state == SectorState.Skipped ? Tone.Bad : Tone.Warn;
+            if (!Worsen(cell, brush)) return;
+            Dispatcher.UIThread.Post(() => { if (cell < vm.Map.Count) vm.Map[cell].Fill = brush; });
+        }
+
+        /// Records the worst seen in a cell; true if it got worse.
+        private bool Worsen(int cell, IBrush brush)
+        {
+            lock (_worst)
+            {
+                if (_worst.TryGetValue(cell, out var had) && (had == Tone.Bad || had == brush)) return false;
+                _worst[cell] = brush;
+                return true;
+            }
         }
 
         public void PassFinished(int track, string pass, ReadReport report)
@@ -873,15 +896,16 @@ public sealed partial class MainWindow : Window
                     _ => null,
                 };
                 if (brush is null || cell < 0) continue;
-                if (!_worst.TryGetValue(cell, out var had) || had == Tone.Warn) _worst[cell] = brush;
+                Worsen(cell, brush);
             }
         }
 
         public void TrackFinished(RippedTrack result) => Dispatcher.UIThread.Post(() =>
         {
             var t = disc.Toc.Track(result.Number);
-            for (var c = t.StartLsn / SectorsPerCell; c <= (disc.Toc.EndLsn(t) - 1) / SectorsPerCell && c < vm.Map.Count; c++)
-                vm.Map[c].Fill = _worst.TryGetValue(c, out var b) ? b : result.CopyOk ? Tone.MapGood : Tone.Bad;
+            lock (_worst)
+                for (var c = t.StartLsn / SectorsPerCell; c <= (disc.Toc.EndLsn(t) - 1) / SectorsPerCell && c < vm.Map.Count; c++)
+                    vm.Map[c].Fill = _worst.TryGetValue(c, out var b) ? b : result.CopyOk ? Tone.MapGood : Tone.Bad;
 
             var row = vm.Tracks.FirstOrDefault(r => r.Number == result.Number);
             if (row is null) return;

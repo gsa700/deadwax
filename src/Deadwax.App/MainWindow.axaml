@@ -360,6 +360,7 @@
                         <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="10" Height="10" CornerRadius="2" Background="{StaticResource AmberSoft}"/><TextBlock Text="Re-read, recovered"/></StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="10" Height="10" CornerRadius="2" Background="{StaticResource Bad}"/><TextBlock Text="Could not read"/></StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="10" Height="10" CornerRadius="2" Background="#8A6A1E"/><TextBlock Text="Reading"/></StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="10" Height="10" CornerRadius="2" Background="#4F6B2A"/><TextBlock Text="Read twice, checking"/></StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="10" Height="10" CornerRadius="2" Background="{StaticResource Rule}"/><TextBlock Text="Not read yet"/></StackPanel>
                     </StackPanel>
                 </StackPanel>

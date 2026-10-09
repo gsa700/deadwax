@@ -27,6 +27,11 @@ public sealed class ReadReport
 
     public int FirstSector { get; }
     public SectorState[] Sectors { get; }
+
+    /// Called from the read, on the reading thread, the moment a sector turns
+    /// Recovered or Skipped (the absolute sector, its new state): the read map
+    /// shows trouble as it happens instead of when the pass ends.
+    internal Action<int, SectorState>? Damaged { get; init; }
     public TimeSpan Elapsed { get; internal set; }
 
     public int this[ParanoiaEvent e] => _events[(int)e];
@@ -49,7 +54,11 @@ public sealed class ReadReport
         };
         if (state == SectorState.NotRead) return;
         var i = (int)(wordPosition / LibParanoia.SectorWords) - FirstSector;
-        if ((uint)i < (uint)Sectors.Length && state > Sectors[i]) Sectors[i] = state;
+        if ((uint)i < (uint)Sectors.Length && state > Sectors[i])
+        {
+            Sectors[i] = state;
+            if (state >= SectorState.Recovered) Damaged?.Invoke(FirstSector + i, state);
+        }
     }
 }
 
@@ -132,13 +141,14 @@ public sealed class SecureReader : IDisposable
     /// second pass is a real second read, not paranoia's cache of the first.
     public (byte[] Audio, ReadReport Report) ReadTrack(
         Toc toc, int trackNumber, int offsetSamples,
-        int maxRetries = DefaultMaxRetries, Action<int, int>? progress = null, CancellationToken ct = default)
+        int maxRetries = DefaultMaxRetries, Action<int, int>? progress = null, CancellationToken ct = default,
+        Action<int, SectorState>? damaged = null)
     {
         var track = toc.Track(trackNumber);
         if (!track.IsAudio) throw new ArgumentException($"Track {trackNumber} is data, not audio.");
 
         var w = ReadWindow.For(toc, track, offsetSamples);
-        var (window, report) = ReadSectors(w.FirstSector, w.EndSector, w.ReadableStart, w.ReadableEnd, maxRetries, progress, ct);
+        var (window, report) = ReadSectors(w.FirstSector, w.EndSector, w.ReadableStart, w.ReadableEnd, maxRetries, progress, ct, damaged);
         return (window.AsSpan(w.TrackStartInWindow, w.TrackBytes).ToArray(), report);
     }
 
@@ -149,10 +159,11 @@ public sealed class SecureReader : IDisposable
     /// margin on both sides and slides over it.
     public (byte[] Window, ReadReport Report) ReadSectors(
         int firstSector, int endSector, int readableStart, int readableEnd,
-        int maxRetries = DefaultMaxRetries, Action<int, int>? progress = null, CancellationToken ct = default)
+        int maxRetries = DefaultMaxRetries, Action<int, int>? progress = null, CancellationToken ct = default,
+        Action<int, SectorState>? damaged = null)
     {
         var window = new byte[(long)(endSector - firstSector) * LibParanoia.SectorBytes];
-        var report = new ReadReport(firstSector, endSector - firstSector);
+        var report = new ReadReport(firstSector, endSector - firstSector) { Damaged = damaged };
         var clock = Stopwatch.StartNew();
 
         var paranoia = LibParanoia.cdio_paranoia_init(Handle);
