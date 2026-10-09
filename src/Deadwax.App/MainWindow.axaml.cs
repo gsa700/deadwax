@@ -12,6 +12,7 @@ using Deadwax.Core;
 using Deadwax.Verify;
 using Deadwax.Drive;
 using Deadwax.Metadata;
+using Deadwax.Output;
 
 namespace Deadwax.App;
 
@@ -36,6 +37,8 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        Filing.Current = _settings.ToFiling();
+        if (_settings.EmbedCover is null) { _settings.EmbedCover = false; _settings.Save(); }   // decided once, not re-guessed
         Width = Math.Max(_settings.Width, MinWidth);
         Height = Math.Max(_settings.Height, MinHeight);
         if (_settings.Maximized) WindowState = WindowState.Maximized;
@@ -441,6 +444,7 @@ public sealed partial class MainWindow : Window
             _vm.HasYearChoice = false;
             _vm.UseOriginal = true;
             _vm.IsSetDisc = false;
+            _vm.SetMismatch = "";
             _vm.NoteText = "";
             _vm.KeepNote = false;
             _vm.YearNote = $"{description.Year}, as you described it.";
@@ -485,6 +489,15 @@ public sealed partial class MainWindow : Window
     }
 
     private async void OnUseReleaseLink(object? sender, RoutedEventArgs e) => await UseReleaseLinkAsync();
+
+    /// The set card's "Use the same edition": the release the other disc came
+    /// from, chosen as if its link had been pasted.
+    private async void OnUseSiblingEdition(object? sender, RoutedEventArgs e)
+    {
+        if (_vm.SetMismatchRelease is not { } id) return;
+        ReleaseLink.Text = "https://musicbrainz.org/release/" + id;
+        await UseReleaseLinkAsync();
+    }
 
     /// A release he names by link, for a disc whose disc ID isn't attached to
     /// it: the disc is found on it by track count and lengths, then it joins
@@ -555,6 +568,14 @@ public sealed partial class MainWindow : Window
                 : "Remembered from an earlier disc of this set. Change it here if you like.";
             _vm.NoteText = plan.Disambiguation ?? "";
             _vm.KeepNote = false;
+
+            var siblings = _vm.IsSetDisc ? await Task.Run(() => SetSiblings.Find(Library, plan)) : [];
+            if (version != _planVersion) return;
+            var sibling = siblings.FirstOrDefault();
+            _vm.SetMismatchRelease = sibling?.ReleaseId;
+            _vm.SetMismatch = sibling is null ? ""
+                : $"Disc {sibling.Disc ?? "?"} of this set is already in your library from a different edition ({sibling.Folder}). "
+                  + "Kept together, discs from two editions show as two separate albums in most players.";
             _vm.YearNote = !_vm.HasYearChoice
                 ? $"{plan.DefaultYear}: this edition and the album's first release agree."
                 : plan.IsCompilation
@@ -575,6 +596,13 @@ public sealed partial class MainWindow : Window
 
     private string ChosenYear => _vm.HasYearChoice && !_vm.UseOriginal ? _vm.EditionYear : _vm.UseOriginal ? _vm.OriginalYear : _vm.EditionYear;
 
+    /// Preferences > Filing changed: new rips follow it, and the preview shows it.
+    internal void FilingChanged()
+    {
+        Filing.Current = _settings.ToFiling();
+        UpdateOutputPreview();
+    }
+
     private void UpdateOutputPreview()
     {
         if (_plan is null) return;
@@ -582,9 +610,15 @@ public sealed partial class MainWindow : Window
         var dir = _plan.AlbumDirectory(Library, ChosenYear);
         _vm.OutputFolder = dir.Replace(Home, "~") + "/";
         var first = _plan.Tracks.FirstOrDefault();
+        var filing = Filing.Current;
+        var extras = string.Join("  ", new[]
+        {
+            filing.Cue ? ".cue" : null, ".log", filing.M3u ? ".m3u" : null, ".toc", "cover.jpg",
+            filing.BackCover && (_settings.PostRip ?? true) && !(_vm.IsSetDisc && _vm.Unbox) ? "back.jpg" : null,
+        }.Where(x => x is not null));
         _vm.OutputFiles = first is null ? "" :
-            $"  {first.FileName}\n  … {_plan.Tracks.Count - 1} more tracks\n  .cue  .log  .m3u  .toc  cover.jpg" +
-            (_vm.IsSetDisc && _vm.Unbox ? "\n  then filed as its own album" : (_settings.PostRip ?? true) ? "  back.jpg" : "");
+            $"  {first.FileName}\n  … {_plan.Tracks.Count - 1} more tracks{(filing.EmbedCover ? ", the cover embedded in each" : "")}\n  {extras}" +
+            (_vm.IsSetDisc && _vm.Unbox ? "\n  then filed as its own album" : "");
         var exists = Directory.Exists(dir);
         if (_libraryMatch is not null)
             _vm.ErrorText = $"Already in your library: {Path.GetRelativePath(Library, _libraryMatch)}";
@@ -625,6 +659,7 @@ public sealed partial class MainWindow : Window
         _vm.CanRip = false;
         _vm.HasYearChoice = false;
         _vm.IsSetDisc = false;
+        _vm.SetMismatch = "";
         _vm.NoteText = "";
         _vm.SubchannelText = "";
         _coverBytes = null;
@@ -705,11 +740,20 @@ public sealed partial class MainWindow : Window
                     steps.Add(new StepRow { Name = "Filed as its own album", Ok = true, Detail = Path.GetFileName(after.AlbumDirectory) });
                 dir = after.AlbumDirectory;
                 steps.Add(new StepRow { Name = "Front cover", Ok = File.Exists(Path.Combine(dir, "cover.jpg")), Detail = File.Exists(Path.Combine(dir, "cover.jpg")) ? "cover.jpg" : "None in the Cover Art Archive" });
-                steps.Add(new StepRow { Name = "Back cover", Ok = File.Exists(Path.Combine(dir, "back.jpg")), Detail = File.Exists(Path.Combine(dir, "back.jpg")) ? "back.jpg" : "None in the Cover Art Archive" });
-                if (after.Audited)
-                    steps.Add(new StepRow { Name = "Library audit", Ok = after.AuditClean, Detail = after.AuditClean ? "music-audit: no issues" : "music-audit found issues; see the engine log" });
+                if (Filing.Current.BackCover)
+                    steps.Add(new StepRow { Name = "Back cover", Ok = File.Exists(Path.Combine(dir, "back.jpg")), Detail = File.Exists(Path.Combine(dir, "back.jpg")) ? "back.jpg" : "None in the Cover Art Archive" });
                 foreach (var note in after.Notes) _vm.Log.Add("note: " + note);
             }
+
+            // This album against the choices in Preferences > Filing.
+            var filed = await Task.Run(() => FiledCheck.Run(dir, Filing.Current), ct);
+            foreach (var issue in filed) _vm.Log.Add("filed: " + issue);
+            steps.Add(new StepRow
+            {
+                Name = "Filed correctly", Ok = filed.Count == 0,
+                Detail = filed.Count == 0 ? "tags, file names and playlists check out"
+                       : filed.Count == 1 ? filed[0] : $"{filed[0]} (and {filed.Count - 1} more; see the engine log)",
+            });
 
             _vm.AllGood = steps.All(s => s.Ok);
             _vm.Verdict = result.AllOk

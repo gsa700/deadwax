@@ -234,13 +234,20 @@ public sealed class MainViewModel : Observable
     public bool? SetChoice
     {
         get => _setChoice;
-        set { if (Set(ref _setChoice, value)) { Raise(nameof(Unbox), nameof(KeepSet)); SetChoiceChanged?.Invoke(); } }
+        set { if (Set(ref _setChoice, value)) { Raise(nameof(Unbox), nameof(KeepSet), nameof(HasSetMismatch)); SetChoiceChanged?.Invoke(); } }
     }
     /// The two radio buttons. A RadioButton writes false to the one being
     /// left; that must not clear the choice, so only true is acted on.
     public bool Unbox { get => _setChoice == true; set { if (value) SetChoice = true; } }
     public bool KeepSet { get => _setChoice == false; set { if (value) SetChoice = false; } }
     public string SetChoiceNote { get => _setChoiceNote; set => Set(ref _setChoiceNote, value); }
+
+    /// Another disc of this set is in the library from a different edition
+    /// (Core/SetSiblings). Moot when this disc is filed as its own album.
+    private string _setMismatch = "";
+    public string SetMismatch { get => _setMismatch; set { if (Set(ref _setMismatch, value)) Raise(nameof(HasSetMismatch)); } }
+    public string? SetMismatchRelease { get; set; }
+    public bool HasSetMismatch => SetMismatch.Length > 0 && SetChoice != true;
     public event Action? SetChoiceChanged;
     public event Action? YearChanged;
 

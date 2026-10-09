@@ -1,4 +1,5 @@
 using Deadwax.Metadata;
+using Deadwax.Output;
 
 namespace Deadwax.Core;
 
@@ -42,6 +43,8 @@ public static class AlbumArt
                     await File.WriteAllBytesAsync(part, cover, ct);
                     File.Move(part, coverPath, overwrite: true);
                     say($"cover.jpg written ({cover.Length / 1024} KB).");
+                    if (Filing.Current.EmbedCover && CoverEmbed.Apply(albumDir) is var embedded && embedded > 0)
+                        say($"Embedded in {embedded} files.");
                 }
             }
         }

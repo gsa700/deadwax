@@ -19,6 +19,9 @@
         <SolidColorBrush x:Key="AmberSoft" Color="#FFC94D"/>
         <SolidColorBrush x:Key="Good" Color="#3CC850"/>
         <SolidColorBrush x:Key="Bad" Color="#EB4646"/>
+        <SolidColorBrush x:Key="PanelFill" Color="#26FFFFFF"/>
+        <SolidColorBrush x:Key="PanelEdge" Color="#33FFFFFF"/>
+        <SolidColorBrush x:Key="PanelHover" Color="#3AFFFFFF"/>
         <FontFamily x:Key="Mono">DejaVu Sans Mono, Consolas, monospace</FontFamily>
     </Application.Resources>
 
@@ -26,13 +29,13 @@
         <FluentTheme />
 
         <Style Selector="TextBlock">
-            <Setter Property="Foreground" Value="{StaticResource Text}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Text}"/>
         </Style>
         <Style Selector="TextBlock.dim">
-            <Setter Property="Foreground" Value="{StaticResource Dim}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Dim}"/>
         </Style>
         <Style Selector="TextBlock.soft">
-            <Setter Property="Foreground" Value="{StaticResource Soft}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Soft}"/>
         </Style>
         <Style Selector="TextBlock.mono">
             <Setter Property="FontFamily" Value="{StaticResource Mono}"/>
@@ -42,7 +45,7 @@
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="LetterSpacing" Value="1"/>
-            <Setter Property="Foreground" Value="{StaticResource Dim}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Dim}"/>
         </Style>
 
         <Style Selector="Button.primary">
@@ -83,17 +86,17 @@
             <Setter Property="Background" Value="#26FFFFFF"/>
         </Style>
         <Style Selector="Button.panel">
-            <Setter Property="Background" Value="#26FFFFFF"/>
-            <Setter Property="Foreground" Value="{StaticResource Text}"/>
-            <Setter Property="BorderBrush" Value="#33FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource PanelFill}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelEdge}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="4"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Padding" Value="15,6"/>
         </Style>
         <Style Selector="Button.panel:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#3AFFFFFF"/>
-            <Setter Property="Foreground" Value="{StaticResource Text}"/>
+            <Setter Property="Background" Value="{DynamicResource PanelHover}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Text}"/>
         </Style>
 
         <!-- Preferences tabs: AlbumWall's chrome in the neutral palette. -->
@@ -104,7 +107,7 @@
                 <ControlTemplate TargetType="TabControl">
                     <DockPanel>
                         <ItemsPresenter DockPanel.Dock="Top" Margin="2,0,0,0" ItemsPanel="{TemplateBinding ItemsPanel}"/>
-                        <Border Background="{StaticResource Aside}" BorderBrush="{StaticResource Rule}"
+                        <Border Background="{DynamicResource Aside}" BorderBrush="{DynamicResource Rule}"
                                 BorderThickness="1" CornerRadius="0,6,6,6" Padding="22,20" ZIndex="-1">
                             <ContentPresenter Content="{TemplateBinding SelectedContent}"
                                               ContentTemplate="{TemplateBinding SelectedContentTemplate}"/>
@@ -119,10 +122,10 @@
             <Setter Property="Padding" Value="16,7"/>
             <Setter Property="Margin" Value="0,0,3,0"/>
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{StaticResource Dim}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Dim}"/>
             <Setter Property="Template">
                 <ControlTemplate TargetType="TabItem">
-                    <Border Background="{TemplateBinding Background}" BorderBrush="{StaticResource Rule}"
+                    <Border Background="{TemplateBinding Background}" BorderBrush="{DynamicResource Rule}"
                             BorderThickness="1,1,1,0" CornerRadius="6,6,0,0" Padding="{TemplateBinding Padding}">
                         <ContentPresenter Content="{TemplateBinding Header}" ContentTemplate="{TemplateBinding HeaderTemplate}"
                                           Foreground="{TemplateBinding Foreground}" FontSize="{TemplateBinding FontSize}"
@@ -133,11 +136,11 @@
             </Setter>
         </Style>
         <Style Selector="TabItem:pointerover">
-            <Setter Property="Foreground" Value="{StaticResource Text}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Text}"/>
         </Style>
         <Style Selector="TabItem:selected">
-            <Setter Property="Background" Value="{StaticResource Aside}"/>
-            <Setter Property="Foreground" Value="{StaticResource Text}"/>
+            <Setter Property="Background" Value="{DynamicResource Aside}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Text}"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Margin" Value="0,0,3,-1"/>
         </Style>

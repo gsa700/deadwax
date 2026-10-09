@@ -91,7 +91,7 @@ public static partial class Unbox
         using (found) hit = found is null ? null : Pick(found.RootElement, title);
         if (hit is not { } h) return new(null, $"\"{title}\" does not resolve as an album or EP by {artist}");
 
-        var target = Path.Combine(Path.GetDirectoryName(albumDir)!, FileNames.AlbumFolder(h.Year, title));
+        var target = Path.Combine(Path.GetDirectoryName(albumDir)!, FileNames.AlbumLeaf(Filing.Current.Folder, artist, h.Year, title));
         if (Directory.Exists(target) && Path.GetFullPath(target) != Path.GetFullPath(albumDir))
             return new(null, $"{Path.GetFileName(target)} already exists");
         return new(new Plan(artist, title, h.Year, h.Id, target), null);
@@ -200,7 +200,11 @@ public static partial class Unbox
         e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
 
     // The colon is optional: one Led Zeppelin folder has none.
-    [GeneratedRegex(@"^(?<year>\d{4}) - (?<collection>.+?) \(Disc (?<n>\d+) of (?<of>\d+)\)(?:\s*:\s*|\s+)?(?<title>.*)$")]
+    // The year in front is optional: only the default folder style puts it
+    // there ("Album (1989)" ends with it, and TrailingYear takes that off the
+    // title; "Artist - Album" begins with the artist, which the lazy
+    // collection group absorbs).
+    [GeneratedRegex(@"^(?:\d{4} - )?(?<collection>.+?) \(Disc (?<n>\d+) of (?<of>\d+)\)(?:\s*:\s*|\s+)?(?<title>.*)$")]
     private static partial Regex Folder();
 
     [GeneratedRegex(@"\s*\((?:19|20)\d{2}\)\s*$")]

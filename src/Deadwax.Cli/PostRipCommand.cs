@@ -1,4 +1,5 @@
 using Deadwax.Core;
+using Deadwax.Output;
 using static Deadwax.Cli.Commands;
 
 namespace Deadwax.Cli;
@@ -17,7 +18,9 @@ internal static class PostRipCommand
 
         var after = await PostRip.RunAsync(dir, unbox, Console.WriteLine);
         foreach (var note in after.Notes) Console.WriteLine($"Note: {note}");
-        Console.WriteLine(after.AuditClean ? $"Post-rip finished: {after.AlbumDirectory}" : "Post-rip finished; music-audit found issues (above).");
-        return after.AuditClean ? 0 : 1;
+        var filed = FiledCheck.Run(after.AlbumDirectory, Filing.Current);
+        foreach (var issue in filed) Console.WriteLine($"Filed: {issue}");
+        Console.WriteLine(filed.Count == 0 ? $"Post-rip finished, filed correctly: {after.AlbumDirectory}" : "Post-rip finished; the album is not filed as it should be (above).");
+        return filed.Count == 0 ? 0 : 1;
     }
 }

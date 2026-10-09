@@ -60,7 +60,12 @@ public sealed record PreparedDisc(
     public bool PreEmphasis => Cdrdao?.Toc.Tracks.Any(t => t.PreEmphasis) == true;
 }
 
-public sealed record PlannedTrack(int Number, string Title, string? Artist, int Sectors, string FileName);
+public sealed record PlannedTrack(int Number, string Title, string? Artist, int Sectors, string AlbumArtist)
+{
+    /// In the track style chosen now (Filing.Current), so the Disc screen's
+    /// preview follows a change made in Preferences.
+    public string FileName => FileNames.Track(AlbumArtist, Number, Title);
+}
 
 /// One release chosen for the disc: the names, the years to choose between, and
 /// the tags waiting for each track.
@@ -123,14 +128,13 @@ public sealed class ReleasePlan : IDisposable
             var tags = ReleaseTags.ForTrack(root, medium, t.Number, disc.DiscId, null);
             var title = tags.First(x => x.Key == "TITLE").Value;
             var artist = tags.FirstOrDefault(x => x.Key == "ARTIST")?.Value;
-            tracks.Add(new PlannedTrack(t.Number, title, artist, disc.Toc.EndLsn(t) - t.StartLsn,
-                FileNames.Track(AlbumArtist, t.Number, title)));
+            tracks.Add(new PlannedTrack(t.Number, title, artist, disc.Toc.EndLsn(t) - t.StartLsn, AlbumArtist));
         }
         Tracks = tracks;
     }
 
     public string AlbumDirectory(string library, string year) =>
-        Path.Combine(library, FileNames.ArtistFolder(AlbumArtist), FileNames.AlbumFolder(year, DiscTitle));
+        FileNames.AlbumPath(library, AlbumArtist, year, DiscTitle);
 
     public void Dispose() => Document.Dispose();
 }
@@ -250,7 +254,11 @@ public sealed class RipSession
             // wrong release).
             var attached = ReleaseTags.FindMedium(root, disc.DiscId);
             var medium = attached ?? ReleaseTags.MediumByTracks(root, disc.Toc);
-            var folders = await ArtistFolders.ScanAsync(conventionsLibrary);
+            // The spelling is read from the artist folders, which the
+            // one-level "Artist - Album" style does not have.
+            var folders = Filing.Current.Folder == FolderStyle.ArtistDashAlbum
+                ? new ArtistFolders()
+                : await ArtistFolders.ScanAsync(conventionsLibrary);
             var albumArtistId = root.GetProperty("artist-credit")[0].GetProperty("artist").GetProperty("id").GetString()!;
             return new ReleasePlan(doc, medium, folders.For(albumArtistId), disc) { MatchedByTracks = attached is null };
         }
@@ -267,6 +275,9 @@ public sealed class RipSession
         byte[]? cover = null, CancellationToken ct = default)
     {
         var cdrdao = disc.Cdrdao ?? throw new RipException("The disc's subchannel has not been read yet.");
+        // The filing choices as they are when the rip starts: a change in
+        // Preferences mid-rip must not name half the tracks one way.
+        var filing = Filing.Current;
         var root = plan.Root;
         var toc = disc.Toc;
         var albumDir = plan.AlbumDirectory(library, year);
@@ -365,7 +376,7 @@ public sealed class RipSession
                     ReleaseTags.ForTrack(root, plan.Medium, n, disc.DiscId, cdTrack.Isrc ?? cdTrack.Text?.Isrc), year, plan.FolderArtist);
                 var title = tags.First(t => t.Key == "TITLE").Value;
                 var artist = tags.FirstOrDefault(t => t.Key == "ARTIST")?.Value;
-                var fileName = FileNames.Track(plan.AlbumArtist, n, title);
+                var fileName = FileNames.Track(filing.Track, plan.AlbumArtist, n, title);
                 var path = Path.Combine(albumDir, fileName);
 
                 FlacWriter.Encode(path, audio);
@@ -390,9 +401,13 @@ public sealed class RipSession
 
         var baseName = $"{FileNames.Safe(plan.AlbumArtist)} - {FileNames.Safe(plan.DiscTitle)}";
         await File.WriteAllTextAsync(Path.Combine(albumDir, baseName + ".toc"), cdrdao.Text, ct);
-        await File.WriteAllTextAsync(Path.Combine(albumDir, baseName + ".cue"),
-            Sidecars.Cue(cdrdao.Toc, disc.Cddb, plan.AlbumArtist, plan.Album, sidecarTracks, Version), ct);
-        await File.WriteAllTextAsync(Path.Combine(albumDir, baseName + ".m3u"), Sidecars.M3u(sidecarTracks), ct);
+        if (filing.Cue)
+            await File.WriteAllTextAsync(Path.Combine(albumDir, baseName + ".cue"),
+                Sidecars.Cue(cdrdao.Toc, disc.Cddb, plan.AlbumArtist, plan.Album, sidecarTracks, Version), ct);
+        if (filing.M3u)
+            await File.WriteAllTextAsync(Path.Combine(albumDir, baseName + ".m3u"), Sidecars.M3u(sidecarTracks), ct);
+        if (filing.EmbedCover && CoverEmbed.Apply(albumDir) is var embedded && embedded > 0)
+            observer.Say($"Front cover embedded in {embedded} files.");
 
         var identity = disc.Identity;
         var driveName = identity is null ? disc.Device : $"{identity.Vendor} {identity.Model} (revision {identity.Revision})";

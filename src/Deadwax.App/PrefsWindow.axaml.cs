@@ -23,11 +23,41 @@ public partial class PrefsWindow : Window
         DataContext = vm;
 
         PostRipBox.IsChecked = _settings.PostRip ?? true;
+        ShowFiling();
         ShowLibrary();
         ShowDrive();
         VersionText.Text = $"Version {UpdateService.CurrentVersion}";
         AutoCheckBox.IsChecked = _settings.CheckForUpdates;
         FillUpdate();
+
+        // One height for every tab: the longest one's.
+        Opened += (_, _) => Avalonia.Threading.Dispatcher.UIThread.Post(SizeToLongestTab, Avalonia.Threading.DispatcherPriority.Loaded);
+    }
+
+    /// His rule, as in the family's other apps (2026-10-08): the window is as
+    /// tall as its LONGEST tab and the same height on all of them, so nothing
+    /// moves from tab to tab. Each tab is laid out in turn, in one go before
+    /// anything is drawn, and the tallest wins; the height in the markup is the
+    /// least it will be, and the screen's working height the most.
+    private void SizeToLongestTab()
+    {
+        var shown = Tabs.SelectedIndex;
+        var tallest = Height;
+        for (var i = 0; i < Tabs.ItemCount; i++)
+        {
+            Tabs.SelectedIndex = i;
+            UpdateLayout();
+            if (Tabs.SelectedItem is not TabItem { Content: Control content }
+                || Avalonia.VisualTree.VisualExtensions.GetVisualParent(content) is not Control host
+                || host.Bounds.Height <= 0) continue;
+            host.Measure(new Avalonia.Size(host.Bounds.Width, double.PositiveInfinity));
+            tallest = Math.Max(tallest, Math.Ceiling(host.DesiredSize.Height + ClientSize.Height - host.Bounds.Height));
+            host.InvalidateMeasure();
+        }
+        Tabs.SelectedIndex = shown;
+        if (Screens.ScreenFromWindow(this) is { } screen)
+            tallest = Math.Min(tallest, screen.WorkingArea.Height / screen.Scaling - 48);
+        if (tallest > Height + 0.5) Height = tallest;
     }
 
     // ---- library ------------------------------------------------------------
@@ -64,6 +94,61 @@ public partial class PrefsWindow : Window
     {
         _settings.PostRip = PostRipBox.IsChecked == true;
         _settings.Save();
+    }
+
+    // ---- filing -------------------------------------------------------------
+
+    private static readonly (Deadwax.Output.FolderStyle Style, string Label)[] FolderStyles =
+    [
+        (Deadwax.Output.FolderStyle.ArtistYearAlbum, "Artist / 1976 - Album"),
+        (Deadwax.Output.FolderStyle.ArtistAlbumYear, "Artist / Album (1976)"),
+        (Deadwax.Output.FolderStyle.ArtistAlbum, "Artist / Album"),
+        (Deadwax.Output.FolderStyle.ArtistDashAlbum, "Artist - Album  (one level)"),
+    ];
+
+    private static readonly (Deadwax.Output.TrackStyle Style, string Label)[] TrackStyles =
+    [
+        (Deadwax.Output.TrackStyle.ArtistNumberTitle, "Artist - 01 - Title.flac"),
+        (Deadwax.Output.TrackStyle.NumberDashTitle, "01 - Title.flac"),
+        (Deadwax.Output.TrackStyle.NumberTitle, "01 Title.flac"),
+    ];
+
+    private bool _fillingFiling;
+
+    private void ShowFiling()
+    {
+        _fillingFiling = true;
+        var filing = _settings.ToFiling();
+        FolderStyleBox.ItemsSource = FolderStyles.Select(f => f.Label).ToList();
+        FolderStyleBox.SelectedIndex = Math.Max(0, Array.FindIndex(FolderStyles, f => f.Style == filing.Folder));
+        TrackStyleBox.ItemsSource = TrackStyles.Select(t => t.Label).ToList();
+        TrackStyleBox.SelectedIndex = Math.Max(0, Array.FindIndex(TrackStyles, t => t.Style == filing.Track));
+        EmbedBox.IsChecked = filing.EmbedCover;
+        BackBox.IsChecked = filing.BackCover;
+        CueBox.IsChecked = filing.Cue;
+        M3uBox.IsChecked = filing.M3u;
+        ShowFilingExample(filing);
+        _fillingFiling = false;
+    }
+
+    private void ShowFilingExample(Deadwax.Output.Filing filing)
+    {
+        var dir = Deadwax.Output.FileNames.AlbumPath(filing.Folder, "", "Thin Lizzy", "1976", "Jailbreak");
+        FilingExample.Text = Path.Combine(dir, Deadwax.Output.FileNames.Track(filing.Track, "Thin Lizzy", 1, "Jailbreak"));
+    }
+
+    private void OnFilingChanged(object? sender, RoutedEventArgs e)
+    {
+        if (_fillingFiling || FolderStyleBox.SelectedIndex < 0 || TrackStyleBox.SelectedIndex < 0) return;
+        _settings.FolderStyle = FolderStyles[FolderStyleBox.SelectedIndex].Style.ToString();
+        _settings.TrackStyle = TrackStyles[TrackStyleBox.SelectedIndex].Style.ToString();
+        _settings.EmbedCover = EmbedBox.IsChecked == true;
+        _settings.BackCover = BackBox.IsChecked == true;
+        _settings.WriteCue = CueBox.IsChecked == true;
+        _settings.WriteM3u = M3uBox.IsChecked == true;
+        _settings.Save();
+        ShowFilingExample(_settings.ToFiling());
+        _main.FilingChanged();
     }
 
     // ---- drive --------------------------------------------------------------

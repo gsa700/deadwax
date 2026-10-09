@@ -23,14 +23,30 @@ public sealed class Settings
     public string? Library { get; set; }
     /// Look for a newer release a few seconds after launch (About tab).
     public bool CheckForUpdates { get; set; } = true;
-    /// After a clean rip: a set disc filed as its album when chosen, back.jpg, then music-audit where installed.
-    /// Null = not decided: on if the tools are installed.
+    /// After a clean rip: a set disc filed as its album when chosen, then back.jpg. Null = not decided: on.
     public bool? PostRip { get; set; }
     /// For each multi-disc set (keyed by its MusicBrainz release id), whether
     /// its discs are filed as their own albums (true) or kept together
     /// (false). Written when Rip is pressed, so the other discs of the set
     /// offer the same answer. There is no default for a set not listed here.
     public Dictionary<string, bool> SetChoices { get; set; } = new();
+
+    /// Preferences > Filing (Deadwax.Output.Filing). Strings for the styles, so
+    /// a style renamed later reads as the default rather than as garbage.
+    public string FolderStyle { get; set; } = nameof(Deadwax.Output.FolderStyle.ArtistYearAlbum);
+    public string TrackStyle { get; set; } = nameof(Deadwax.Output.TrackStyle.ArtistNumberTitle);
+    /// Null only in a settings file from before the option existed, which is
+    /// his: that means off. A fresh install starts with it on, because phones
+    /// and car stereos show only embedded art (his call, 2026-10-08).
+    public bool? EmbedCover { get; set; }
+    public bool BackCover { get; set; } = true;
+    public bool WriteCue { get; set; } = true;
+    public bool WriteM3u { get; set; } = true;
+
+    public Deadwax.Output.Filing ToFiling() => new(
+        Enum.TryParse<Deadwax.Output.FolderStyle>(FolderStyle, out var folder) ? folder : default,
+        Enum.TryParse<Deadwax.Output.TrackStyle>(TrackStyle, out var track) ? track : default,
+        EmbedCover ?? false, BackCover, WriteCue, WriteM3u);
 
     private static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config", "deadwax", "settings.json");
@@ -43,7 +59,7 @@ public sealed class Settings
                 return JsonSerializer.Deserialize<Settings>(File.ReadAllText(FilePath)) ?? new Settings();
         }
         catch (Exception e) when (e is IOException or JsonException) { }
-        return new Settings();
+        return new Settings { EmbedCover = true };   // a fresh install
     }
 
     public void Save()

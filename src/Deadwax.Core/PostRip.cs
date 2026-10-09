@@ -11,18 +11,21 @@ namespace Deadwax.Core;
 ///    the split only when asked (Unbox; it was music-unbox). It retags the
 ///    disc as its own album, fetches that album's front, and renames the
 ///    folder "YYYY - Album".
-/// 2. back.jpg for the album (BackCover; it was music-backart).
-/// 3. music-audit over the library, when installed: must report 0 issues.
+/// 2. back.jpg for the album (BackCover; it was music-backart), when chosen in
+///    Preferences > Filing, and the front embedded when that is chosen.
+///
+/// music-audit is no longer run here (2026-10-08, his call: "it's really a
+/// separate thing"). Each new album is checked by FiledCheck, which carries
+/// music-audit's rules for one album; music-audit itself became a monthly
+/// library-wide timer on his machine.
 public static class PostRip
 {
-    /// Audited: whether music-audit ran at all (it is his, not part of Deadwax).
-    public sealed record Result(string AlbumDirectory, bool Audited, bool AuditClean, IReadOnlyList<string> Notes);
+    public sealed record Result(string AlbumDirectory, IReadOnlyList<string> Notes);
 
     public static async Task<Result> RunAsync(string albumDir, bool unbox, Action<string> say, CancellationToken ct = default)
     {
         var notes = new List<string>();
-        var root = Path.GetDirectoryName(Path.GetDirectoryName(albumDir)!)!;
-        var artist = Path.GetFileName(Path.GetDirectoryName(albumDir)!);
+        var root = FileNames.LibraryRoot(albumDir);
 
         if (Unbox.IsSetDisc(albumDir))
         {
@@ -47,23 +50,17 @@ public static class PostRip
                 if (!done.FrontReplaced)
                     notes.Add("Filed as its own album, but the album's front could not be fetched, so cover.jpg is still the set's. Often a Cover Art Archive blip: deadwax art --replace later.");
                 albumDir = done.AlbumDirectory;
-                say($"Now {artist}/{Path.GetFileName(albumDir)}");
+                say($"Now {Path.GetRelativePath(root, albumDir)}");
             }
         }
 
-        await BackArtAsync(albumDir, say, notes, ct);
+        if (Filing.Current.BackCover) await BackArtAsync(albumDir, say, notes, ct);
 
-        bool clean = true, audited = false;
-        if (Tool("music-audit") is { } audit)
-        {
-            say($"Library audit (music-audit {root})...");
-            var (rc, output) = await RunToolAsync(audit, [root], ct);
-            clean = rc == 0;
-            audited = true;
-            var tail = output.Split('\n', StringSplitOptions.RemoveEmptyEntries).TakeLast(clean ? 2 : 30);
-            foreach (var line in tail) say("  " + line);
-        }
-        return new Result(albumDir, audited, clean, notes);
+        // After Unbox, which may have replaced the front with the album's own.
+        if (Filing.Current.EmbedCover && CoverEmbed.Apply(albumDir) is var embedded && embedded > 0)
+            say($"Front cover embedded in {embedded} files.");
+
+        return new Result(albumDir, notes);
     }
 
     /// back.jpg for one album, from the Cover Art Archive by the release ids in
@@ -140,38 +137,7 @@ public static class PostRip
         catch (UnauthorizedAccessException) { }
     }
 
-    /// His tools live in ~/.local/bin, which a non-login environment may not
-    /// have on PATH.
-    private static string? Tool(string name)
-    {
-        var local = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "bin", name);
-        if (File.Exists(local)) return local;
-        foreach (var dir in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(':'))
-            if (dir.Length > 0 && File.Exists(Path.Combine(dir, name))) return Path.Combine(dir, name);
-        return null;
-    }
-
     /// How long the back cover may take before it is stopped. Generous against
     /// BackCover's own ~90 s budget, so this only fires if something is wedged.
     public static readonly TimeSpan BackArtLimit = TimeSpan.FromMinutes(3);
-
-    /// Runs one of his tools to completion.
-    private static async Task<(int Code, string Output)> RunToolAsync(string tool, string[] args, CancellationToken ct)
-    {
-        var start = new ProcessStartInfo(tool) { RedirectStandardOutput = true, RedirectStandardError = true };
-        foreach (var a in args) start.ArgumentList.Add(a);
-        using var p = Process.Start(start)!;
-        var stdout = p.StandardOutput.ReadToEndAsync(ct);
-        var stderr = p.StandardError.ReadToEndAsync(ct);
-        try
-        {
-            await p.WaitForExitAsync(ct);
-        }
-        catch (OperationCanceledException)
-        {
-            try { p.Kill(entireProcessTree: true); } catch { }
-            throw;
-        }
-        return (p.ExitCode, await stdout + await stderr);
-    }
 }
