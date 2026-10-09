@@ -120,7 +120,7 @@
                             <TextBlock Classes="label" Text="DRIVE SPEED"/>
                             <ComboBox ItemsSource="{Binding Speeds}" SelectedItem="{Binding DriveSpeed}" MinWidth="160" FontSize="13"/>
                             <TextBlock Classes="soft" FontSize="13" TextWrapping="Wrap"
-                                       Text="If the drive vibrates, cap it; try 4x first, then lower. It takes effect at once and stays until you change it."/>
+                                       Text="If the disc shakes, cap the speed here and the rip reads it that slowly; try 4x first, then lower. The first scan always runs at the drive's own speed: that is how you hear that a disc needs it."/>
                         </StackPanel>
                     </StackPanel>
                 </Border>

@@ -6,10 +6,11 @@ namespace Deadwax.Drive;
 /// 52nd Street) because it scans the subchannel for ISRCs and pregaps; whipper
 /// paid the same on every rip.
 ///
-/// A speed cap must be passed as `--rspeed`: without it, cdrdao sends SET CD
-/// SPEED with "maximum" before analysing each track (GenericMMC::analyzeTrack),
-/// undoing any cap set beforehand. Found 2026-10-08, an unbalanced disc that
-/// vibrated through the background pass at 4x.
+/// A speed cap is passed as `--rspeed`, for drives that honour it. The
+/// BDR-209D does not, measured 2026-10-08: it runs this subchannel scan at
+/// its own speed whatever is asked, by cdrdao or by the kernel beforehand
+/// (every pass 100-113 s; its audio reads do obey a cap). cdrdao's own
+/// "maximum" before each track (GenericMMC::analyzeTrack) is ignored too.
 public static class Cdrdao
 {
     public sealed record Result(string Text, CdrdaoToc Toc, string Version);

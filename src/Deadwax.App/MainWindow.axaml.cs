@@ -285,9 +285,13 @@ public sealed partial class MainWindow : Window
         Close();
     }
 
-    /// A speed was chosen. Saved for next time, and sent to the drive now if
-    /// a disc is in. cdrdao resets the speed itself before every track, so a
-    /// background pass under way is started again at the new speed.
+    /// A speed was chosen. Saved for next time, and sent to the drive now if a
+    /// disc is in; the rip sets it again before reading. A background scan
+    /// under way is NOT restarted: measured 2026-10-08, the BDR-209D runs
+    /// cdrdao's subchannel scan at its own speed whatever cap is set (mid-scan,
+    /// at load, once idle: 100-113 s every time, against 3-6x for the rip's
+    /// audio reads), so a restart only cost the scan again. His view: the
+    /// full-speed scan is how a wobbly disc is heard in the first place.
     private void OnSpeedChanged()
     {
         _settings.SlowSpin = SpeedLimit is not null;
@@ -296,11 +300,6 @@ public sealed partial class MainWindow : Window
         var device = _disc?.Device;
         if (device is null) return;
         var limit = SpeedLimit;
-        if (_subchannel is not null || _restarting)
-        {
-            if (!_restarting) _ = RestartSubchannelAsync();
-            return;
-        }
         _ = Task.Run(() =>
         {
             try { CdDrive.LimitSpeed(device, limit); }
@@ -308,30 +307,8 @@ public sealed partial class MainWindow : Window
         });
     }
 
-    /// The pass in flight is stopped (its cdrdao gone before the next opens the
-    /// drive) and run again from the start, at the speed chosen by then: a
-    /// second change while this waits needs no restart of its own.
-    private async Task RestartSubchannelAsync()
-    {
-        var running = _subchannel;
-        var task = _subchannelTask;
-        var work = _work;
-        if (running is null || task is null || work is null || _disc is null) return;
-        _restarting = true;
-        try
-        {
-            running.Cancel();
-            await task;   // ReadSubchannelAsync swallows the cancellation
-        }
-        finally { _restarting = false; }
-        if (work.IsCancellationRequested || _disc is null || _disc.Cdrdao is not null || _subchannel is not null) return;
-        _disc = _disc with { SpeedLimit = SpeedLimit };
-        _subchannelTask = ReadSubchannelAsync(_disc, work.Token);
-    }
-
     private CancellationTokenSource? _subchannel;   // the background pass, while it runs
     private Task? _subchannelTask;
-    private bool _restarting;
 
     private async Task ReadSubchannelAsync(PreparedDisc disc, CancellationToken ct)
     {

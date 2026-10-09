@@ -127,7 +127,7 @@
                 <Border Height="1" Background="{DynamicResource Rule}" Margin="0,6,0,0"/>
                 <TextBlock Text="Speed" FontSize="14" FontWeight="SemiBold"/>
                 <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
-                           Text="A disc that is slightly out of balance vibrates at full speed and can stop the drive answering. Capping the speed cures it; try 4x first, then lower. Reading takes longer, and the cap is noted in the rip log. The setting stays until you change it."/>
+                           Text="A disc that is slightly out of balance shakes at full speed, and a bad one can stop the drive answering. Capping the speed calms it; try 4x first, then lower. The cap applies to the rip, which reads more slowly; the first scan of a disc always runs at the drive's own speed, which is how you hear that it needs one. The cap is noted in the rip log and stays until you change it."/>
                 <StackPanel Orientation="Horizontal" Spacing="12">
                     <ComboBox ItemsSource="{Binding Speeds}" SelectedItem="{Binding DriveSpeed}" MinWidth="150" FontSize="13"/>
                     <CheckBox IsChecked="{Binding EjectAfterRip}" FontSize="13" Content="Open the tray when a rip is done" VerticalAlignment="Center"/>
