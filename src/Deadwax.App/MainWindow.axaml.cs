@@ -145,7 +145,13 @@ public sealed partial class MainWindow : Window
             if (first is not null && _vm.Releases.Count == 1) _ = ChooseAsync(first);
             else if (first is null) _vm.ErrorText = "MusicBrainz has no release for this disc. Paste a release link below, or describe the disc yourself.";
 
-            if (_libraryMatch is null) await ReadSubchannelAsync(disc, ct);
+            if (_libraryMatch is null)
+            {
+                // A speed chosen during the TOC read had no disc to go to yet.
+                if (_disc == disc && disc.SpeedLimit != SpeedLimit) _disc = disc = disc with { SpeedLimit = SpeedLimit };
+                _subchannelTask = ReadSubchannelAsync(disc, ct);
+                await _subchannelTask;
+            }
         }
         catch (OperationCanceledException) { }
         catch (Exception e)
@@ -277,8 +283,8 @@ public sealed partial class MainWindow : Window
     }
 
     /// A speed was chosen. Saved for next time, and sent to the drive now if
-    /// a disc is in: the cap takes effect on the next read, so a scan already
-    /// under way slows down from here.
+    /// a disc is in. cdrdao resets the speed itself before every track, so a
+    /// background pass under way is started again at the new speed.
     private void OnSpeedChanged()
     {
         _settings.SlowSpin = SpeedLimit is not null;
@@ -287,6 +293,11 @@ public sealed partial class MainWindow : Window
         var device = _disc?.Device;
         if (device is null) return;
         var limit = SpeedLimit;
+        if (_subchannel is not null || _restarting)
+        {
+            if (!_restarting) _ = RestartSubchannelAsync();
+            return;
+        }
         _ = Task.Run(() =>
         {
             try { CdDrive.LimitSpeed(device, limit); }
@@ -294,14 +305,41 @@ public sealed partial class MainWindow : Window
         });
     }
 
+    /// The pass in flight is stopped (its cdrdao gone before the next opens the
+    /// drive) and run again from the start, at the speed chosen by then: a
+    /// second change while this waits needs no restart of its own.
+    private async Task RestartSubchannelAsync()
+    {
+        var running = _subchannel;
+        var task = _subchannelTask;
+        var work = _work;
+        if (running is null || task is null || work is null || _disc is null) return;
+        _restarting = true;
+        try
+        {
+            running.Cancel();
+            await task;   // ReadSubchannelAsync swallows the cancellation
+        }
+        finally { _restarting = false; }
+        if (work.IsCancellationRequested || _disc is null || _disc.Cdrdao is not null || _subchannel is not null) return;
+        _disc = _disc with { SpeedLimit = SpeedLimit };
+        _subchannelTask = ReadSubchannelAsync(_disc, work.Token);
+    }
+
+    private CancellationTokenSource? _subchannel;   // the background pass, while it runs
+    private Task? _subchannelTask;
+    private bool _restarting;
+
     private async Task ReadSubchannelAsync(PreparedDisc disc, CancellationToken ct)
     {
+        using var pass = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        _subchannel = pass;
         _vm.SubchannelText = disc.SpeedLimit is { } s
             ? $"Reading ISRCs, CD-Text and gaps in the background at {s}x; several minutes. Choose meanwhile."
             : "Reading ISRCs, CD-Text and gaps in the background, about two minutes. Choose meanwhile.";
         try
         {
-            var full = await Task.Run(() => RipSession.ReadSubchannelAsync(disc, ct), ct);
+            var full = await Task.Run(() => RipSession.ReadSubchannelAsync(disc, pass.Token), pass.Token);
             if (_disc != disc) return;
             _disc = full;
             _vm.SubchannelText = "";
@@ -316,6 +354,10 @@ public sealed partial class MainWindow : Window
         {
             _vm.SubchannelText = "";
             _vm.ErrorText = "Reading the subchannel failed: " + e.Message;
+        }
+        finally
+        {
+            if (_subchannel == pass) _subchannel = null;
         }
     }
 

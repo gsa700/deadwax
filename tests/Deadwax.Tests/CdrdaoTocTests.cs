@@ -74,4 +74,13 @@ public class CdrdaoTocTests
         Assert.Equal("888430438125", cue.CdTextCatalog);
         Assert.Equal(["USSM11100749"], cue.IsrcsOf(1));
     }
+
+    // Without --rspeed, cdrdao sets the drive to full speed before each track
+    // and undoes the cap (2026-10-08).
+    [Fact]
+    public void Read_toc_passes_the_speed_cap()
+    {
+        Assert.Equal(["read-toc", "--device", "/dev/sr0", "--rspeed", "4", "x.toc"], Cdrdao.Arguments("/dev/sr0", 4, "x.toc"));
+        Assert.Equal(["read-toc", "--device", "/dev/sr0", "x.toc"], Cdrdao.Arguments("/dev/sr0", null, "x.toc"));
+    }
 }

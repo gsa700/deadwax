@@ -41,7 +41,7 @@ internal static class ScanCommand
         if (full)
         {
             Console.Error.WriteLine("Reading catalog, ISRCs, CD-Text and pregaps with cdrdao (about two minutes)...");
-            cdrdao = (await Cdrdao.ReadTocAsync(device)).Toc;
+            cdrdao = (await Cdrdao.ReadTocAsync(device, speed is null ? null : int.Parse(speed))).Toc;
         }
 
         var mbId = DiscIds.MusicBrainz(toc);

@@ -110,8 +110,18 @@
                             <TextBlock Grid.Row="5" Classes="dim" Text="AccurateRip"/>
                             <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding AccurateRipText}" TextWrapping="Wrap"/>
                         </Grid>
-                        <!-- The drive's speed cap and the rest of the machine settings live in
-                             Preferences (his call, 2026-10-05: keep the Disc screen for this disc). -->
+                        <!-- The speed cap is back here as well as in Preferences (his call,
+                             2026-10-08): a disc vibrates while it is being read, and the cure
+                             should be at hand then. Shown while scanning too; a change restarts
+                             the background pass. The rest of the machine settings stay in
+                             Preferences. -->
+                        <Border Height="1" Background="{StaticResource Rule}"/>
+                        <StackPanel Spacing="8">
+                            <TextBlock Classes="label" Text="DRIVE SPEED"/>
+                            <ComboBox ItemsSource="{Binding Speeds}" SelectedItem="{Binding DriveSpeed}" MinWidth="160" FontSize="13"/>
+                            <TextBlock Classes="soft" FontSize="13" TextWrapping="Wrap"
+                                       Text="If the drive vibrates, cap it; try 4x first, then lower. It takes effect at once and stays until you change it."/>
+                        </StackPanel>
                     </StackPanel>
                 </Border>
 

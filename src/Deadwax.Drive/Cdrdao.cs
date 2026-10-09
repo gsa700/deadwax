@@ -5,11 +5,22 @@ namespace Deadwax.Drive;
 /// Runs `cdrdao read-toc`. It takes about two minutes on the BDR-209D (1m51s for
 /// 52nd Street) because it scans the subchannel for ISRCs and pregaps; whipper
 /// paid the same on every rip.
+///
+/// A speed cap must be passed as `--rspeed`: without it, cdrdao sends SET CD
+/// SPEED with "maximum" before analysing each track (GenericMMC::analyzeTrack),
+/// undoing any cap set beforehand. Found 2026-10-08, an unbalanced disc that
+/// vibrated through the background pass at 4x.
 public static class Cdrdao
 {
     public sealed record Result(string Text, CdrdaoToc Toc, string Version);
 
-    public static async Task<Result> ReadTocAsync(string device, CancellationToken ct = default)
+    /// The command line, `speed` in multiples of 1x; null = the drive's own choice.
+    public static IReadOnlyList<string> Arguments(string device, int? speed, string path) =>
+        speed is { } n
+            ? ["read-toc", "--device", device, "--rspeed", n.ToString(System.Globalization.CultureInfo.InvariantCulture), path]
+            : ["read-toc", "--device", device, path];
+
+    public static async Task<Result> ReadTocAsync(string device, int? speed = null, CancellationToken ct = default)
     {
         // cdrdao will not write over an existing file, so give it a fresh name.
         var dir = Directory.CreateTempSubdirectory("deadwax-");
@@ -22,7 +33,7 @@ public static class Cdrdao
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
             };
-            foreach (var a in new[] { "read-toc", "--device", device, path }) start.ArgumentList.Add(a);
+            foreach (var a in Arguments(device, speed, path)) start.ArgumentList.Add(a);
 
             Process process;
             try { process = Process.Start(start)!; }
@@ -39,6 +50,9 @@ public static class Cdrdao
                 catch (OperationCanceledException)
                 {
                     process.Kill(entireProcessTree: true);
+                    // Gone before anything else opens the drive: the kernel lets
+                    // a command in flight finish first, so this is short.
+                    process.WaitForExit(TimeSpan.FromSeconds(30));
                     throw;
                 }
                 var output = (await stdout) + (await stderr);

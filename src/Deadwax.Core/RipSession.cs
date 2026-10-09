@@ -165,7 +165,7 @@ public sealed class RipSession
         using (var drive = CdDrive.Open(device))
         {
             // Before anything spins the disc up: the cap is what keeps an
-            // unbalanced disc readable, and the subchannel pass is at full speed.
+            // unbalanced disc readable. cdrdao's subchannel pass gets it too.
             if (speedLimit is { } s) drive.LimitSpeed(s);
             identity = drive.ReadIdentity();
             toc = drive.ReadToc();
@@ -192,7 +192,7 @@ public sealed class RipSession
     /// (spec §4). Its TOC must agree with libcdio's, or nothing is ripped.
     public static async Task<PreparedDisc> ReadSubchannelAsync(PreparedDisc disc, CancellationToken ct = default)
     {
-        var cdrdao = await Cdrdao.ReadTocAsync(disc.Device, ct);
+        var cdrdao = await Cdrdao.ReadTocAsync(disc.Device, disc.SpeedLimit, ct);
         var cdrdaoToc = cdrdao.Toc.ToToc();
         if (!cdrdaoToc.Tracks.SequenceEqual(disc.Toc.Tracks) || cdrdaoToc.LeadoutLsn != disc.Toc.LeadoutLsn)
             throw new RipException("cdrdao and libcdio disagree about the TOC; not ripping.");
