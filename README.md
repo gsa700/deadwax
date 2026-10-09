@@ -52,7 +52,9 @@ else needs to be installed for this.
   the release, or for its release group when the release has none. It is
   fetched before the rip starts; if the archive is down, the rip goes ahead
   without it.
-- **Back cover.** `back.jpg` is the release's own back when the archive has
+- **Back cover** (Preferences > Filing, on by default). It is the back of
+  the CD case, usually the track list as printed: AlbumWall turns the sleeve
+  over to show it when you open an album. `back.jpg` is the release's own back when the archive has
   one, otherwise the back of another edition of the same album: the same
   country first, then the nearest year. An image filed as the front is never
   taken for the back, even when it is flagged as both. Every back written is
@@ -64,17 +66,43 @@ else needs to be installed for this.
     a career compilation or a live box should be.
   - *File this disc as the album it originally was*: for "Original Album
     Classics" and other boxes of complete albums. The disc is retagged with
-    that album's own title, first-release year and front cover, its folder
-    becomes `YYYY - Title`, and the box's back is replaced. This happens only
+    that album's own title, first-release year and front cover, its folder is
+    renamed for that album in your chosen folder style, and the box's back is
+    replaced. This happens only
     when the disc's title is found in MusicBrainz as an album or EP by that
     artist; a disc called "Bonus Tracks" or "Dawn to Dusk" stays with its set.
     The old tags and art are kept in `~/.local/state/deadwax/unbox-backup/`
     first, and an existing folder is never written over.
-- **Library check.** If `music-audit` is on the `PATH` (it is the author's own
-  tool, not part of Deadwax), it then checks the whole library.
+- **Filed correctly.** The new album is checked against your Filing choices:
+  every track tagged and agreeing on album, artist, year and disc, track
+  numbers 1 to N, file names in the chosen style, the `.cue` and `.m3u`
+  pointing at files that exist, and the cover embedded when asked. Deadwax
+  checks only the album it has just made; keeping a whole library in order
+  over the years is a job for a separate tool.
+- **Two editions of one set.** Before a disc of a set is ripped, Deadwax looks
+  for the set's other discs in the library. If one came from a different
+  edition, the Disc screen says so and offers to use the same one: most
+  players show a set's discs from two editions as two separate albums.
 
 When the archive was down at rip time, `deadwax art ALBUM_DIR` fetches the
 missing covers later (`--replace` fetches both again).
+
+## Filing: how the library is laid out
+
+Preferences > Filing. The defaults are shown first; anything you change
+applies to new rips only, and albums already in the library are never renamed.
+
+| Choice | Options |
+|---|---|
+| Album folder | `Artist/1976 - Album` (default), `Artist/Album (1976)`, `Artist/Album`, `Artist - Album` (one level) |
+| Track files | `Artist - 01 - Title.flac` (default), `01 - Title.flac`, `01 Title.flac` |
+| Embed the front cover in each file | off for an existing setup, on for a fresh install: phones and car stereos show only embedded art |
+| Back cover as `back.jpg` | on |
+| `.cue` sheet, `.m3u` playlist | on |
+
+The front cover is always saved as `cover.jpg`, and the rip log (`.log`) and
+table of contents (`.toc`) are always written: they are the record that the
+rip was verified, and how Deadwax knows a disc is already in your library.
 
 ## Files outside the library
 
