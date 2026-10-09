@@ -30,8 +30,11 @@ public partial class PrefsWindow : Window
         AutoCheckBox.IsChecked = _settings.CheckForUpdates;
         FillUpdate();
 
-        // One height for every tab: the longest one's.
-        Opened += (_, _) => Avalonia.Threading.Dispatcher.UIThread.Post(SizeToLongestTab, Avalonia.Threading.DispatcherPriority.Loaded);
+        // One height for every tab: the longest one's. IN Opened, not posted
+        // after it, as AlbumWall's FitToTallestTab does: a fixed-size window
+        // already on screen ignored the new height (0.2.8, the trace said
+        // "620 -> 749" and the window stayed 620).
+        Opened += (_, _) => SizeToLongestTab();
     }
 
     /// His rule, as in the family's other apps (2026-10-08): the window is as
@@ -51,13 +54,16 @@ public partial class PrefsWindow : Window
                 || Avalonia.VisualTree.VisualExtensions.GetVisualParent(content) is not Control host
                 || host.Bounds.Height <= 0) continue;
             host.Measure(new Avalonia.Size(host.Bounds.Width, double.PositiveInfinity));
-            tallest = Math.Max(tallest, Math.Ceiling(host.DesiredSize.Height + ClientSize.Height - host.Bounds.Height));
+            var want = Math.Ceiling(host.DesiredSize.Height + ClientSize.Height - host.Bounds.Height);
+            Console.WriteLine($"[prefs] {((TabItem)Tabs.SelectedItem).Header} tab: content {host.DesiredSize.Height:0} in {host.Bounds.Height:0}, window {ClientSize.Height:0} -> wants {want:0}");
+            tallest = Math.Max(tallest, want);
             host.InvalidateMeasure();
         }
         Tabs.SelectedIndex = shown;
         if (Screens.ScreenFromWindow(this) is { } screen)
             tallest = Math.Min(tallest, screen.WorkingArea.Height / screen.Scaling - 48);
-        if (tallest > Height + 0.5) Height = tallest;
+        Console.WriteLine($"[prefs] height {Height:0} -> {Math.Max(Height, tallest):0}");
+        if (tallest > Height + 0.5) { Height = tallest; UpdateLayout(); }
     }
 
     // ---- library ------------------------------------------------------------
