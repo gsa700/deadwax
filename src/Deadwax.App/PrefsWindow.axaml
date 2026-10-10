@@ -123,6 +123,7 @@
                 <Button Classes="panel" HorizontalAlignment="Left" Content="Measure from the disc in the drive…"
                         Click="OnMeasure" IsEnabled="{Binding !MeasuringOffset}"/>
                 <TextBlock Text="{Binding OffsetText}" Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"/>
+                <TextBlock x:Name="SavedDrivesText" Classes="dim mono" FontSize="12" LineHeight="18" TextWrapping="Wrap" IsVisible="False"/>
 
                 <Border Height="1" Background="{DynamicResource Rule}" Margin="0,6,0,0"/>
                 <TextBlock Text="Speed" FontSize="14" FontWeight="SemiBold"/>

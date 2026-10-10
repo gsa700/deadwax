@@ -34,7 +34,7 @@ internal static class Commands
               with the whipper log of the same disc (gate G1).
           deadwax read [--device DEV] [--tracks N,N|all] [--offset N] [--retries N] [--speed N] [--offline] [--against ALBUM_DIR]
               Read tracks securely, twice, with the drive's read offset (from
-              whipper.conf unless given). With --against, check the audio equals
+              drives.json unless given). With --against, check the audio equals
               whipper's rip: logged CRC and the FLAC's stored MD5 (gate G2), and
               AccurateRip v1/v2 checksums equal whipper's (G3). Writes nothing.
           deadwax offset [--device DEV] [--save]

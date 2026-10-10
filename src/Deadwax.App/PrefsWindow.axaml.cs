@@ -161,19 +161,19 @@ public partial class PrefsWindow : Window
 
     private void ShowDrive()
     {
-        DeviceText.Text = CdDrive.DefaultDevice;
-        var drive = _main.CurrentDrive;
-        if (drive is null)
-        {
-            DriveNameText.Text = "Put a disc in to see the drive.";
-            OffsetValueText.Text = "—";
-            return;
-        }
-        DriveNameText.Text = DriveOffsets.Key(drive.Vendor, drive.Model, drive.Revision);
-        var fromWhipper = WhipperConfig.ReadOffset(drive.Vendor, drive.Model, drive.Revision);
-        OffsetValueText.Text = _main.CurrentOffset is { } o
-            ? $"{o:+0;-0;0} samples" + (fromWhipper is not null ? "  (from whipper's settings)" : "")
-            : "not known yet";
+        var device = CdDrive.DefaultDevice;
+        DeviceText.Text = device;
+        // The scanned disc's drive, or with no disc in, the kernel's record of it.
+        var drive = _main.CurrentDrive ?? DriveIdentity.FromSysfs(device);
+        var saved = DriveOffsets.All();
+        var key = drive is null ? null : DriveOffsets.Key(drive.Vendor, drive.Model, drive.Revision);
+        DriveNameText.Text = key ?? "No drive found.";
+        OffsetValueText.Text = key is null ? "—"
+            : saved.TryGetValue(key, out var o) ? $"{o:+0;-0;0} samples"
+            : "Not measured yet. Deadwax measures it once for this drive: put in a well-known commercial CD and Measure.";
+        var others = saved.Where(kv => kv.Key != key).Select(kv => $"{kv.Key}   {kv.Value:+0;-0;0}").ToList();
+        SavedDrivesText.IsVisible = others.Count > 0;
+        SavedDrivesText.Text = "Also remembered:\n" + string.Join("\n", others);
     }
 
     private async void OnMeasure(object? sender, RoutedEventArgs e)

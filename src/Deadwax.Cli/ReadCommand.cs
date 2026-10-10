@@ -33,8 +33,9 @@ internal static partial class ReadCommand
 
         int offset;
         if (offsetText is not null) offset = int.Parse(offsetText);
-        else if (identity is not null && WhipperConfig.ReadOffset(identity.Vendor, identity.Model, identity.Revision) is { } o) offset = o;
-        else return Fail($"no read offset known for {identity?.ToString() ?? device}; give one with --offset");
+        else if (identity is not null && DriveOffsets.ReadOffset(identity.Vendor, identity.Model, identity.Revision) is { } o) offset = o;
+        else return Fail(identity is null ? $"{device} did not say what drive it is; give an offset with --offset"
+                                          : DriveOffsets.Advice(identity.Vendor, identity.Model, identity.Revision));
         var retries = retriesText is null ? SecureReader.DefaultMaxRetries : int.Parse(retriesText);
 
         var numbers = tracksText == "all"

@@ -64,30 +64,33 @@ public class AudioCheckTests
     }
 
     [Fact]
-    public void Offset_comes_from_whippers_drive_section()
+    public void Each_drive_keeps_its_own_offset()
     {
-        var path = Path.GetTempFileName();
+        var path = Path.Combine(Path.GetTempPath(), $"drives-{Guid.NewGuid():N}.json");
         try
         {
-            File.WriteAllText(path, """
-                [drive:PIONEER%20%3ABD-RW%20%20%20BDR-209D%3A1.10]
-                vendor = PIONEER
-                model = BD-RW   BDR-209D
-                release = 1.10
-                defeats_cache = False
-                read_offset = 667
-
-                [whipper.cd.rip]
-                track_template = %%A/%%y - %%d/%%A - %%t - %%n
-                """);
-
-            // libcdio pads the model differently; spacing must not matter.
-            Assert.Equal(667, WhipperConfig.ReadOffset("PIONEER", "BD-RW BDR-209D", "1.10", path));
-            Assert.Null(WhipperConfig.ReadOffset("PIONEER", "BD-RW BDR-209D", "1.00", path));
+            Assert.Null(DriveOffsets.ReadOffset("PIONEER", "BD-RW BDR-209D", "1.10", path));
+            DriveOffsets.Write("PIONEER ", "BD-RW   BDR-209D", "1.10", 667, path);
+            DriveOffsets.Write("ASUS", "DRW-24D5MT", "1.00", 6, path);
+            // libcdio and /sys pad the model differently; spacing must not matter.
+            Assert.Equal(667, DriveOffsets.ReadOffset("PIONEER", "BD-RW BDR-209D", "1.10", path));
+            Assert.Equal(6, DriveOffsets.ReadOffset("ASUS", "DRW-24D5MT", "1.00", path));
+            // New firmware is a new entry.
+            Assert.Null(DriveOffsets.ReadOffset("PIONEER", "BD-RW BDR-209D", "1.00", path));
+            DriveOffsets.Write("PIONEER", "BD-RW BDR-209D", "1.10", 668, path);
+            Assert.Equal(2, DriveOffsets.All(path).Count);
+            Assert.Equal(668, DriveOffsets.ReadOffset("PIONEER", "BD-RW BDR-209D", "1.10", path));
+            Assert.False(File.Exists(path + ".part"));
         }
         finally
         {
             File.Delete(path);
         }
+    }
+
+    [Fact]
+    public void Unmeasured_drive_advice_is_recognised_by_the_window()
+    {
+        Assert.StartsWith(DriveOffsets.NotMeasured, DriveOffsets.Advice("A", "B", "C"));
     }
 }

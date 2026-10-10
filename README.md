@@ -33,10 +33,15 @@ A running copy checks GitHub for a newer release a few seconds after launch
 and, if there is one, offers it in the title bar. The update is verified against
 the release's `SHA256SUMS` before it is installed, and Deadwax restarts into it.
 
-The drive's read offset is taken from `~/.config/whipper/whipper.conf` if you
-have one, otherwise from `~/.config/deadwax/drives.json`, a map of the drive's
-name to its offset in samples, for example `{"PIONEER BD-RW BDR-209D 1.10": 667}`.
-The number for your drive is in the [AccurateRip list](https://www.accuraterip.com/driveoffsets.htm).
+Every drive reads audio a few samples early or late, always by the same
+amount: its read offset. The first time Deadwax meets a drive it asks to
+measure it, once, from a well-known commercial CD checked against AccurateRip
+(sometimes it needs a second CD). The result is remembered in
+`~/.config/deadwax/drives.json`, one entry per drive model and firmware, for
+example `{"PIONEER BD-RW BDR-209D 1.10": 667}`, and recalled whenever that drive
+is plugged in. Several external drives each keep their own entry; a drive
+carried to another computer is measured once there too. Preferences shows the
+drive and its offset, with or without a disc in, and every drive remembered.
 
 For a disc that vibrates in the drive, choose a **Drive speed** on the Disc
 screen (16x down to 1x; try 4x first). The cap holds for the scan and the rip,
@@ -157,7 +162,7 @@ catalog number, ISRCs, CD-Text and pregaps, and compares those with the cue.
 `--unbox`), and `post-rip DIR` does them for an album already ripped. `art DIR`
 fetches a missing `cover.jpg` and `back.jpg`. `compare` checks a
 Deadwax rip against whipper's rip of the same disc. `read` reads tracks securely through paranoia, twice, at the drive's read offset
-(taken from whipper.conf), and with `--against` checks each track's audio
+(from `drives.json`, or `--offset`), and with `--against` checks each track's audio
 against whipper's logged CRC and the MD5 stored in the existing FLAC. It writes
 nothing.
 

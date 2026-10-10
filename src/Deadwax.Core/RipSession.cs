@@ -177,7 +177,6 @@ public sealed class RipSession
             toc = drive.ReadToc();
         }
         var offset = offsetOverride
-                     ?? (identity is null ? null : WhipperConfig.ReadOffset(identity.Vendor, identity.Model, identity.Revision))
                      ?? (identity is null ? null : DriveOffsets.ReadOffset(identity.Vendor, identity.Model, identity.Revision))
                      ?? throw new RipException(identity is null
                          ? $"{device} did not say what drive it is, so no read offset can be looked up; give one with --offset."

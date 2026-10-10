@@ -3,6 +3,23 @@ namespace Deadwax.Drive;
 public sealed record DriveIdentity(string Vendor, string Model, string Revision)
 {
     public override string ToString() => $"{Vendor} {Model} {Revision}";
+
+    /// What the drive told the kernel when it was attached (its INQUIRY
+    /// answer, kept in /sys/block/srN/device): the same vendor, model and
+    /// revision libcdio reads, but known with no disc in and without sending
+    /// the drive a single command. Null if the device is not an sr drive.
+    public static DriveIdentity? FromSysfs(string device)
+    {
+        try
+        {
+            var name = Path.GetFileName(new FileInfo(device).ResolveLinkTarget(returnFinalTarget: true)?.FullName ?? device);
+            var dir = Path.Combine("/sys/block", name, "device");
+            string Read(string file) => File.ReadAllText(Path.Combine(dir, file)).Trim();
+            var identity = new DriveIdentity(Read("vendor"), Read("model"), Read("rev"));
+            return identity.Vendor.Length + identity.Model.Length == 0 ? null : identity;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return null; }
+    }
 }
 
 public sealed class DriveException(string message) : Exception(message);

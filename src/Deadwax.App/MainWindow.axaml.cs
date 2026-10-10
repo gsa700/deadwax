@@ -161,9 +161,11 @@ public sealed partial class MainWindow : Window
         {
             Reset("The disc could not be read.");
             // DriveOffsets.Advice: the one failure the window can fix itself.
-            _vm.NeedsOffset = e is RipException && e.Message.StartsWith("No read offset is known", StringComparison.Ordinal);
+            _vm.NeedsOffset = e is RipException && e.Message.StartsWith(DriveOffsets.NotMeasured, StringComparison.Ordinal);
             _vm.ErrorText = _vm.NeedsOffset
-                ? "Deadwax does not know this drive's read offset yet. Every drive reads a few samples early or late; measuring it once, from a well-known commercial CD, makes your rips match everyone else's."
+                ? "First time with this drive: Deadwax needs to measure its read offset before it can rip. Every drive reads a few samples early or late; "
+                  + "measuring it once, from a well-known commercial CD, makes your rips match everyone else's. It is remembered for this drive, "
+                  + "and each drive you use gets its own."
                 : e.Message;
         }
     }
