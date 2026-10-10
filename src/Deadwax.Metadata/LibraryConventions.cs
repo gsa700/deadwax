@@ -30,7 +30,8 @@ public static class LibraryConventions
         if (!compilation && rg.ValueKind == JsonValueKind.Object && rg.TryGetProperty("first-release-date", out var f))
             first = f.GetString();
         if (string.IsNullOrEmpty(first) && release.TryGetProperty("date", out var d)) first = d.GetString();
-        return first is { Length: >= 4 } ? first[..4] : null;
+        // Four digits or nothing: the year becomes part of a folder name.
+        return first is { Length: >= 4 } && first[..4].All(char.IsAsciiDigit) ? first[..4] : null;
     }
 
     /// Applies the chosen year and the folder spelling of the album artist.

@@ -173,7 +173,13 @@ public static partial class Unbox
         }
         File.Delete(Path.Combine(albumDir, "back.jpg"));
 
-        if (Path.GetFullPath(plan.Target) != Path.GetFullPath(albumDir)) Directory.Move(albumDir, plan.Target);
+        if (Path.GetFullPath(plan.Target) != Path.GetFullPath(albumDir))
+        {
+            // The target's name came from MusicBrainz: it must stay beside the album it renames.
+            if (!FileNames.IsInside(Path.GetDirectoryName(albumDir)!, plan.Target))
+                throw new IOException($"{plan.Target} is not beside {albumDir}; not moving it.");
+            Directory.Move(albumDir, plan.Target);
+        }
         return new Result(plan.Target, replaced);
     }
 

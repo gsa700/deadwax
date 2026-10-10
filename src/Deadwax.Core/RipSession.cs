@@ -281,6 +281,8 @@ public sealed class RipSession
         var root = plan.Root;
         var toc = disc.Toc;
         var albumDir = plan.AlbumDirectory(library, year);
+        if (!FileNames.IsInside(library, albumDir))
+            throw new RipException($"{albumDir} is not inside the library {library}; the release's names would file it elsewhere. Not ripping.");
         if (Directory.Exists(albumDir)) throw new RipException($"{albumDir} already exists; not writing over it.");
         observer.Say($"{plan.AlbumArtist} - {plan.DiscTitle} ({year}) -> {albumDir}");
 

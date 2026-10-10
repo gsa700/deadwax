@@ -87,6 +87,7 @@ public static class BackCover
     /// One release's back: (image, null), (null, null) for none, or (null, error).
     private static async Task<(byte[]? Image, string? Error)> BackOfAsync(HttpClient http, string releaseId, CancellationToken ct)
     {
+        if (!WebLimits.IsMbid(releaseId)) return (null, "bad id");
         var (index, error) = await GetAsync(http, $"https://coverartarchive.org/release/{releaseId}/", ct);
         if (index is null) return (null, error);
         string? url;
@@ -98,7 +99,10 @@ public static class BackCover
         catch (JsonException) { return (null, "bad index"); }
         if (url is null) return (null, null);
 
-        var (image, imageError) = await GetAsync(http, url.Replace("http://", "https://"), ct);
+        // The index names the image's URL; only the archive's own hosts are asked.
+        url = url.Replace("http://", "https://");
+        if (!WebLimits.IsArchiveUrl(url)) return (null, "not an archive URL");
+        var (image, imageError) = await GetAsync(http, url, ct);
         if (image is null) return (null, imageError);
         // A CDN error page saved as back.jpg looks entirely normal in a listing.
         return LooksLikeAnImage(image) ? (image, null) : (null, null);
@@ -163,9 +167,11 @@ public static class BackCover
         {
             try
             {
-                using var response = await http.GetAsync(url, ct);
+                using var response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
                 if (response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.BadRequest) return (null, null);
-                if (response.IsSuccessStatusCode) return (await response.Content.ReadAsByteArrayAsync(ct), null);
+                if (response.IsSuccessStatusCode)
+                    return await WebLimits.ReadCappedAsync(response.Content, WebLimits.MaxImageBytes, ct) is { } body
+                        ? (body, null) : (null, "too large");
                 error = $"http{(int)response.StatusCode}";
                 if ((int)response.StatusCode < 500) return (null, error);
             }

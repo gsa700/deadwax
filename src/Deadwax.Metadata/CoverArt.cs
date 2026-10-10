@@ -20,25 +20,27 @@ public static class CoverArt
 
     public static async Task<byte[]?> FrontAsync(HttpClient http, string releaseId, string? releaseGroupId, CancellationToken ct = default, int attempts = DefaultAttempts)
     {
+        if (!WebLimits.IsMbid(releaseId)) return releaseGroupId is null ? null : await GroupFrontAsync(http, releaseGroupId, ct, attempts);
         return await FetchAsync(http, $"https://coverartarchive.org/release/{releaseId}/front-500", ct, attempts)
-               ?? (releaseGroupId is null ? null
+               ?? (!WebLimits.IsMbid(releaseGroupId) ? null
                    : await FetchAsync(http, $"https://coverartarchive.org/release-group/{releaseGroupId}/front-500", ct, attempts));
     }
 
     /// The release group's front only: for a box disc refiled as its album,
     /// where no single release of that album is known.
     public static Task<byte[]?> GroupFrontAsync(HttpClient http, string releaseGroupId, CancellationToken ct = default, int attempts = DefaultAttempts) =>
-        FetchAsync(http, $"https://coverartarchive.org/release-group/{releaseGroupId}/front-500", ct, attempts);
+        !WebLimits.IsMbid(releaseGroupId) ? Task.FromResult<byte[]?>(null) : FetchAsync(http, $"https://coverartarchive.org/release-group/{releaseGroupId}/front-500", ct, attempts);
 
     private static async Task<byte[]?> FetchAsync(HttpClient http, string url, CancellationToken ct, int attempts)
     {
+        if (!WebLimits.IsArchiveUrl(url)) return null;
         for (var attempt = 1; ; attempt++)
         {
             try
             {
-                using var response = await http.GetAsync(url, ct);
+                using var response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
                 if (response.StatusCode == HttpStatusCode.NotFound) return null;
-                if (response.IsSuccessStatusCode) return await response.Content.ReadAsByteArrayAsync(ct);
+                if (response.IsSuccessStatusCode) return await WebLimits.ReadCappedAsync(response.Content, WebLimits.MaxImageBytes, ct);
             }
             catch (HttpRequestException) when (attempt < attempts) { }
             catch (TaskCanceledException) when (!ct.IsCancellationRequested && attempt < attempts) { }

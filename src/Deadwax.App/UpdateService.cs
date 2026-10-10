@@ -170,10 +170,13 @@ public static class UpdateService
         return info;
     }
 
-    /// Where the update is downloaded and unpacked. The relaunched program
-    /// must never have this as its working directory: a directory in use as
-    /// one cannot be deleted, and the next update's clean-up would throw.
-    private static string StageRoot => Path.Combine(Path.GetTempPath(), "deadwax-update");
+    /// Where the update was downloaded and unpacked: a new private folder each
+    /// time (mode 0700, unique name), never a fixed name in the shared temp
+    /// directory, where another account could make the folder first and swap
+    /// the program between the hash check and the copy (security review
+    /// 2026-10-10). The relaunched program must never have this as its working
+    /// directory: a directory in use as one cannot be deleted.
+    private static string? _stageRoot;
 
     /// Downloads the release's zip, checks it against SHA256SUMS, unpacks it
     /// and returns the staged executable. progress is the fraction downloaded.
@@ -185,9 +188,8 @@ public static class UpdateService
         if (info.SumsUrl is null)
             throw new InvalidOperationException("This release publishes no SHA256SUMS, so its download cannot be checked. It has not been installed.");
 
-        var tmp = StageRoot;
-        if (Directory.Exists(tmp)) Directory.Delete(tmp, recursive: true);
-        Directory.CreateDirectory(tmp);
+        var tmp = Directory.CreateTempSubdirectory("deadwax-update-").FullName;
+        _stageRoot = tmp;
 
         // The list first: it is 100 bytes, and without the zip's line there is
         // no point fetching forty megabytes.
@@ -264,17 +266,18 @@ public static class UpdateService
         var marker = FailedMarkerPath(target);
         var pid = Environment.ProcessId;
         var args = Environment.GetCommandLineArgs().Skip(1).ToArray();   // relaunch as launched
+        var stageRoot = _stageRoot ?? throw new InvalidOperationException("Nothing has been staged.");
 
-        // The helper lives in the temp root, not in the staging folder: it
-        // deletes that folder, and a script cannot sit in the folder it removes.
-        var sh = Path.Combine(Path.GetTempPath(), "deadwax-apply-update.sh");
-        File.WriteAllText(sh, ApplyScript(pid, stagedExe, target, marker, Path.GetDirectoryName(target)!, StageRoot, OwnExtractionDir, sh, args));
-        Process.Start(new ProcessStartInfo
+        // The helper has a private folder of its own, not the staging folder:
+        // it deletes that one first, and its own last.
+        var helperDir = Directory.CreateTempSubdirectory("deadwax-apply-").FullName;
+        var sh = Path.Combine(helperDir, "apply-update.sh");
+        File.WriteAllText(sh, ApplyScript(pid, stagedExe, target, marker, Path.GetDirectoryName(target)!, stageRoot, OwnExtractionDir, helperDir, args));
+        Process.Start(new ProcessStartInfo("/bin/sh")
         {
-            FileName = "/bin/sh",
-            Arguments = $"\"{sh}\"",
+            ArgumentList = { sh },
             UseShellExecute = false,
-            WorkingDirectory = Path.GetTempPath(),   // not ours: see StageRoot
+            WorkingDirectory = Path.GetTempPath(),   // not ours: see _stageRoot
         });
         Console.WriteLine($"[update] helper started; swapping {target} once pid {pid} has gone; then removing {OwnExtractionDir ?? "(nothing unpacked)"}");
     }
@@ -283,7 +286,7 @@ public static class UpdateService
     /// the supervised branch). Linux replaces a running program's file
     /// happily, so the retry is for a busy filesystem, not a lock.
     private static string ApplyScript(int pid, string stagedExe, string targetExe, string failedMarker,
-        string workingDirectory, string stageRoot, string? ownExtractionDir, string scriptPath, IReadOnlyList<string> relaunchArgs)
+        string workingDirectory, string stageRoot, string? ownExtractionDir, string helperDir, IReadOnlyList<string> relaunchArgs)
     {
         // Inside single quotes the shell reads everything literally, so an
         // apostrophe is written by closing the quotes, escaping one, and opening them again.
@@ -307,7 +310,7 @@ public static class UpdateService
             "fi\n" +
             $"(cd {Q(workingDirectory)} && {Q(targetExe)}{args} &)\n" +
             $"rm -rf {Q(stageRoot)}\n" +
-            $"rm -f {Q(scriptPath)}\n";
+            $"rm -rf {Q(helperDir)}\n";
     }
 
     private static string FailedMarkerPath(string targetExe) =>

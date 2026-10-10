@@ -811,7 +811,7 @@ public sealed partial class MainWindow : Window
 
     private static void Open(string path)
     {
-        try { Process.Start(new ProcessStartInfo("xdg-open", $"\"{path}\"") { UseShellExecute = false })?.Dispose(); }
+        try { Process.Start(new ProcessStartInfo("xdg-open") { UseShellExecute = false, ArgumentList = { path } })?.Dispose(); }
         catch { }
     }
 

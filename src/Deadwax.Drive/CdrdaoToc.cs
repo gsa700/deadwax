@@ -54,6 +54,15 @@ public sealed class CdrdaoToc
 
     public static string? Real(string? s) => string.IsNullOrWhiteSpace(s) || s.All(c => c == '0') ? null : s;
 
+    /// The codes a disc carries, kept only in their real shape. A CD-Text string
+    /// can hold any byte (the TOC writes them as octal escapes), and these are
+    /// written unquoted into the .cue and into the tags, so a line break in one
+    /// would add lines of the disc's choosing. Security review 2026-10-10.
+    /// An ISRC is 12 letters and digits; a catalog number (MCN, UPC/EAN) 12 or 13 digits.
+    public static string? Isrc(string s) => s.Length == 12 && s.All(char.IsAsciiLetterOrDigit) ? s : null;
+
+    public static string? CatalogNumber(string s) => s.Length is 12 or 13 && s.All(char.IsAsciiDigit) ? s : null;
+
     public static CdrdaoToc Parse(string text)
     {
         var toc = new CdrdaoToc();
@@ -65,7 +74,7 @@ public sealed class CdrdaoToc
             switch (token)
             {
                 case "CATALOG":
-                    toc.Catalog = reader.String();
+                    toc.Catalog = CatalogNumber(reader.String());
                     break;
                 case "CD_TEXT":
                     var cdText = ReadCdText(reader);
@@ -76,7 +85,7 @@ public sealed class CdrdaoToc
                     track = new Builder(toc._tracks.Count + 1) { IsAudio = reader.NextToken() == "AUDIO" };
                     break;
                 case "ISRC" when track is not null:
-                    track.Isrc = reader.String();
+                    track.Isrc = Isrc(reader.String());
                     break;
                 case "NO":
                     var what = reader.NextToken();
@@ -123,8 +132,8 @@ public sealed class CdrdaoToc
             {
                 case "TITLE": title = reader.String(); break;
                 case "PERFORMER": performer = reader.String(); break;
-                case "ISRC": isrc = reader.String(); break;
-                case "UPC_EAN": upc = reader.String(); break;
+                case "ISRC": isrc = Isrc(reader.String()); break;
+                case "UPC_EAN": upc = CatalogNumber(reader.String()); break;
             }
         }
         return new CdText(title, performer, isrc, upc);
