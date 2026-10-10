@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace Deadwax.Core;
 
@@ -8,8 +9,16 @@ namespace Deadwax.Core;
 /// cleared: that is Stable. GitHub's /releases/latest never returns a
 /// pre-release, so Stable reads that; Edge reads the release list and takes the
 /// newest version in it, pre-release or not.
-public static class ReleaseFeed
+public static partial class ReleaseFeed
 {
+    /// Only tags shaped exactly vX.Y.Z (what tools/release.sh makes) are app
+    /// releases, as in AlbumWall, whose repository also holds libmpv-* engine
+    /// pre-releases that must never be offered.
+    [GeneratedRegex(@"^v\d+\.\d+\.\d+$")]
+    private static partial Regex AppTag();
+
+    public static bool IsAppTag(string? tag) => tag is not null && AppTag().IsMatch(tag);
+
     /// The newest release in a /releases list by version (VersionOrder), never a
     /// draft; null when the list holds none.
     public static JsonElement? Newest(JsonElement releases)
@@ -20,8 +29,7 @@ public static class ReleaseFeed
         foreach (var r in releases.EnumerateArray())
         {
             if (r.TryGetProperty("draft", out var d) && d.ValueKind == JsonValueKind.True) continue;
-            if (!r.TryGetProperty("tag_name", out var t) || t.GetString() is not { Length: > 0 } tag) continue;
-            if (VersionOrder.Compare(tag, tag) is null) continue;   // not a version at all
+            if (!r.TryGetProperty("tag_name", out var t) || t.GetString() is not { } tag || !IsAppTag(tag)) continue;
             if (bestTag is null || VersionOrder.IsNewer(tag, bestTag)) { best = r; bestTag = tag; }
         }
         return best;

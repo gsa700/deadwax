@@ -39,6 +39,17 @@ public class ReleaseFeedTests
     }
 
     [Fact]
+    public void Only_vXYZ_tags_are_app_releases()
+    {
+        Assert.Equal("v0.2.11", Pick("""
+            [{"tag_name":"libmpv-0.41.0-4","prerelease":true},{"tag_name":"v0.2.11","prerelease":true}]
+            """));
+        Assert.False(ReleaseFeed.IsAppTag("v0.2.12-beta1"));
+        Assert.False(ReleaseFeed.IsAppTag("0.2.12"));
+        Assert.True(ReleaseFeed.IsAppTag("v0.2.12"));
+    }
+
+    [Fact]
     public void Nothing_listed_is_null()
     {
         Assert.Null(Pick("[]"));
