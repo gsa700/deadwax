@@ -28,6 +28,7 @@ public partial class PrefsWindow : Window
         ShowDrive();
         VersionText.Text = $"Version {UpdateService.CurrentVersion}";
         AutoCheckBox.IsChecked = _settings.CheckForUpdates;
+        EdgeBox.IsChecked = _settings.EdgeChannel;
         FillUpdate();
 
         // One height for every tab: the longest one's. IN Opened, not posted
@@ -207,7 +208,7 @@ public partial class PrefsWindow : Window
               : info.NothingPublished ? $"No release has been published yet. This is version {have}."
               : !info.UpdateAvailable ? $"This is the latest version, {have}."
               : info.AssetUrl is null ? $"{info.LatestTag} is out, but it has no build for this kind of computer."
-              : $"Version {info.LatestTag.TrimStart('v', 'V')} is available. This is {have}. Downloads, checks the SHA-256, then restarts.");
+              : $"Version {info.LatestTag.TrimStart('v', 'V')}{(info.IsPrerelease ? " (Edge)" : "")} is available. This is {have}. Downloads, checks the SHA-256, then restarts.");
     }
 
     /// One button, two jobs, as AlbumWall's: with nothing newer known it checks;
@@ -221,7 +222,7 @@ public partial class PrefsWindow : Window
         {
             UpdateButton.IsEnabled = false;
             UpdateText.Text = "Looking\u2026";
-            _main.LatestUpdate = await UpdateService.CheckAsync();
+            _main.LatestUpdate = await UpdateService.CheckAsync(_settings.EdgeChannel);
             _main.ShowUpdateDot(_main.LatestUpdate.UpdateAvailable);   // also refills this tab
             FillUpdate();
             return;
@@ -256,6 +257,16 @@ public partial class PrefsWindow : Window
     {
         _settings.CheckForUpdates = AutoCheckBox.IsChecked == true;
         _settings.Save();
+    }
+
+    private void OnEdgeToggled(object? sender, RoutedEventArgs e)
+    {
+        _settings.EdgeChannel = EdgeBox.IsChecked == true;
+        _settings.Save();
+        _main.LatestUpdate = null;   // what was found belongs to the other channel
+        _main.ShowUpdateDot(_main.LastUpdateFailed);
+        _updateNote = null;
+        FillUpdate();
     }
 
     private void OnOpenRepo(object? sender, RoutedEventArgs e) => Open(UpdateService.ProjectUrl);

@@ -165,6 +165,9 @@
                 <CheckBox x:Name="AutoCheckBox" FontSize="13" Content="Look for a newer release when Deadwax opens" Click="OnAutoCheckToggled"/>
                 <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
                            Text="A newer release is offered in the title bar; nothing is downloaded until you ask, and the download is checked against the release's published checksum before it is installed."/>
+                <CheckBox x:Name="EdgeBox" FontSize="13" Content="Edge builds: every release as it comes out" Click="OnEdgeToggled"/>
+                <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
+                           Text="Off is Stable: only builds that have already run on Edge without trouble. Switching back to Stable keeps the build you have until Stable passes it."/>
             </StackPanel>
         </TabItem>
     </TabControl>

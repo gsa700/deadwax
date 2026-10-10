@@ -33,6 +33,11 @@ A running copy checks GitHub for a newer release a few seconds after launch
 and, if there is one, offers it in the title bar. The update is verified against
 the release's `SHA256SUMS` before it is installed, and Deadwax restarts into it.
 
+There are two channels, chosen in Preferences > About. **Edge** gets every build
+as it is released (published as GitHub pre-releases). **Stable**, the default,
+gets a build only once it has run on Edge without trouble and been promoted:
+the same binary, with its pre-release flag cleared.
+
 Every drive reads audio a few samples early or late, always by the same
 amount: its read offset. The first time Deadwax meets a drive it asks to
 measure it, once, from a well-known commercial CD checked against AccurateRip

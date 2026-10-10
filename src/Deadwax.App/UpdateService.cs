@@ -23,6 +23,8 @@ public sealed class UpdateInfo
     public string? SumsUrl { get; set; }
     /// The feed answered 404: no full release yet, or the repository is private.
     public bool NothingPublished { get; set; }
+    /// The release offered is an Edge build (a GitHub pre-release).
+    public bool IsPrerelease { get; set; }
     public string? Error { get; set; }
 }
 
@@ -83,15 +85,17 @@ public static class UpdateService
         return $"linux-{arch}";
     }
 
-    private static string FeedUrl
+    /// Stable: the latest full release. Edge: the release list, newest taken
+    /// (ReleaseFeed). DEADWAX_UPDATE_FEED replaces either; it must serve the
+    /// matching shape (one release for Stable, a list for Edge).
+    private static string FeedUrl(bool edge)
     {
-        get
-        {
-            var other = Environment.GetEnvironmentVariable("DEADWAX_UPDATE_FEED");
-            if (string.IsNullOrWhiteSpace(other)) return $"https://api.github.com/repos/{Repo}/releases/latest";
-            Console.WriteLine($"[update] FEED OVERRIDDEN by DEADWAX_UPDATE_FEED: {other}");
-            return other;
-        }
+        var other = Environment.GetEnvironmentVariable("DEADWAX_UPDATE_FEED");
+        if (string.IsNullOrWhiteSpace(other))
+            return edge ? $"https://api.github.com/repos/{Repo}/releases?per_page=30"
+                        : $"https://api.github.com/repos/{Repo}/releases/latest";
+        Console.WriteLine($"[update] FEED OVERRIDDEN by DEADWAX_UPDATE_FEED: {other}");
+        return other;
     }
 
     /// On Linux .NET does TLS and hashing through the system's OpenSSL, loaded
@@ -119,7 +123,7 @@ public static class UpdateService
              + "updates. On Fedora, installing openssl3-libs fixes it.";
     });
 
-    public static async Task<UpdateInfo> CheckAsync()
+    public static async Task<UpdateInfo> CheckAsync(bool edge = false)
     {
         var info = new UpdateInfo { CurrentVersion = CurrentVersion, ReleaseUrl = ProjectUrl + "/releases/latest" };
         if (MissingTls.Value is { } why)
@@ -129,7 +133,7 @@ public static class UpdateService
         }
         try
         {
-            using var req = Request(FeedUrl, "Deadwax-UpdateCheck");
+            using var req = Request(FeedUrl(edge), "Deadwax-UpdateCheck");
             req.Headers.Accept.ParseAdd("application/vnd.github+json");
             using var resp = await Http.SendAsync(req);
             if (resp.StatusCode == HttpStatusCode.NotFound)
@@ -141,7 +145,16 @@ public static class UpdateService
             resp.EnsureSuccessStatusCode();
 
             using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
-            var root = doc.RootElement;
+            JsonElement root;
+            if (!edge) root = doc.RootElement;
+            else if (ReleaseFeed.Newest(doc.RootElement) is { } newest) root = newest;
+            else
+            {
+                info.NothingPublished = true;
+                Console.WriteLine("[update] edge: no releases listed");
+                return info;
+            }
+            if (edge) info.IsPrerelease = root.TryGetProperty("prerelease", out var pre) && pre.ValueKind == JsonValueKind.True;
             info.LatestTag = root.GetProperty("tag_name").GetString() ?? "";
             if (root.TryGetProperty("html_url", out var hu) && hu.GetString() is { Length: > 0 } url) info.ReleaseUrl = url;
 
@@ -157,7 +170,7 @@ public static class UpdateService
 
             // Unparseable on either side is "not newer", never "newer" (VersionOrder).
             info.UpdateAvailable = VersionOrder.IsNewer(info.LatestTag, CurrentVersion);
-            Console.WriteLine($"[update] latest {info.LatestTag}, have {CurrentVersion}, newer={info.UpdateAvailable}, "
+            Console.WriteLine($"[update] {(edge ? "edge" : "stable")}: latest {info.LatestTag}{(info.IsPrerelease ? " (edge build)" : "")}, have {CurrentVersion}, newer={info.UpdateAvailable}, "
                             + $"asset={(info.AssetUrl is null ? "none for " + Rid() : wanted)}");
         }
         catch (Exception ex)

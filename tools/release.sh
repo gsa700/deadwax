@@ -4,16 +4,23 @@
 #   tools/release.sh 0.2.0                     a DRAFT release, to look at first
 #   tools/release.sh 0.2.0 --notes-file N.md   with the notes written by hand
 #   tools/release.sh 0.2.0 --publish           published at once (installed copies are offered it)
+#   tools/release.sh 0.2.0 --edge --publish    an EDGE build: a GitHub pre-release, offered only to
+#                                              copies set to Edge (Preferences > About). The usual way
+#                                              every build goes out since 0.2.11.
+#   PROMOTE to Stable, once it has run on Edge without trouble (his call, every time):
+#                                              gh release edit vX.Y.Z -R gsa700/deadwax --prerelease=false --latest
 #   tools/release.sh 0.2.0 --dry-run           build and zip only: no tag, no release; the
 #                                              version/tree checks only warn. Leaves the zip in ./dist.
 #
 # WHAT A RELEASE IS, because the updater (src/Deadwax.App/UpdateService.cs) reads
-# exactly this and nothing else: a normal, non-pre-release GitHub release tagged
-# vX.Y.Z, carrying Deadwax-linux-x64.zip (the single-file program) and SHA256SUMS
-# listing it. The updater reads /releases/latest, refuses a download SHA256SUMS
-# does not vouch for, and ignores drafts and pre-releases entirely. So a DRAFT is
-# safe to make, look at and delete; publishing it is the moment every installed
-# copy is offered it.
+# exactly this and nothing else: a GitHub release tagged vX.Y.Z, carrying
+# Deadwax-linux-x64.zip (the single-file program) and SHA256SUMS listing it.
+# Two channels (Deadwax.Core/ReleaseFeed.cs): Stable reads /releases/latest,
+# which never returns a pre-release; Edge reads the release list and takes the
+# newest version, pre-release or not. Both refuse a download SHA256SUMS does not
+# vouch for and never see drafts. So a DRAFT is safe to make, look at and
+# delete; publishing an --edge build offers it to Edge copies only; promoting it
+# (clearing the pre-release flag) offers the same binary to everyone.
 #
 # REFUSES TO RUN unless: the tree is clean, HEAD is what origin/main has (a
 # release is built from pushed code), <Version> in the csproj equals the version
@@ -27,12 +34,13 @@ REPO=gsa700/deadwax
 CSPROJ="$ROOT/src/Deadwax.App/Deadwax.App.csproj"
 RIDS=(linux-x64)
 
-VERSION=${1:?usage: release.sh X.Y.Z [--notes-file FILE] [--publish] [--dry-run]}
+VERSION=${1:?usage: release.sh X.Y.Z [--notes-file FILE] [--edge] [--publish] [--dry-run]}
 shift
-PUBLISH=0; NOTES=""; DRY=0
+PUBLISH=0; NOTES=""; DRY=0; EDGE=0
 while [ $# -gt 0 ]; do
     case "$1" in
         --publish) PUBLISH=1 ;;
+        --edge) EDGE=1 ;;
         --dry-run) DRY=1 ;;
         --notes-file) NOTES=${2:?--notes-file needs a file}; shift ;;
         *) echo "unknown argument: $1" >&2; exit 2 ;;
@@ -121,7 +129,7 @@ if [ -z "$NOTES" ]; then
     NOTES="$WORK/notes.md"
     prev=$(git describe --tags --abbrev=0 --match 'v[0-9]*' "$TAG^" 2>/dev/null || true)
     {
-        echo "Deadwax $VERSION, for Linux x86-64."
+        echo "Deadwax $VERSION, for Linux x86-64.$([ $EDGE -eq 1 ] && echo " An Edge build: offered to copies set to Edge until it is promoted to Stable.")"
         echo
         echo "Unpack the zip and run Deadwax. It needs libcdio, libcdio-paranoia, cdrdao and libFLAC from your distribution."
         echo "A running copy offers newer releases from its title bar and updates itself in place."
@@ -133,10 +141,16 @@ fi
 
 ARGS=(--repo "$REPO" --title "Deadwax $VERSION" --notes-file "$NOTES" --verify-tag)
 [ $PUBLISH -eq 1 ] || ARGS+=(--draft)
+[ $EDGE -eq 1 ] && ARGS+=(--prerelease --latest=false)
 gh release create "$TAG" "${ARGS[@]}" "$WORK"/Deadwax-*.zip "$WORK/SHA256SUMS"
 echo
 if [ $PUBLISH -eq 1 ]; then
-    echo "PUBLISHED: every installed copy will be offered $VERSION."
+    if [ $EDGE -eq 1 ]; then
+        echo "PUBLISHED on EDGE: copies set to Edge will be offered $VERSION. Promote to Stable later with:"
+        echo "   gh release edit $TAG -R $REPO --prerelease=false --latest"
+    else
+        echo "PUBLISHED: every installed copy will be offered $VERSION."
+    fi
 else
     echo "DRAFT created. Nobody is offered it until it is published:"
     echo "   gh release edit $TAG -R $REPO --draft=false"

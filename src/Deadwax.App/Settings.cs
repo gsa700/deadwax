@@ -23,6 +23,9 @@ public sealed class Settings
     public string? Library { get; set; }
     /// Look for a newer release a few seconds after launch (About tab).
     public bool CheckForUpdates { get; set; } = true;
+    /// Edge: every build as it is released (GitHub pre-releases included).
+    /// Off = Stable: only builds promoted after running on Edge (About tab).
+    public bool EdgeChannel { get; set; }
     /// After a clean rip: a set disc filed as its album when chosen, then back.jpg. Null = not decided: on.
     public bool? PostRip { get; set; }
     /// For each multi-disc set (keyed by its MusicBrainz release id), whether

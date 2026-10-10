@@ -271,7 +271,7 @@ public sealed partial class MainWindow : Window
         if (LastUpdateFailed) ShowUpdateDot(true);
         if (!UpdateService.CanUpdate || !_settings.CheckForUpdates) return;
         await Task.Delay(TimeSpan.FromSeconds(7));
-        var info = await UpdateService.CheckAsync();
+        var info = await UpdateService.CheckAsync(_settings.EdgeChannel);
         _update = info;
         ShowUpdateDot(info.UpdateAvailable || LastUpdateFailed);
     }
