@@ -4,6 +4,8 @@ using Deadwax.Metadata;
 using Deadwax.Output;
 using Deadwax.Verify;
 
+using System.Reflection;
+
 namespace Deadwax.Core;
 
 public sealed record RipOptions
@@ -159,7 +161,21 @@ public interface IRipObserver
 ///   exists. The command line runs all three in a row (RunAsync).
 public sealed class RipSession
 {
-    public const string Version = "0.1";
+    /// What the .log's first line says made it. The program's own version,
+    /// read from the assembly that is running (the app, or the CLI), without
+    /// the source-revision suffix. It was a constant, "0.1", and every log up
+    /// to 0.2.11 says so whatever version made it (he noticed, 2026-10-10).
+    public static string Version
+    {
+        get
+        {
+            var assembly = System.Reflection.Assembly.GetEntryAssembly() ?? typeof(RipSession).Assembly;
+            var v = assembly.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>()?.InformationalVersion
+                    ?? assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+            var plus = v.IndexOf('+');
+            return plus >= 0 ? v[..plus] : v;
+        }
+    }
 
     public static async Task<PreparedDisc> PrepareAsync(
         string? device, int? offsetOverride, Action<string> say, bool readSubchannel = true,
