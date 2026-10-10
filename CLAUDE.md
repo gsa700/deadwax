@@ -40,9 +40,9 @@ catches it at release time; the rules above are for every push.
   pre-release: `tools/release.sh X.Y.Z --edge --publish`. Copies set to Edge
   (Preferences > About) are offered it; Stable copies are not.
 - **Promotion to Stable** is the same binary with its pre-release flag cleared,
-  once it has run on Edge without trouble:
-  `gh release edit vX.Y.Z -R gsa700/deadwax --prerelease=false --latest`.
-  His call, every time. A security fix may go straight to Stable.
+  once it has run on Edge without trouble: `tools/promote.sh X.Y.Z`, which
+  also marks it latest and changes the first line of its notes to "Promoted to
+  Stable." His call, every time. A security fix may go straight to Stable.
 - `tools/release.sh X.Y.Z` without `--publish` makes a DRAFT (`--dry-run` to
   build only). Bump `<Version>` in `src/Deadwax.App/Deadwax.App.csproj` in its
   own commit first.

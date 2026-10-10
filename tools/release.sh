@@ -8,7 +8,7 @@
 #                                              copies set to Edge (Preferences > About). The usual way
 #                                              every build goes out since 0.2.11.
 #   PROMOTE to Stable, once it has run on Edge without trouble (his call, every time):
-#                                              gh release edit vX.Y.Z -R gsa700/deadwax --prerelease=false --latest
+#                                              tools/promote.sh X.Y.Z   (flag cleared, latest, notes say so)
 #   tools/release.sh 0.2.0 --dry-run           build and zip only: no tag, no release; the
 #                                              version/tree checks only warn. Leaves the zip in ./dist.
 #
@@ -147,7 +147,7 @@ echo
 if [ $PUBLISH -eq 1 ]; then
     if [ $EDGE -eq 1 ]; then
         echo "PUBLISHED on EDGE: copies set to Edge will be offered $VERSION. Promote to Stable later with:"
-        echo "   gh release edit $TAG -R $REPO --prerelease=false --latest"
+        echo "   tools/promote.sh $VERSION"
     else
         echo "PUBLISHED: every installed copy will be offered $VERSION."
     fi
