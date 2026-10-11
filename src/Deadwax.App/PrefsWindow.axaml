@@ -95,6 +95,12 @@
                            Text="The back of the CD case, usually the track list as printed. AlbumWall turns the sleeve over to show it when you open an album; other players may not use it."/>
 
                 <Border Height="1" Background="{DynamicResource Rule}" Margin="0,4,0,0"/>
+                <TextBlock Text="Volume" FontSize="14" FontWeight="SemiBold"/>
+                <CheckBox x:Name="GainBox" FontSize="13" Content="Write ReplayGain tags" Click="OnFilingChanged"/>
+                <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap" Margin="28,-6,0,0"
+                           Text="Deadwax measures how loud each track and the whole album are while it rips, so players that read ReplayGain play one album as loud as the next, with no volume to adjust between discs. The audio itself is not changed."/>
+
+                <Border Height="1" Background="{DynamicResource Rule}" Margin="0,4,0,0"/>
                 <TextBlock Text="Beside the music" FontSize="14" FontWeight="SemiBold"/>
                 <CheckBox x:Name="CueBox" FontSize="13" Content="A .cue sheet (the disc's exact layout, for burning a copy)" Click="OnFilingChanged"/>
                 <CheckBox x:Name="M3uBox" FontSize="13" Content="An .m3u playlist of the tracks in order" Click="OnFilingChanged"/>

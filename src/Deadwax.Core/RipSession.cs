@@ -337,6 +337,7 @@ public sealed class RipSession
         var ripped = new List<RippedTrack>();
         var logTracks = new List<LogTrack>();
         var sidecarTracks = new List<SidecarTrack>();
+        var loudness = new List<(string Path, LoudnessMeter Meter)>();
 
         // Set again here: the cap is lost if the disc was taken out and put
         // back between the scan and the rip.
@@ -400,6 +401,12 @@ public sealed class RipSession
                 FlacWriter.WriteTags(path, tags);
                 if (FlacInfo.AudioMd5(path) != AudioChecks.Md5(audio))
                     throw new RipException($"{fileName}: the FLAC's stored MD5 does not match the audio read. Not continuing.");
+                if (filing.ReplayGain)
+                {
+                    var meter = new LoudnessMeter();
+                    meter.Add(audio);
+                    loudness.Add((path, meter));
+                }
 
                 var status = agreed ? "Copy OK" : "Copy NOT OK";
                 var seconds = sectors / (double)Toc.SectorsPerSecond;
@@ -414,6 +421,19 @@ public sealed class RipSession
                 observer.TrackFinished(result);
                 observer.Say($"Track {n}: {status}, {passes} pass(es), {(verdict.IsAccurate ? $"accurate ({verdict.Confidence} rips)" : arBlocks is null ? "not in AccurateRip" : "no AccurateRip match")}");
             }
+        }
+
+        // Album gain needs every track, so the tags go on once the last is in.
+        if (loudness.Count > 0)
+        {
+            var meters = loudness.Select(l => l.Meter).ToList();
+            var albumLufs = LoudnessMeter.AlbumLufs(meters);
+            var albumPeak = meters.Max(m => m.Peak);
+            foreach (var (path, meter) in loudness)
+                FlacTags.Update(path, LoudnessMeter.Tags(meter, albumLufs, albumPeak), []);
+            observer.Say(albumLufs is { } lufs
+                ? $"ReplayGain: album {lufs:0.0} LUFS, gain {LoudnessMeter.Gain(lufs, albumPeak):+0.00;-0.00} dB."
+                : "ReplayGain: the album is silent; no gain written.");
         }
 
         var baseName = $"{FileNames.Safe(plan.AlbumArtist)} - {FileNames.Safe(plan.DiscTitle)}";

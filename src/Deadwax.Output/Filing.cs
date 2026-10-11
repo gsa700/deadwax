@@ -3,7 +3,8 @@ namespace Deadwax.Output;
 /// How a rip is laid out in the library: Preferences > Filing (2026-10-08).
 /// The defaults are his library's conventions, so nothing changes for him; a
 /// new user can pick another folder or file name style, embed the cover, and
-/// leave out the back cover or the playlists.
+/// leave out the back cover or the playlists. ReplayGain (2026-10-11) is
+/// measured by Deadwax itself during the rip, so it needs nothing installed.
 ///
 /// Choices from short lists rather than free templates: every style here is
 /// one Unbox and the "Filed correctly" check understand, and none can produce
@@ -30,7 +31,8 @@ public sealed record Filing(
     bool EmbedCover = false,
     bool BackCover = true,
     bool Cue = true,
-    bool M3u = true)
+    bool M3u = true,
+    bool ReplayGain = true)
 {
     public static readonly Filing Default = new();
 

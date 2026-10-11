@@ -53,6 +53,9 @@ public class FilingTests
         try
         {
             foreach (var f in Directory.GetFiles(source)) File.Copy(f, Path.Combine(dir, Path.GetFileName(f)));
+            // One album gain on every track, whatever the library copy carried.
+            foreach (var f in Directory.GetFiles(dir, "*.flac"))
+                Deadwax.Metadata.FlacTags.Update(f, new Dictionary<string, string> { ["REPLAYGAIN_ALBUM_GAIN"] = "-4.20 dB" }, []);
             Assert.Empty(FiledCheck.Run(dir, Filing.Default));
 
             var five = Directory.GetFiles(dir, "*05*.flac").Single();
@@ -60,6 +63,14 @@ public class FilingTests
             var issues = FiledCheck.Run(dir, Filing.Default);
             Assert.Contains(issues, i => i.StartsWith("track numbers are", StringComparison.Ordinal));
             Assert.Contains(issues, i => i.StartsWith("the tracks disagree on ALBUM", StringComparison.Ordinal));
+
+            var three = Directory.GetFiles(dir, "*03*.flac").Single();
+            Deadwax.Metadata.FlacTags.Update(three, new Dictionary<string, string>(), ["REPLAYGAIN_ALBUM_GAIN"]);
+            Deadwax.Metadata.FlacTags.Update(five, new Dictionary<string, string> { ["REPLAYGAIN_ALBUM_GAIN"] = "-1.00 dB" }, []);
+            issues = FiledCheck.Run(dir, Filing.Default);
+            Assert.Contains(issues, i => i.EndsWith(": no ReplayGain", StringComparison.Ordinal));
+            Assert.Contains(issues, i => i.StartsWith("the tracks disagree on REPLAYGAIN_ALBUM_GAIN", StringComparison.Ordinal));
+            Assert.DoesNotContain(FiledCheck.Run(dir, Filing.Default with { ReplayGain = false }), i => i.Contains("ReplayGain") || i.Contains("REPLAYGAIN"));
         }
         finally { Directory.Delete(dir, recursive: true); }
     }

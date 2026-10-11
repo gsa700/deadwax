@@ -45,11 +45,14 @@ public sealed class Settings
     public bool BackCover { get; set; } = true;
     public bool WriteCue { get; set; } = true;
     public bool WriteM3u { get; set; } = true;
+    /// On for everyone, his copy included: a settings file from before the
+    /// option has no such field and reads as on (2026-10-11, his ask).
+    public bool ReplayGain { get; set; } = true;
 
     public Deadwax.Output.Filing ToFiling() => new(
         Enum.TryParse<Deadwax.Output.FolderStyle>(FolderStyle, out var folder) ? folder : default,
         Enum.TryParse<Deadwax.Output.TrackStyle>(TrackStyle, out var track) ? track : default,
-        EmbedCover ?? false, BackCover, WriteCue, WriteM3u);
+        EmbedCover ?? false, BackCover, WriteCue, WriteM3u, ReplayGain);
 
     private static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config", "deadwax", "settings.json");

@@ -9,7 +9,8 @@ namespace Deadwax.Core;
 ///
 /// What any fresh rip should be: every track tagged, every file named as the
 /// chosen style names it, the playlists that were asked for pointing at files
-/// that exist, and the cover embedded where that was asked for. The folder's
+/// that exist, the cover embedded where that was asked for, and one album
+/// gain on every track when ReplayGain is on. The folder's
 /// own name is not checked: a disc of a set kept with its set is named for
 /// the set, not for its ALBUM tag, and that is deliberate.
 public static class FiledCheck
@@ -48,6 +49,12 @@ public static class FiledCheck
             {
                 var expected = FileNames.Track(filing.Track, Tag("ALBUMARTIST") ?? "", number, title);
                 if (expected != name) issues.Add($"{name}: expected the name {expected}");
+            }
+
+            if (filing.ReplayGain)
+            {
+                if (string.IsNullOrWhiteSpace(Tag("REPLAYGAIN_ALBUM_GAIN"))) issues.Add($"{name}: no ReplayGain");
+                else (seen.TryGetValue("REPLAYGAIN_ALBUM_GAIN", out var gains) ? gains : seen["REPLAYGAIN_ALBUM_GAIN"] = []).Add(Tag("REPLAYGAIN_ALBUM_GAIN")!);
             }
 
             if (filing.EmbedCover && File.Exists(Path.Combine(albumDir, "cover.jpg")) && !CoverEmbed.HasFront(flac))

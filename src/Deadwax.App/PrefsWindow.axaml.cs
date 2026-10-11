@@ -134,6 +134,7 @@ public partial class PrefsWindow : Window
         BackBox.IsChecked = filing.BackCover;
         CueBox.IsChecked = filing.Cue;
         M3uBox.IsChecked = filing.M3u;
+        GainBox.IsChecked = filing.ReplayGain;
         ShowFilingExample(filing);
         _fillingFiling = false;
     }
@@ -153,6 +154,7 @@ public partial class PrefsWindow : Window
         _settings.BackCover = BackBox.IsChecked == true;
         _settings.WriteCue = CueBox.IsChecked == true;
         _settings.WriteM3u = M3uBox.IsChecked == true;
+        _settings.ReplayGain = GainBox.IsChecked == true;
         _settings.Save();
         ShowFilingExample(_settings.ToFiling());
         _main.FilingChanged();
