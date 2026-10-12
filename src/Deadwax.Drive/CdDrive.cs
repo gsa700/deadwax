@@ -27,23 +27,61 @@ public sealed class DriveException(string message) : Exception(message);
 /// A CD drive with a disc in it. Holds libcdio's handle; dispose to release it.
 public sealed class CdDrive : IDisposable
 {
-    /// The drive to use when none is named: /dev/cdrom if udev made that link,
-    /// otherwise the first /dev/srN. Not a fixed /dev/sr0: after a USB reset
-    /// with the old device still held open, the BDR-209D came back as sr1 and
-    /// no /dev/cdrom link existed (2026-09-24).
+    /// The drive to use when none is named.
+    ///
+    /// Linux: /dev/cdrom if udev made that link, otherwise the first /dev/srN.
+    /// Not a fixed /dev/sr0: after a USB reset with the old device still held
+    /// open, the BDR-209D came back as sr1 and no /dev/cdrom link existed
+    /// (2026-09-24). Elsewhere libcdio's own list of drives (a drive letter on
+    /// Windows, /dev/diskN on macOS), or its default when the list is empty.
     public static string DefaultDevice
     {
         get
         {
-            if (File.Exists("/dev/cdrom")) return "/dev/cdrom";
-            var sr = Directory.Exists("/dev")
-                ? Directory.EnumerateFiles("/dev", "sr*")
-                    .Where(p => int.TryParse(Path.GetFileName(p)[2..], out _))
-                    .OrderBy(p => int.Parse(Path.GetFileName(p)[2..]))
-                    .FirstOrDefault()
-                : null;
-            return sr ?? "/dev/sr0";
+            if (OperatingSystem.IsLinux())
+            {
+                if (File.Exists("/dev/cdrom")) return "/dev/cdrom";
+                var sr = Directory.Exists("/dev")
+                    ? Directory.EnumerateFiles("/dev", "sr*")
+                        .Where(p => int.TryParse(Path.GetFileName(p)[2..], out _))
+                        .OrderBy(p => int.Parse(Path.GetFileName(p)[2..]))
+                        .FirstOrDefault()
+                    : null;
+                return sr ?? "/dev/sr0";
+            }
+            try
+            {
+                return LibCdio.Devices().FirstOrDefault() ?? LibCdio.DefaultDevice()
+                    ?? (OperatingSystem.IsWindows() ? "D:" : "/dev/disk2");
+            }
+            catch (DllNotFoundException)
+            {
+                return OperatingSystem.IsWindows() ? "D:" : "/dev/disk2";
+            }
         }
+    }
+
+    /// Whether a disc is in the drive and how many audio tracks it has, from
+    /// the drive itself: open, read the TOC, count. (false, 0) for an empty or
+    /// absent drive, or no libcdio. Used by the window's three-second watch,
+    /// which until 0.2.16 asked udev instead and so only worked on Linux.
+    public static (bool Present, int Audio) Media(string? device = null)
+    {
+        try
+        {
+            using var drive = Open(device);
+            var toc = drive.ReadToc();
+            return (true, toc.Tracks.Count(t => t.IsAudio));
+        }
+        catch (DriveException) { return (false, 0); }
+    }
+
+    /// Opens the tray. False if the platform or drive would not; the device
+    /// must not be held open by this process (dispose any CdDrive first).
+    public static bool Eject(string? device = null)
+    {
+        try { return LibCdio.cdio_eject_media_drive(device ?? DefaultDevice) == 0; }
+        catch (DllNotFoundException) { return false; }
     }
 
     private IntPtr _cdio;
@@ -66,7 +104,7 @@ public sealed class CdDrive : IDisposable
         }
         catch (DllNotFoundException)
         {
-            throw new DriveException("libcdio is not installed (looked for libcdio.so.19).");
+            throw new DriveException($"libcdio is not installed (looked for {NativeLibraries.Expected("cdio")}).");
         }
         if (cdio == IntPtr.Zero)
             throw new DriveException($"Could not open {device}. Is there a disc in the drive?");

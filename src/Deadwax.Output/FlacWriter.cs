@@ -14,6 +14,9 @@ public sealed class OutputException(string message) : Exception(message);
 /// Pictures are never embedded: art lives in cover.jpg beside the files.
 public static class FlacWriter
 {
+    /// True if libFLAC can be loaded here; otherwise `expected` names the file looked for.
+    public static bool IsAvailable(out string expected) => LibFlac.IsAvailable(out expected);
+
     public const int CompressionLevel = 5; // libFLAC's default, what `flac` uses
 
     public static unsafe void Encode(string path, ReadOnlySpan<byte> audio)

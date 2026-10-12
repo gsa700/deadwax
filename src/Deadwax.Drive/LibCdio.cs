@@ -53,6 +53,53 @@ internal static partial class LibCdio
     [return: MarshalAs(UnmanagedType.U1)]
     public static unsafe partial bool cdio_get_hwinfo(IntPtr cdio, byte* hwinfo);
 
+    // cdio/device.h, driver_id_t: the last member, "any real drive on this system".
+    public const int DriverDevice = 11;
+
+    /// The CD drives libcdio can find, as a NULL-terminated array of C strings;
+    /// free with cdio_free_device_list. Null when there are none.
+    [LibraryImport(Lib)]
+    public static partial IntPtr cdio_get_devices(int driverId);
+
+    [LibraryImport(Lib)]
+    public static partial void cdio_free_device_list(IntPtr list);
+
+    /// The platform's default CD device as a C string the caller frees with
+    /// cdio_free; p_cdio may be NULL.
+    [LibraryImport(Lib)]
+    public static partial IntPtr cdio_get_default_device(IntPtr cdio);
+
+    [LibraryImport(Lib)]
+    public static partial void cdio_free(IntPtr memory);
+
+    /// Ejects by device name without holding the device open (MMC START STOP
+    /// UNIT, or the platform's ioctl). 0 = DRIVER_OP_SUCCESS.
+    [LibraryImport(Lib, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial int cdio_eject_media_drive(string device);
+
+    /// The drives libcdio can see on this machine, in its order.
+    public static unsafe IReadOnlyList<string> Devices()
+    {
+        var list = cdio_get_devices(DriverDevice);
+        if (list == IntPtr.Zero) return [];
+        try
+        {
+            var result = new List<string>();
+            for (var p = (IntPtr*)list; *p != IntPtr.Zero; p++)
+                if (Marshal.PtrToStringUTF8(*p) is { Length: > 0 } s) result.Add(s);
+            return result;
+        }
+        finally { cdio_free_device_list(list); }
+    }
+
+    public static string? DefaultDevice()
+    {
+        var p = cdio_get_default_device(IntPtr.Zero);
+        if (p == IntPtr.Zero) return null;
+        try { return Marshal.PtrToStringUTF8(p); }
+        finally { cdio_free(p); }
+    }
+
     static LibCdio() => NativeLibraries.Register();
 
     /// libcdio's version, from its exported `const char *cdio_version_string`,
@@ -60,13 +107,10 @@ internal static partial class LibCdio
     public static string? Version()
     {
         NativeLibraries.Register();
-        foreach (var name in new[] { "libcdio.so.19", "libcdio.so" })
-        {
-            if (!NativeLibrary.TryLoad(name, out var handle)) continue;
-            if (!NativeLibrary.TryGetExport(handle, "cdio_version_string", out var slot)) return null;
-            return Marshal.PtrToStringUTF8(Marshal.ReadIntPtr(slot));
-        }
-        return null;
+        var handle = NativeLibraries.Load(Lib);
+        if (handle == IntPtr.Zero) return null;
+        if (!NativeLibrary.TryGetExport(handle, "cdio_version_string", out var slot)) return null;
+        return Marshal.PtrToStringUTF8(Marshal.ReadIntPtr(slot));
     }
 
     // cdio_log_level_t: DEBUG = 1, INFO, WARN, ERROR, ASSERT.

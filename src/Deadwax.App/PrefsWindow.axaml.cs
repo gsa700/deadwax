@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
@@ -274,9 +273,13 @@ public partial class PrefsWindow : Window
     private void OnOpenRepo(object? sender, RoutedEventArgs e) => Open(UpdateService.ProjectUrl);
     private void OnOpenAlbumWall(object? sender, RoutedEventArgs e) => Open("https://github.com/gsa700/albumwall");
 
-    private static void Open(string url)
+    private void Open(string url)
     {
-        try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
+        try
+        {
+            if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+                _ = TopLevel.GetTopLevel(this)?.Launcher.LaunchUriAsync(uri);
+        }
         catch { }
     }
 }

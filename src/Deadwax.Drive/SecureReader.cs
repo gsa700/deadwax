@@ -126,7 +126,7 @@ public sealed class SecureReader : IDisposable
         }
         catch (DllNotFoundException)
         {
-            throw new DriveException("libcdio-paranoia is not installed (looked for libcdio_cdda.so.2 and libcdio_paranoia.so.2).");
+            throw new DriveException($"libcdio-paranoia is not installed (looked for {NativeLibraries.Expected("cdio_cdda")} and {NativeLibraries.Expected("cdio_paranoia")}).");
         }
         if (drive == IntPtr.Zero) throw new DriveException($"{device} is not a CD drive paranoia can use, or it is empty.");
         if (LibParanoia.cdio_cddap_open(drive) != 0)

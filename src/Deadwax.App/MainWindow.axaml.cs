@@ -6,6 +6,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
+using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
 using Avalonia.Threading;
 using Deadwax.Core;
@@ -100,25 +101,10 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private static async Task<(bool Present, int Audio)> MediaAsync(string device)
-    {
-        try
-        {
-            var start = new ProcessStartInfo("udevadm") { RedirectStandardOutput = true, RedirectStandardError = true };
-            foreach (var a in new[] { "info", "-q", "property", "-n", device }) start.ArgumentList.Add(a);
-            using var p = Process.Start(start)!;
-            var text = await p.StandardOutput.ReadToEndAsync();
-            await p.WaitForExitAsync();
-            var present = text.Contains("ID_CDROM_MEDIA=1", StringComparison.Ordinal);
-            var audioLine = text.Split('\n').FirstOrDefault(l => l.StartsWith("ID_CDROM_MEDIA_TRACK_COUNT_AUDIO=", StringComparison.Ordinal));
-            var audio = audioLine is null ? 0 : int.Parse(audioLine.Split('=')[1]);
-            return (present, audio);
-        }
-        catch
-        {
-            return (false, 0);
-        }
-    }
+    /// Asks the drive (libcdio: open, TOC, count), off the UI thread. Until
+    /// 0.2.16 this asked udev, which exists only on Linux.
+    private static Task<(bool Present, int Audio)> MediaAsync(string device) =>
+        Task.Run(() => CdDrive.Media(device));
 
     /// The disc in seconds (TOC, disc ID, the library, MusicBrainz), then
     /// cdrdao's two-minute subchannel read behind the Disc screen while he
@@ -618,15 +604,7 @@ public sealed partial class MainWindow : Window
         await EjectAsync();
     }
 
-    private static async Task EjectAsync()
-    {
-        try
-        {
-            using var p = Process.Start(new ProcessStartInfo("eject", CdDrive.DefaultDevice) { RedirectStandardError = true })!;
-            await p.WaitForExitAsync();
-        }
-        catch { }
-    }
+    private static Task EjectAsync() => Task.Run(() => CdDrive.Eject(CdDrive.DefaultDevice));
 
     private void ClearDisc()
     {
@@ -843,9 +821,19 @@ public sealed partial class MainWindow : Window
         if (_vm.AttachUrl is { } url) Open(url);
     }
 
-    private static void Open(string path)
+    /// A folder, a file or a web address, in whatever the desktop opens it
+    /// with, through Avalonia's launcher (xdg-open on Linux, the shell on
+    /// Windows, Launch Services on macOS).
+    private void Open(string path)
     {
-        try { Process.Start(new ProcessStartInfo("xdg-open") { UseShellExecute = false, ArgumentList = { path } })?.Dispose(); }
+        try
+        {
+            var launcher = TopLevel.GetTopLevel(this)?.Launcher;
+            if (launcher is null) return;
+            if (Directory.Exists(path)) _ = launcher.LaunchDirectoryInfoAsync(new DirectoryInfo(path));
+            else if (File.Exists(path)) _ = launcher.LaunchFileInfoAsync(new FileInfo(path));
+            else if (Uri.TryCreate(path, UriKind.Absolute, out var uri)) _ = launcher.LaunchUriAsync(uri);
+        }
         catch { }
     }
 

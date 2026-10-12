@@ -34,13 +34,19 @@ internal static unsafe partial class LibFlac
 
     // Like libcdio, only the -devel package installs the bare libFLAC.so.
     // Fedora has FLAC 1.5 (.so.14); Debian and Ubuntu are on 1.4 (.so.12).
+    // The per-platform names live with libcdio's (Deadwax.Drive.NativeLibraries).
     static LibFlac() => NativeLibrary.SetDllImportResolver(typeof(LibFlac).Assembly, Resolve);
 
-    private static IntPtr Resolve(string name, Assembly assembly, DllImportSearchPath? path)
+    private static IntPtr Resolve(string name, Assembly assembly, DllImportSearchPath? path) =>
+        name == Lib ? Deadwax.Drive.NativeLibraries.Load(Lib, assembly, path) : IntPtr.Zero;
+
+    /// True if libFLAC can be loaded on this machine; false names what was looked for.
+    public static bool IsAvailable(out string expected)
     {
-        if (name != Lib) return IntPtr.Zero;
-        foreach (var candidate in new[] { "libFLAC.so.14", "libFLAC.so.12", "libFLAC.so" })
-            if (NativeLibrary.TryLoad(candidate, assembly, path, out var handle)) return handle;
-        return IntPtr.Zero;
+        expected = Deadwax.Drive.NativeLibraries.Expected(Lib);
+        var handle = Deadwax.Drive.NativeLibraries.Load(Lib);
+        if (handle == IntPtr.Zero) return false;
+        NativeLibrary.Free(handle);
+        return true;
     }
 }
