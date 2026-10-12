@@ -26,8 +26,35 @@ public class SecurityTests
             var path = Path.GetFullPath(FileNames.AlbumPath(style, Library, artist, year, album));
             Assert.True(FileNames.IsInside(Library, path), $"{style}: {path}");
             var depth = style == FolderStyle.ArtistDashAlbum ? 1 : 2;
-            Assert.Equal(depth, Path.GetRelativePath(Library, path).Split('/').Length);
+            Assert.Equal(depth, Path.GetRelativePath(Library, path).Split(Path.DirectorySeparatorChar).Length);
         }
+    }
+
+    /// Windows has its own ways for a name to mean a place or a device. Checked
+    /// on every platform, since the rule is the same everywhere the build runs.
+    [Theory]
+    [InlineData("AC\\DC", "AC_DC")]
+    [InlineData("..\\a", ".._a")]
+    [InlineData("Live: Volume 2", "Live_ Volume 2")]
+    [InlineData("What?", "What_")]
+    [InlineData("Who*", "Who_")]
+    [InlineData("<Untitled>", "_Untitled_")]
+    [InlineData("A|B", "A_B")]
+    [InlineData("Trailing.", "Trailing")]
+    [InlineData("Trailing ", "Trailing")]
+    [InlineData("CON", "_CON")]
+    [InlineData("nul.flac", "_nul.flac")]
+    [InlineData("COM1", "_COM1")]
+    [InlineData("Console", "Console")]
+    [InlineData("AC/DC", "AC_DC")]
+    public void Windows_names_never_mean_a_place_or_a_device(string name, string expected) =>
+        Assert.Equal(expected, FileNames.Safe(name, windows: true));
+
+    [Fact]
+    public void Linux_names_keep_their_colons()
+    {
+        Assert.Equal("Live: Volume 2", FileNames.Safe("Live: Volume 2", windows: false));
+        Assert.Equal("AC\\DC", FileNames.Safe("AC\\DC", windows: false));
     }
 
     [Fact]

@@ -14,7 +14,8 @@ public class FilingTests
     [InlineData(FolderStyle.ArtistAlbum, "Thin Lizzy/Jailbreak")]
     [InlineData(FolderStyle.ArtistDashAlbum, "Thin Lizzy - Jailbreak")]
     public void Album_folders(FolderStyle style, string expected) =>
-        Assert.Equal(Path.Combine("/lib", expected), FileNames.AlbumPath(style, "/lib", "Thin Lizzy", "1976", "Jailbreak"));
+        // The expectation is written with "/"; the platform's own separator is what the path has.
+        Assert.Equal(Path.Combine(["/lib", .. expected.Split('/')]), FileNames.AlbumPath(style, "/lib", "Thin Lizzy", "1976", "Jailbreak"));
 
     [Theory]
     [InlineData(TrackStyle.ArtistNumberTitle, "AC_DC - 01 - Hells Bells.flac")]

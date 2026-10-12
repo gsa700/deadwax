@@ -54,18 +54,40 @@ public static class FileNames
     /// ".." would otherwise file the album beside the library, not in it), and
     /// a line break or other control character becomes a space (it would split
     /// the .m3u's lines). Security review 2026-10-10.
-    public static string Safe(string s)
+    ///
+    /// Windows forbids more: backslash is a separator there too, a colon names
+    /// a drive or an alternate stream, * ? < > | are never allowed, a name
+    /// cannot end in a dot or a space, and CON, PRN, AUX, NUL, COM1-9 and
+    /// LPT1-9 are devices whatever follows them. Only on Windows: the library
+    /// on Linux and macOS keeps its colons ("Live: Volume 2"), as it always has.
+    public static string Safe(string s) => Safe(s, OperatingSystem.IsWindows());
+
+    public static string Safe(string s, bool windows)
     {
         var name = new string(s.Replace('/', '_').Replace('"', '\'').Replace("\0", "")
             .Select(c => char.IsControl(c) || c is '\u2028' or '\u2029' ? ' ' : c).ToArray());
+        if (windows)
+        {
+            name = new string(name.Select(c => c is '\\' or ':' or '*' or '?' or '<' or '>' or '|' ? '_' : c).ToArray()).TrimEnd('.', ' ');
+            var stem = name.Split('.')[0];
+            if (WindowsDevices.Contains(stem)) name = "_" + name;
+        }
         return name is "" or "." or ".." ? "_" : name;
     }
 
+    private static readonly HashSet<string> WindowsDevices = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "CON", "PRN", "AUX", "NUL",
+        "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+        "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+    };
+
     /// True when path is strictly inside library: the last check before an
     /// album folder is written or moved, whatever the names in it said.
+    /// Windows paths compare without case; its file systems do the same.
     public static bool IsInside(string library, string path)
     {
         var root = Path.GetFullPath(library).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
-        return Path.GetFullPath(path).StartsWith(root, StringComparison.Ordinal);
+        return Path.GetFullPath(path).StartsWith(root, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
     }
 }
