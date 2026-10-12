@@ -34,6 +34,6 @@ rm -rf "$OUT"; mkdir -p "$OUT"
 # away from each other (SELinux, 2026-10-12).
 "${CONTAINER:-podman}" run --rm \
     -v "$HERE/inner.sh:/inner.sh:ro,z" -v "$HERE/pins.sh:/pins.sh:ro,z" \
-    -v "$HERE/sources:/tarballs:ro,z" -v "$OUT:/out:Z" \
+    -v "$HERE/sources:/tarballs:ro,z" -v "$HERE/patches:/patches:ro,z" -v "$OUT:/out:Z" \
     "$IMAGE" bash /inner.sh "$TARGET"
 echo "== native/$RID:"; ls -la "$OUT"

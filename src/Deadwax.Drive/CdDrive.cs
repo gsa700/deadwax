@@ -97,10 +97,11 @@ public sealed class CdDrive : IDisposable
     public static CdDrive Open(string? device = null)
     {
         device ??= DefaultDevice;
-        // macOS mounts the disc on insertion and libcdio needs it unmounted
-        // for exclusive access (MacDisc). Elsewhere this does nothing.
+        // macOS mounts the disc on insertion; rippers unmount it so the
+        // Finder is not reading the same disc. Best effort: the reads
+        // themselves do not need it (MacDisc). Elsewhere this does nothing.
         if (OperatingSystem.IsMacOS() && !MacDisc.Unmount(device, out var why))
-            throw new DriveException($"Could not unmount the disc in {device}: {why}");
+            Console.Error.WriteLine($"[drive] could not unmount {device}: {why}");
         IntPtr cdio;
         try
         {
@@ -166,6 +167,14 @@ public sealed class CdDrive : IDisposable
     public void LimitSpeed(int? speed)
     {
         if (speed is < 1) throw new ArgumentOutOfRangeException(nameof(speed));
+        if (OperatingSystem.IsMacOS())
+        {
+            // libcdio's set_speed on macOS passes the value where the ioctl
+            // wants a pointer (security scan 2026-10-12, L2); do it directly.
+            using var mac = new MacIoctlTransport(Device);
+            if (!mac.SetSpeed(speed)) throw new DriveException($"{Device} did not accept a {speed}x speed limit.");
+            return;
+        }
         if (LibCdio.cdio_set_speed(Handle, speed ?? 0) != 0)
             throw new DriveException($"{Device} did not accept a {speed}x speed limit.");
     }

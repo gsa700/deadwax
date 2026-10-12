@@ -1,0 +1,20 @@
+--- a/lib/driver/gnu_linux.c	2026-10-12 18:43:10.695595223 -0500
++++ b/lib/driver/gnu_linux.c	2026-10-12 18:43:10.730085034 -0500
+@@ -1180,6 +1180,17 @@
+ 
+   p_env->gen.i_first_track = p_env->tochdr.cdth_trk0;
+   i_last_track             = p_env->tochdr.cdth_trk1;
++
++  /* Deadwax: the first and last track numbers are the drive's own bytes.
++     Refuse anything the tocent[] and track_flags[] arrays cannot hold,
++     instead of clamping i_tracks and still looping to i_last_track. */
++  if (p_env->gen.i_first_track < CDIO_CD_MIN_TRACK_NO
++      || i_last_track < p_env->gen.i_first_track
++      || i_last_track > CDIO_CD_MAX_TRACKS) {
++    cdio_warn("TOC header names tracks %d to %d; refusing it",
++              p_env->gen.i_first_track, i_last_track);
++    return false;
++  }
+   p_env->gen.i_tracks      = i_last_track - p_env->gen.i_first_track + 1;
+ 
+   u_tracks = p_env->gen.i_tracks;

@@ -31,21 +31,21 @@ run() { local label=$1; shift; if ! "$@" > "/tmp/dw-logs/$label.log" 2>&1; then 
 
 echo "== libcdio $LIBCDIO_VERSION"
 tar xjf "$HERE/sources/libcdio-$LIBCDIO_VERSION.tar.bz2" -C "$SRC"
-( cd "$SRC/libcdio-$LIBCDIO_VERSION" && run libcdio-configure ./configure --prefix="$PREFIX" --disable-static --enable-shared \
+( cd "$SRC/libcdio-$LIBCDIO_VERSION" && for p in "$HERE"/patches/libcdio-*.patch; do echo "   patch $(basename "$p")"; patch -p1 -s < "$p"; done && run libcdio-configure ./configure --prefix="$PREFIX" --disable-static --enable-shared \
     --disable-cxx --disable-example-progs --disable-cpp-progs --disable-rpath \
     --without-cd-drive --without-cd-info --without-cdda-player --without-cd-read --without-iso-info --without-iso-read \
-    --disable-joliet --disable-rock --disable-vcd-info && run libcdio-make make -j"$JOBS" && run libcdio-install make install )
+    --disable-joliet --disable-rock --disable-vcd-info && run libcdio-make make -j"$JOBS" -C lib && run libcdio-install make -C lib install && run libcdio-headers make -C include install && run libcdio-pc make install-pkgconfigDATA )
 
 echo "== libcdio-paranoia $PARANOIA_VERSION"
 tar xjf "$HERE/sources/libcdio-paranoia-$PARANOIA_VERSION.tar.bz2" -C "$SRC"
-( cd "$SRC/libcdio-paranoia-$PARANOIA_VERSION" && run paranoia-configure ./configure --prefix="$PREFIX" --disable-static --enable-shared \
+( cd "$SRC/libcdio-paranoia-$PARANOIA_VERSION" && for p in "$HERE"/patches/paranoia-*.patch; do echo "   patch $(basename "$p")"; patch -p1 -s < "$p"; done && run paranoia-configure ./configure --prefix="$PREFIX" --disable-static --enable-shared \
     --disable-cxx --disable-example-progs --disable-cpp-progs --disable-rpath --without-cd-paranoia \
-    && run paranoia-make make -j"$JOBS" && run paranoia-install make install )
+    && run paranoia-make make -j"$JOBS" -C lib && run paranoia-install make -C lib install && run paranoia-headers make -C include install && run paranoia-pc make install-pkgconfigDATA )
 
 echo "== FLAC $FLAC_VERSION"
 tar xJf "$HERE/sources/flac-$FLAC_VERSION.tar.xz" -C "$SRC"
 ( cd "$SRC/flac-$FLAC_VERSION" && run flac-configure cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$PREFIX" \
-    -DCMAKE_OSX_DEPLOYMENT_TARGET=$MIN -DBUILD_SHARED_LIBS=ON -DWITH_OGG=OFF -DBUILD_PROGRAMS=OFF -DBUILD_EXAMPLES=OFF \
+    -DCMAKE_OSX_DEPLOYMENT_TARGET=$MIN -DBUILD_SHARED_LIBS=ON -DWITH_OGG=OFF -DENABLE_MULTITHREADING=OFF -DBUILD_PROGRAMS=OFF -DBUILD_EXAMPLES=OFF \
     -DBUILD_TESTING=OFF -DBUILD_DOCS=OFF -DINSTALL_MANPAGES=OFF -DBUILD_CXXLIBS=OFF -DWITH_STACK_PROTECTOR=ON -DWITH_FORTIFY_SOURCE=ON \
     -DINSTALL_PKGCONFIG_MODULES=OFF -DINSTALL_CMAKE_CONFIG_MODULE=OFF \
     && run flac-make cmake --build build -j"$JOBS" && run flac-install cmake --install build )
@@ -63,14 +63,16 @@ for f in *.dylib; do
     codesign --force --sign - "$f" >/dev/null 2>&1 || true
     deps=$(otool -L "$f" | tail -n +2 | awk '{print $1}' | tr '\n' ' ')
     echo "   $f: $deps"
-    echo "$deps" | tr ' ' '\n' | grep -qE '^(/opt/homebrew|/usr/local|/private)' && { echo "!! $f still points at a Homebrew or build path" >&2; exit 1; }
-    echo "$deps" | tr ' ' '\n' | grep -qvE '^(@loader_path/.*|/usr/lib/libSystem\.B\.dylib|/usr/lib/libiconv\.2\.dylib|)$' && { echo "!! $f depends on more than the system: $deps" >&2; exit 1; }
-    lipo -archs "$f" | grep -q arm64 || { echo "!! $f is not arm64" >&2; exit 1; }
+    # Counts, not grep -q: with pipefail an early exit from grep fails the pipeline and the check never fires.
+    [ "$(echo "$deps" | tr ' ' '\n' | grep -cE '^(/opt/homebrew|/usr/local|/private)')" -eq 0 ] || { echo "!! $f still points at a Homebrew or build path" >&2; exit 1; }
+    [ "$(echo "$deps" | tr ' ' '\n' | grep -cvE '^(@loader_path/.*|/usr/lib/libSystem\.B\.dylib|/usr/lib/libiconv\.2\.dylib|/System/Library/Frameworks/.*|)$')" -eq 0 ] || { echo "!! $f depends on more than the system: $deps" >&2; exit 1; }
+    [ "$(lipo -archs "$f" | grep -c arm64)" -gt 0 ] || { echo "!! $f is not arm64" >&2; exit 1; }
+    [ "$(nm -u "$f" 2>/dev/null | grep -c '___stack_chk_fail')" -gt 0 ] || { echo "!! $f has no stack protector" >&2; exit 1; }
 done
 {
     echo "Deadwax natives: libcdio $LIBCDIO_VERSION, libcdio-paranoia $PARANOIA_VERSION, FLAC $FLAC_VERSION ($RID, built $(date -u +%Y-%m-%dT%H:%MZ))"
     echo "toolchain: $(clang --version | head -1) on macOS $(sw_vers -productVersion), deployment target $MIN"
     echo "flags: CFLAGS=$CFLAGS"
-    echo "checks: install names @loader_path, dependencies limited to libSystem (and libiconv) and each other, arm64, stack protector, ad-hoc signed"
+    echo "checks: install names @loader_path, dependencies limited to libSystem, libiconv, system frameworks and each other, arm64, stack protector, ad-hoc signed"
 } > natives-build-info.txt
 cat natives-build-info.txt

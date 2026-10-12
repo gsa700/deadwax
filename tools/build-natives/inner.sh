@@ -18,7 +18,7 @@ PREFIX=/opt/dw
 JOBS=$(nproc)
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
-apt-get install -y -qq --no-install-recommends build-essential pkg-config cmake make bzip2 xz-utils ca-certificates file patchelf >/dev/null
+apt-get install -y -qq --no-install-recommends build-essential pkg-config cmake make bzip2 xz-utils ca-certificates file patchelf patch >/dev/null
 
 HOST_FLAG=()
 CMAKE_CROSS=()
@@ -35,10 +35,17 @@ linux)
 win64)
     apt-get install -y -qq --no-install-recommends mingw-w64 >/dev/null
     T=x86_64-w64-mingw32
+    # The stack protector and pthreads come as DLLs on mingw (libssp-0.dll,
+    # libwinpthread-1.dll) unless the linker can only find the static
+    # archives: remove the import libraries, so every build links them in.
+    find /usr -name 'libwinpthread.dll.a' -o -name 'libssp.dll.a' | xargs -r rm -f
     export CC=$T-gcc-posix CXX=$T-g++-posix AR=$T-ar RANLIB=$T-ranlib STRIP=$T-strip WINDRES=$T-windres
     export CFLAGS="-O2 -fstack-protector-strong -D_FORTIFY_SOURCE=2" CXXFLAGS="-O2"
     # No libgcc/libwinpthread DLLs at run time: the runtime bits go in statically.
-    export LDFLAGS="-static-libgcc -Wl,-Bstatic -lwinpthread -Wl,-Bdynamic -Wl,--nxcompat -Wl,--dynamicbase -Wl,--high-entropy-va"
+    # --exclude-libs: the static runtimes' symbols stay private to each DLL,
+    # or libcdio_cdda.dll.a exports __stack_chk_fail and the next link sees
+    # it twice.
+    export LDFLAGS="-static-libgcc -Wl,--exclude-libs,libssp.a:libwinpthread.a -Wl,--nxcompat -Wl,--dynamicbase -Wl,--high-entropy-va"
     # -no-undefined: without it libtool quietly builds static libraries only on
     # mingw. A libtool flag, not a compiler one, so it goes to make, not to
     # configure (whose compiler test would choke on it).
@@ -68,28 +75,38 @@ run() { local label=$1; shift; if ! "$@" > "/tmp/logs/$label.log" 2>&1; then ech
 echo "== libcdio $LIBCDIO_VERSION"
 tar xjf "/tarballs/libcdio-$LIBCDIO_VERSION.tar.bz2" -C /src
 cd "/src/libcdio-$LIBCDIO_VERSION"
+# The security scan's fixes (patches/README.md): TOC parsers bounded on every
+# platform, the macOS free routine ordered.
+for p in /patches/libcdio-*.patch; do echo "   patch $(basename "$p")"; patch -p1 -s < "$p"; done
 run libcdio-configure ./configure --prefix="$PREFIX" "${HOST_FLAG[@]}" --disable-static --enable-shared \
     --disable-cxx --disable-example-progs --disable-cpp-progs --disable-rpath \
     --without-cd-drive --without-cd-info --without-cdda-player --without-cd-read --without-iso-info --without-iso-read \
     --disable-joliet --disable-rock --disable-vcd-info
-run libcdio-make make -j"$JOBS" "${MAKE_EXTRA[@]}"
-run libcdio-install make install
+# Only the library: the programs and examples are not wanted, and on mingw
+# they do not even link against the static runtimes chosen above.
+run libcdio-make make -j"$JOBS" -C lib "${MAKE_EXTRA[@]}"
+run libcdio-install make -C lib install
+run libcdio-install-headers make -C include install
+run libcdio-install-pc make install-pkgconfigDATA
 
 # ---- libcdio-paranoia: cdda + paranoia, no cd-paranoia program -------------
 echo "== libcdio-paranoia $PARANOIA_VERSION"
 tar xjf "/tarballs/libcdio-paranoia-$PARANOIA_VERSION.tar.bz2" -C /src
 cd "/src/libcdio-paranoia-$PARANOIA_VERSION"
+for p in /patches/paranoia-*.patch; do echo "   patch $(basename "$p")"; patch -p1 -s < "$p"; done
 run paranoia-configure ./configure --prefix="$PREFIX" "${HOST_FLAG[@]}" --disable-static --enable-shared \
     --disable-cxx --disable-example-progs --disable-cpp-progs --disable-rpath --without-cd-paranoia
-run paranoia-make make -j"$JOBS" "${MAKE_EXTRA[@]}"
-run paranoia-install make install
+run paranoia-make make -j"$JOBS" -C lib "${MAKE_EXTRA[@]}"
+run paranoia-install make -C lib install
+run paranoia-install-headers make -C include install
+run paranoia-install-pc make install-pkgconfigDATA
 
 # ---- libFLAC: the encoder, no Ogg, no programs -------------------------------
 echo "== FLAC $FLAC_VERSION"
 tar xJf "/tarballs/flac-$FLAC_VERSION.tar.xz" -C /src
 cd "/src/flac-$FLAC_VERSION"
 run flac-configure cmake -S . -B build "${CMAKE_CROSS[@]}" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$PREFIX" \
-    -DBUILD_SHARED_LIBS=ON -DWITH_OGG=OFF -DBUILD_PROGRAMS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_TESTING=OFF \
+    -DBUILD_SHARED_LIBS=ON -DWITH_OGG=OFF -DENABLE_MULTITHREADING=OFF -DBUILD_PROGRAMS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_TESTING=OFF \
     -DBUILD_DOCS=OFF -DINSTALL_MANPAGES=OFF -DBUILD_CXXLIBS=OFF -DWITH_STACK_PROTECTOR=ON -DWITH_FORTIFY_SOURCE=ON \
     -DINSTALL_PKGCONFIG_MODULES=OFF -DINSTALL_CMAKE_CONFIG_MODULE=OFF
 run flac-make cmake --build build -j"$JOBS"

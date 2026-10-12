@@ -122,7 +122,29 @@ internal static partial class LibCdio
     [LibraryImport(Lib)]
     public static unsafe partial int mmc_run_cmd(IntPtr cdio, uint timeoutMs, byte* cdb, int direction, uint bufLen, byte* buf);
 
-    static LibCdio() => NativeLibraries.Register();
+    /// cdio/logging.h: cdio_log_handler_t is void (*)(cdio_log_level_t, const char *).
+    [LibraryImport(Lib)]
+    public static unsafe partial IntPtr cdio_log_set_handler(delegate* unmanaged<int, IntPtr, void> handler);
+
+    /// libcdio's own default handler calls exit() on an error and abort()
+    /// on an assertion (security scan 2026-10-12, M2): a library must not
+    /// be able to end the program. This one writes warnings and worse to
+    /// stderr and returns. Installed once, before the first call.
+    [UnmanagedCallersOnly]
+    private static void Log(int level, IntPtr message)
+    {
+        if (level < LogWarn) return;
+        try { Console.Error.WriteLine($"libcdio: {Marshal.PtrToStringUTF8(message)}"); } catch { }
+    }
+
+    private const int LogWarn = 3;
+
+    static LibCdio()
+    {
+        NativeLibraries.Register();
+        try { unsafe { cdio_log_set_handler(&Log); } }
+        catch (Exception e) when (e is DllNotFoundException or EntryPointNotFoundException) { }
+    }
 
     /// libcdio's version, from its exported `const char *cdio_version_string`,
     /// for the rip log ("2.3.0"); null if the library cannot be loaded.

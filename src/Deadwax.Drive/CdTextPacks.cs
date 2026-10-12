@@ -27,6 +27,17 @@ public static class CdTextPacks
 
     public static bool IsBinary(int type) => type is 0x87 or 0x88 or 0x89 or 0x8F;
 
+    /// The packs out of a READ TOC/PMA/ATIP format 5 response: a two-byte
+    /// length (of what follows it), two reserved bytes, then whole packs.
+    /// Null when there are none.
+    public static byte[]? FromResponse(byte[] response)
+    {
+        if (response.Length < 4) return null;
+        var available = Math.Min((response[0] << 8 | response[1]) - 2, response.Length - 4);
+        var whole = available / PackBytes * PackBytes;
+        return whole <= 0 ? null : response.AsSpan(4, whole).ToArray();
+    }
+
     /// One decoded item before it is filed: cdrdao's CdTextItem.
     public sealed record Item(int Type, int Block, int Track, byte[]? TextBytes, byte[]? Data);
 

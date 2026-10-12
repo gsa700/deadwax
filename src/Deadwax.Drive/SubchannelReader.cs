@@ -24,7 +24,6 @@ public static class SubchannelReader
     public const int ForwardWindow = 300;
 
     private const int AudioBytes = 2352;
-    private const uint TimeoutMs = 30_000;
 
     public sealed record Frame(int Lsn, QFrame Q);
 
@@ -32,10 +31,19 @@ public static class SubchannelReader
     /// libcdio's; only its audio session is read (cdrdao reads session 1).
     public static Cdrdao.Result Read(CdDrive drive, Toc toc, Action<string>? say = null, CancellationToken ct = default)
     {
+        using var transport = TransportFor(drive);
+        return Read(transport, drive, toc, say, ct);
+    }
+
+    /// libcdio's pass-through on Linux and Windows; the CD ioctls on macOS.
+    public static IMmcTransport TransportFor(CdDrive drive) =>
+        OperatingSystem.IsMacOS() ? new MacIoctlTransport(drive.Device) : new LibCdioTransport(drive.NativeHandle);
+
+    public static Cdrdao.Result Read(IMmcTransport io, CdDrive drive, Toc toc, Action<string>? say, CancellationToken ct)
+    {
         var tracks = toc.IdTracks;
         var leadout = toc.AudioLeadoutLsn;
-        var h = drive.NativeHandle;
-        var raw = ChooseMode(h, tracks[0].StartLsn, ct);
+        var raw = ChooseMode(io, tracks[0].StartLsn, ct);
         say?.Invoke(raw ? "Subchannel: raw P-W." : "Subchannel: formatted Q.");
 
         var isrcs = new string?[tracks.Count];
@@ -51,7 +59,7 @@ public static class SubchannelReader
             var start = t.StartLsn;
             var end = i + 1 < tracks.Count ? tracks[i + 1].StartLsn : leadout;
 
-            var frames = ReadFrames(h, raw, start, Math.Min(ForwardWindow, end - start), ct);
+            var frames = ReadFrames(io, raw, start, Math.Min(ForwardWindow, end - start), ct);
             var position = frames.Where(f => f.Q.Trusted && f.Q.Mode == 1).ToList();
             if (position.Count == 0)
                 throw new DriveException($"The drive returned no readable subchannel at the start of track {t.Number}.");
@@ -63,13 +71,17 @@ public static class SubchannelReader
             mcns.AddRange(frames.Where(f => f.Q.Trusted && f.Q.Mode == 2).Select(f => f.Q.Mcn!));
 
             if (i + 1 < tracks.Count && tracks[i + 1].IsAudio)
-                pregaps[i + 1] = PregapBefore(h, raw, tracks[i + 1].Number, tracks[i + 1].StartLsn, floor: start, ct);
+                pregaps[i + 1] = PregapBefore(io, raw, tracks[i + 1].Number, tracks[i + 1].StartLsn, floor: start, ct);
             say?.Invoke($"Track {t.Number}: pregap {CdrdaoToc.Msf(pregaps[i])}, ISRC {isrcs[i] ?? "none"}.");
         }
 
-        // cdrdao's readCatalogScan takes the median of what it saw.
-        var mcn = mcns.Count > 0 ? mcns.Order().ElementAt(mcns.Count / 2) : ReadSubChannelCode(h, 2, 0, 13);
-        var (discText, trackTexts) = ReadCdText(h);
+        // cdrdao's readCatalogScan takes the median of what it saw; READ
+        // SUB-CHANNEL is the fallback (the BDR-209D answers it with nothing).
+        var mcn = mcns.Count > 0 ? mcns.Order().ElementAt(mcns.Count / 2) : io.ReadCode(isrc: false, 0);
+        for (var i = 0; i < tracks.Count; i++)
+            if (isrcs[i] is null && tracks[i].IsAudio) isrcs[i] = io.ReadCode(isrc: true, (byte)tracks[i].Number);
+        var packs = io.ReadCdTextPacks();
+        var (discText, trackTexts) = packs is null ? (null, new Dictionary<int, CdText>()) : CdTextPacks.Decode(packs);
 
         var list = new List<CdrdaoTrack>(tracks.Count);
         for (var i = 0; i < tracks.Count; i++)
@@ -87,13 +99,14 @@ public static class SubchannelReader
     }
 
     /// Formatted Q if the drive gives it, else raw P-W, else nothing.
-    private static bool ChooseMode(IntPtr h, int lsn, CancellationToken ct)
+    private static bool ChooseMode(IMmcTransport io, int lsn, CancellationToken ct)
     {
         foreach (var raw in new[] { false, true })
         {
+            if (raw && !io.SupportsRawSubchannel) break;
             try
             {
-                if (ReadFrames(h, raw, lsn, SectorsPerCommand, ct).Any(f => f.Q.Trusted)) return raw;
+                if (ReadFrames(io, raw, lsn, SectorsPerCommand, ct).Any(f => f.Q.Trusted)) return raw;
             }
             catch (DriveException) { }
         }
@@ -103,7 +116,7 @@ public static class SubchannelReader
     /// The run back from a track's index 1 to where its index 0 begins, in
     /// sectors; 0 when the previous track runs straight into it. As cdrdao
     /// does, the pregap is measured with the frame's own absolute time.
-    private static int PregapBefore(IntPtr h, bool raw, int next, int nextStart, int floor, CancellationToken ct)
+    private static int PregapBefore(IMmcTransport io, bool raw, int next, int nextStart, int floor, CancellationToken ct)
     {
         var lowestIndex0 = -1;
         var pos = nextStart;
@@ -112,7 +125,7 @@ public static class SubchannelReader
             ct.ThrowIfCancellationRequested();
             var n = Math.Min(75, pos - floor);
             var from = pos - n;
-            foreach (var f in ReadFrames(h, raw, from, n, ct).OrderByDescending(f => f.Lsn))
+            foreach (var f in ReadFrames(io, raw, from, n, ct).OrderByDescending(f => f.Lsn))
             {
                 if (!f.Q.Trusted || f.Q.Mode != 1) continue;
                 if (f.Q.Track == next && f.Q.Index == 0) lowestIndex0 = f.Q.AbsoluteLsn;
@@ -123,30 +136,18 @@ public static class SubchannelReader
         return lowestIndex0 < 0 ? 0 : nextStart - lowestIndex0;
     }
 
-    /// READ CD (MMC 6.23) for `count` sectors from `lsn`, audio plus the Q
-    /// subchannel: formatted (16 bytes per sector) or raw P-W (96 bytes, Q
-    /// taken out of bit 6). Retried as cdrdao does, five times.
-    public static unsafe List<Frame> ReadFrames(IntPtr h, bool raw, int lsn, int count, CancellationToken ct)
+    /// `count` sectors from `lsn` with their Q frames, in commands of
+    /// SectorsPerCommand (24 x (2352 + 96) stays under 64 KB everywhere).
+    public static List<Frame> ReadFrames(IMmcTransport io, bool raw, int lsn, int count, CancellationToken ct)
     {
         var frames = new List<Frame>(count);
         var subBytes = raw ? 96 : 16;
         var block = AudioBytes + subBytes;
-        var buffer = new byte[SectorsPerCommand * block];
-        var cdb = stackalloc byte[16];
         for (var at = lsn; at < lsn + count; at += SectorsPerCommand)
         {
             ct.ThrowIfCancellationRequested();
             var n = Math.Min(SectorsPerCommand, lsn + count - at);
-            new Span<byte>(cdb, 16).Clear();
-            cdb[0] = 0xBE;
-            cdb[2] = (byte)(at >> 24); cdb[3] = (byte)(at >> 16); cdb[4] = (byte)(at >> 8); cdb[5] = (byte)at;
-            cdb[6] = (byte)(n >> 16); cdb[7] = (byte)(n >> 8); cdb[8] = (byte)n;
-            cdb[9] = 0xF8;
-            cdb[10] = raw ? (byte)0x01 : (byte)0x02;
-            var rc = -1;
-            for (var attempt = 0; attempt < 6 && rc != 0; attempt++)
-                fixed (byte* buf = buffer) rc = LibCdio.mmc_run_cmd(h, TimeoutMs, cdb, LibCdio.MmcDataRead, (uint)(n * block), buf);
-            if (rc != 0) throw new DriveException($"READ CD with subchannel failed at sector {at} (libcdio {rc}).");
+            var buffer = io.ReadCd(at, n, raw) ?? throw new DriveException($"READ CD with subchannel failed at sector {at}.");
             for (var s = 0; s < n; s++)
             {
                 var sub = buffer.AsSpan(s * block + AudioBytes, subBytes);
@@ -154,45 +155,5 @@ public static class SubchannelReader
             }
         }
         return frames;
-    }
-
-    /// READ SUB-CHANNEL (MMC 6.28; deprecated since MMC-5, and the BDR-209D
-    /// answers it with nothing): parameter 2 = MCN, 3 = ISRC of `track`.
-    /// The fallback when the scan saw no such frame. Null when the drive
-    /// says there is none.
-    public static unsafe string? ReadSubChannelCode(IntPtr h, byte parameter, byte track, int length)
-    {
-        var cdb = stackalloc byte[16];
-        cdb[0] = 0x42;
-        cdb[2] = 0x40;          // SubQ
-        cdb[3] = parameter;
-        cdb[6] = track;
-        cdb[8] = 24;
-        var data = stackalloc byte[24];
-        if (LibCdio.mmc_run_cmd(h, TimeoutMs, cdb, LibCdio.MmcDataRead, 24, data) != 0) return null;
-        if ((data[8] & 0x80) == 0) return null;   // MCVal / TCVal: nothing recorded
-        var code = System.Text.Encoding.ASCII.GetString(data + 9, length).TrimEnd('\0');
-        return code.Length == length ? code : null;
-    }
-
-    /// READ TOC/PMA/ATIP format 5 (MMC 6.26.5): the CD-Text packs, asked
-    /// for twice, the first time for their length. No CD-Text gives null.
-    public static unsafe (CdText? Disc, IReadOnlyDictionary<int, CdText> Tracks) ReadCdText(IntPtr h)
-    {
-        var none = (Disc: (CdText?)null, Tracks: (IReadOnlyDictionary<int, CdText>)new Dictionary<int, CdText>());
-        var cdb = stackalloc byte[16];
-        cdb[0] = 0x43;
-        cdb[2] = 0x05;
-        cdb[7] = 0; cdb[8] = 4;
-        var head = stackalloc byte[4];
-        if (LibCdio.mmc_run_cmd(h, TimeoutMs, cdb, LibCdio.MmcDataRead, 4, head) != 0) return none;
-        var length = (head[0] << 8 | head[1]) + 2;   // the length field counts what follows it
-        if (length <= 4 || length > 36_864 + 4) return none;
-        var buffer = new byte[length];
-        cdb[7] = (byte)(length >> 8); cdb[8] = (byte)length;
-        fixed (byte* buf = buffer)
-            if (LibCdio.mmc_run_cmd(h, TimeoutMs, cdb, LibCdio.MmcDataRead, (uint)length, buf) != 0) return none;
-        var packs = ((buffer[0] << 8 | buffer[1]) - 2) / CdTextPacks.PackBytes * CdTextPacks.PackBytes;
-        return packs <= 0 ? none : CdTextPacks.Decode(buffer.AsSpan(4, Math.Min(packs, buffer.Length - 4)));
     }
 }
