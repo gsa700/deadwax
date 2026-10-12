@@ -44,7 +44,7 @@ catches it at release time; the rules above are for every push.
   also marks it latest and changes the first line of its notes to "Promoted to
   Stable." His call, every time. A security fix may go straight to Stable.
 - `tools/release.sh X.Y.Z` without `--publish` makes a DRAFT (`--dry-run` to
-  build only). Bump `<Version>` in `src/Deadwax.App/Deadwax.App.csproj` in its
+  build only). Bump `<Version>` in `Directory.Build.props` (every project shares it) in its
   own commit first.
 - Publishing is his call, every time.
 - `tools/install.sh` builds and installs the app-menu copy from source; the

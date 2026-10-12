@@ -132,11 +132,12 @@ public static class SubchannelReader
         var subBytes = raw ? 96 : 16;
         var block = AudioBytes + subBytes;
         var buffer = new byte[SectorsPerCommand * block];
+        var cdb = stackalloc byte[16];
         for (var at = lsn; at < lsn + count; at += SectorsPerCommand)
         {
             ct.ThrowIfCancellationRequested();
             var n = Math.Min(SectorsPerCommand, lsn + count - at);
-            var cdb = stackalloc byte[16];
+            new Span<byte>(cdb, 16).Clear();
             cdb[0] = 0xBE;
             cdb[2] = (byte)(at >> 24); cdb[3] = (byte)(at >> 16); cdb[4] = (byte)(at >> 8); cdb[5] = (byte)at;
             cdb[6] = (byte)(n >> 16); cdb[7] = (byte)(n >> 8); cdb[8] = (byte)n;

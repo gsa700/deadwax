@@ -31,7 +31,7 @@ set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/.." && pwd)
 REPO=gsa700/deadwax
-CSPROJ="$ROOT/src/Deadwax.App/Deadwax.App.csproj"
+CSPROJ="$ROOT/Directory.Build.props"   # one <Version> for every project
 RIDS=(linux-x64)
 
 VERSION=${1:?usage: release.sh X.Y.Z [--notes-file FILE] [--edge] [--publish] [--dry-run]}
