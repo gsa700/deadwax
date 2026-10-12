@@ -85,6 +85,16 @@ run libcdio-configure ./configure --prefix="$PREFIX" "${HOST_FLAG[@]}" --disable
 # Only the library: the programs and examples are not wanted, and on mingw
 # they do not even link against the static runtimes chosen above.
 run libcdio-make make -j"$JOBS" -C lib "${MAKE_EXTRA[@]}"
+grep -i "building static\|undefined symbols not allowed\|warning: .*libtool" /tmp/logs/libcdio-make.log | head -5 || true
+# On mingw the install step replaces lib/driver/.libs/libcdio-19.dll with an
+# ar archive of the same name (an import library), so the DLL is taken from
+# the build tree now, before anything installs.
+if [ "$TARGET" = win64 ]; then
+    find . -name '*.dll' -o -name '*.dll.a' | while read -r f; do echo "   built: $f: $(file -b "$f" | cut -c1-50) $(stat -c %s "$f")"; done
+    dll=$(find . -name 'libcdio-19.dll' -type f -exec sh -c 'file -b "$1" | grep -q "PE32+" && echo "$1"' _ {} \; | head -1)
+    [ -n "$dll" ] || { echo "!! libcdio-19.dll was not linked as a DLL" >&2; grep -i "libtool\|dll" /tmp/logs/libcdio-make.log | tail -20 >&2; exit 1; }
+    cp "$dll" /out/
+fi
 run libcdio-install make -C lib install
 run libcdio-install-headers make -C include install
 run libcdio-install-pc make install-pkgconfigDATA
@@ -97,6 +107,7 @@ for p in /patches/paranoia-*.patch; do echo "   patch $(basename "$p")"; patch -
 run paranoia-configure ./configure --prefix="$PREFIX" "${HOST_FLAG[@]}" --disable-static --enable-shared \
     --disable-cxx --disable-example-progs --disable-cpp-progs --disable-rpath --without-cd-paranoia
 run paranoia-make make -j"$JOBS" -C lib "${MAKE_EXTRA[@]}"
+[ "$TARGET" = win64 ] && cp lib/cdda_interface/.libs/libcdio_cdda-2.dll lib/paranoia/.libs/libcdio_paranoia-2.dll /out/
 run paranoia-install make -C lib install
 run paranoia-install-headers make -C include install
 run paranoia-install-pc make install-pkgconfigDATA
@@ -140,9 +151,9 @@ win64)
     # ...and libcdio's Makefile also leaves an MSVC-style import library
     # NAMED libcdio-19.dll (an ar archive) beside the real one, so take the
     # candidate that is a PE image.
-    for dll in libcdio-19.dll libcdio_cdda-2.dll libcdio_paranoia-2.dll libFLAC.dll; do
+    for dll in libFLAC.dll; do
         found=""
-        for candidate in $(find "$PREFIX" -name "$dll" -type f); do
+        for candidate in $(find /src "$PREFIX" -name "$dll" -type f); do
             echo "   candidate $candidate: $(file -b "$candidate" | cut -c1-60)"
             if file -b "$candidate" | grep -q 'PE32+'; then found=$candidate; break; fi
         done
