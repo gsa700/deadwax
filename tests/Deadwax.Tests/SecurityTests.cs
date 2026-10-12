@@ -63,7 +63,9 @@ public class SecurityTests
         Assert.Equal("_", FileNames.Safe(".."));
         Assert.Equal("_", FileNames.Safe("."));
         Assert.Equal("_", FileNames.Safe(""));
-        Assert.Equal("...", FileNames.Safe("..."));   // a real name, and harmless
+        // A real name, and harmless on Linux and macOS. Windows drops trailing
+        // dots itself, which would leave nothing, so there it becomes "_".
+        Assert.Equal(OperatingSystem.IsWindows() ? "_" : "...", FileNames.Safe("..."));
         Assert.Equal("AC_DC", FileNames.Safe("AC/DC"));
     }
 
