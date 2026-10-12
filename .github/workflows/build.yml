@@ -1,0 +1,98 @@
+# Deadwax on the three platforms it is heading for: build, test, and publish
+# the single-file program for each. Linux is where it rips today; the Windows
+# and macOS builds prove the managed code and the per-platform library names
+# compile and start, ahead of the native bundles and the subchannel reader that
+# make them rip. Artifacts, not releases (tools/release.sh cuts those).
+name: Build
+
+on:
+  push:
+    branches: [main]
+    paths: ["src/**", "tests/**", "Deadwax.slnx", ".github/workflows/build.yml"]
+  pull_request:
+    paths: ["src/**", "tests/**", "Deadwax.slnx", ".github/workflows/build.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: windows-latest
+            rid: win-x64
+          - os: macos-15
+            rid: osx-arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      # The tests that encode FLAC need libFLAC; libcdio is loaded by name
+      # where a test asks for the default device. Windows has neither yet (the
+      # FLAC tests say so and return), which is what the native bundles fix.
+      - name: Native libraries (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -q && sudo apt-get install -y -q libcdio-paranoia-dev libflac-dev
+      - name: Native libraries (macOS)
+        if: runner.os == 'macOS'
+        run: brew install libcdio libcdio-paranoia flac
+
+      - name: Build
+        run: dotnet build Deadwax.slnx -c Release -nologo -v quiet
+
+      - name: Test
+        run: dotnet test tests/Deadwax.Tests -c Release --no-build -nologo -v quiet
+
+      - name: Publish ${{ matrix.rid }} single file
+        run: dotnet publish src/Deadwax.App -c Release -r ${{ matrix.rid }} --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o out -nologo -v quiet
+
+      - name: Smoke test, ten seconds alive (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          # No headless mode; the runner has a window server, so the window
+          # opens and says "Put a CD in the drive". Alive after ten seconds =
+          # Avalonia and the natives loaded. The timer's own exit code is the pass.
+          set +e
+          perl -e 'alarm 10; exec @ARGV' ./out/Deadwax > smoke.log 2>&1
+          rc=$?
+          set -e
+          echo "exit code $rc (124, 137 or 142 = killed by the timer = alive = pass)"
+          cat smoke.log
+          test "$rc" -eq 142 -o "$rc" -eq 124 -o "$rc" -eq 137
+
+      - name: Smoke test, ten seconds alive (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath .\out\Deadwax.exe -PassThru
+          Start-Sleep -Seconds 10
+          if ($p.HasExited) { Write-Host "exited early with $($p.ExitCode)"; exit 1 }
+          Write-Host "alive after ten seconds = pass"
+          Stop-Process -Id $p.Id -Force
+
+      - name: Package
+        shell: bash
+        run: |
+          cd out
+          if [ "${{ runner.os }}" = "Windows" ]; then 7z a -bd ../Deadwax-${{ matrix.rid }}.zip Deadwax.exe >/dev/null; else zip -9 -q ../Deadwax-${{ matrix.rid }}.zip Deadwax; fi
+          cd ..
+          ls -la Deadwax-${{ matrix.rid }}.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Deadwax-${{ matrix.rid }}
+          path: |
+            Deadwax-${{ matrix.rid }}.zip
+            smoke.log
+          if-no-files-found: ignore
+          retention-days: 30
