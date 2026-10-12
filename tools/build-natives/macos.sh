@@ -65,7 +65,8 @@ for f in *.dylib; do
     echo "   $f: $deps"
     # Counts, not grep -q: with pipefail an early exit from grep fails the pipeline and the check never fires.
     [ "$(echo "$deps" | tr ' ' '\n' | grep -cE '^(/opt/homebrew|/usr/local|/private)')" -eq 0 ] || { echo "!! $f still points at a Homebrew or build path" >&2; exit 1; }
-    [ "$(echo "$deps" | tr ' ' '\n' | grep -cvE '^(@loader_path/.*|/usr/lib/[A-Za-z0-9_.+-]*\.dylib|/System/Library/(Frameworks|PrivateFrameworks)/.*|)$')" -eq 0 ] || { echo "!! $f depends on more than the system: $deps" >&2; exit 1; }
+    # No empty alternative in the pattern: macOS's grep rejects "|)" as an empty subexpression.
+    [ "$(echo "$deps" | tr ' ' '\n' | sed '/^$/d' | grep -cvE '^(@loader_path/.*|/usr/lib/[A-Za-z0-9_.+-]*\.dylib|/System/Library/(Frameworks|PrivateFrameworks)/.*)$')" -eq 0 ] || { echo "!! $f depends on more than the system: $deps" >&2; exit 1; }
     [ "$(lipo -archs "$f" | grep -c arm64)" -gt 0 ] || { echo "!! $f is not arm64" >&2; exit 1; }
     [ "$(nm -u "$f" 2>/dev/null | grep -c '___stack_chk_fail')" -gt 0 ] || { echo "!! $f has no stack protector" >&2; exit 1; }
 done

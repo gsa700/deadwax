@@ -137,14 +137,21 @@ linux)
 win64)
     # libcdio's own Makefiles install their DLLs under lib/, paranoia's and
     # FLAC's under bin/: take each from wherever it landed.
+    # ...and libcdio's Makefile also leaves an MSVC-style import library
+    # NAMED libcdio-19.dll (an ar archive) beside the real one, so take the
+    # candidate that is a PE image.
     for dll in libcdio-19.dll libcdio_cdda-2.dll libcdio_paranoia-2.dll libFLAC.dll; do
-        found=$(find "$PREFIX" -name "$dll" -type f | head -1)
-        [ -n "$found" ] || { echo "!! $dll was not built (find in $PREFIX):" >&2; find "$PREFIX" -name '*.dll' >&2; exit 1; }
+        found=""
+        for candidate in $(find "$PREFIX" -name "$dll" -type f); do
+            echo "   candidate $candidate: $(file -b "$candidate" | cut -c1-60)"
+            if file -b "$candidate" | grep -q 'PE32+'; then found=$candidate; break; fi
+        done
+        [ -n "$found" ] || { echo "!! no PE image named $dll under $PREFIX" >&2; find "$PREFIX" -name '*.dll' >&2; exit 1; }
         cp "$found" .
     done
     "$STRIP" --strip-unneeded ./*.dll
     for f in *.dll; do
-        file "$f"
+        file -b "$f" | grep -q 'PE32+ executable.*DLL' || { echo "!! $f is not a Windows DLL: $(file -b "$f")" >&2; exit 1; }
         needed=$($T-objdump -p "$f" | awk '/DLL Name/ {print $3}' | tr '\n' ' ')
         echo "   $f: imports $needed"
         [ "$(echo "$needed" | tr ' ' '\n' | grep -cviE '^(KERNEL32\.dll|msvcrt\.dll|USER32\.dll|ADVAPI32\.dll|SHELL32\.dll|libcdio-19\.dll|libcdio_cdda-2\.dll|)$')" -eq 0 ] \
