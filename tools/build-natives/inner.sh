@@ -118,8 +118,13 @@ linux)
     GLIBC=$(ldd --version 2>/dev/null | sed -n '1p')   # not head: with pipefail its early exit fails the pipeline
     ;;
 win64)
-    ls -la "$PREFIX/bin" "$PREFIX/lib" | grep -iE 'dll|\.a$|\.la$' || true
-    cp "$PREFIX/bin/libcdio-19.dll" "$PREFIX/bin/libcdio_cdda-2.dll" "$PREFIX/bin/libcdio_paranoia-2.dll" "$PREFIX/bin/libFLAC.dll" .
+    # libcdio's own Makefiles install their DLLs under lib/, paranoia's and
+    # FLAC's under bin/: take each from wherever it landed.
+    for dll in libcdio-19.dll libcdio_cdda-2.dll libcdio_paranoia-2.dll libFLAC.dll; do
+        found=$(find "$PREFIX" -name "$dll" -type f | head -1)
+        [ -n "$found" ] || { echo "!! $dll was not built (find in $PREFIX):" >&2; find "$PREFIX" -name '*.dll' >&2; exit 1; }
+        cp "$found" .
+    done
     "$STRIP" --strip-unneeded ./*.dll
     for f in *.dll; do
         needed=$($T-objdump -p "$f" | awk '/DLL Name/ {print $3}' | tr '\n' ' ')

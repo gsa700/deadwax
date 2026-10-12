@@ -26,7 +26,7 @@ public static class FlacWriter
 
         IntPtr encoder;
         try { encoder = LibFlac.FLAC__stream_encoder_new(); }
-        catch (DllNotFoundException) { throw new OutputException("libFLAC is not installed (looked for libFLAC.so.14 and libFLAC.so.12)."); }
+        catch (DllNotFoundException) { throw new OutputException($"libFLAC is not installed (looked for {Deadwax.Drive.NativeLibraries.Expected("FLAC")})."); }
         if (encoder == IntPtr.Zero) throw new OutputException("libFLAC could not create an encoder.");
 
         try

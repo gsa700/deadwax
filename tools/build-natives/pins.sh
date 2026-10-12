@@ -16,6 +16,13 @@ FLAC_VERSION=1.5.0
 FLAC_URL=https://ftp.osuosl.org/pub/xiph/releases/flac/flac-1.5.0.tar.xz
 FLAC_SHA256=f2c1c76592a82ffff8413ba3c4a1299b6c7ab06c734dee03fd88630485c2b920
 
+# SHA-256 of a file, with whichever tool this system has: GNU sha256sum on
+# Linux, BSD sha256sum or shasum on macOS (whose sha256sum has no --quiet).
+sha256_of() {
+    if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | cut -d' ' -f1
+    else shasum -a 256 "$1" | cut -d' ' -f1; fi
+}
+
 # Fetches every pinned tarball into $1, checking each against its checksum;
 # a file already there and correct is kept.
 fetch_sources() {
@@ -26,12 +33,12 @@ fetch_sources() {
                 "libcdio-paranoia-$PARANOIA_VERSION.tar.bz2 $PARANOIA_URL $PARANOIA_SHA256" \
                 "flac-$FLAC_VERSION.tar.xz $FLAC_URL $FLAC_SHA256"; do
         set -- $spec; name=$1; url=$2; sum=$3
-        if [ ! -f "$dir/$name" ] || ! echo "$sum  $dir/$name" | sha256sum -c --quiet 2>/dev/null; then
+        if [ ! -f "$dir/$name" ] || [ "$(sha256_of "$dir/$name")" != "$sum" ]; then
             echo "== fetching $name"
             # To a temporary name, then into place: a build reading the folder
             # at the same moment never sees a half-written file.
             curl -sSL -o "$dir/$name.part" "$url"
-            echo "$sum  $dir/$name.part" | sha256sum -c --quiet || { echo "checksum mismatch: $name" >&2; rm -f "$dir/$name.part"; return 1; }
+            [ "$(sha256_of "$dir/$name.part")" = "$sum" ] || { echo "checksum mismatch: $name" >&2; rm -f "$dir/$name.part"; return 1; }
             mv -f "$dir/$name.part" "$dir/$name"
         fi
     done
