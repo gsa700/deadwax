@@ -195,19 +195,29 @@ public sealed class RipSession
         var candidates = lookup is null ? [] : ReleaseChoice.FromDiscLookup(lookup.RootElement, discId);
         var disc = new PreparedDisc(device, identity, toc, offset, discId, cddb, null, candidates, speedLimit);
         if (!readSubchannel) return disc;
-        say($"Disc {discId}, {disc.AudioTracks} audio tracks. Reading ISRCs, CD-Text and pregaps ({(speedLimit is null ? "about two minutes" : $"longer at {speedLimit}x")})...");
+        say($"Disc {discId}, {disc.AudioTracks} audio tracks. Reading ISRCs, CD-Text and pregaps...");
         return await ReadSubchannelAsync(disc, ct);
     }
 
-    /// cdrdao's pass over the subchannel: ISRCs, catalog, CD-Text and pregaps
-    /// (spec §4). Its TOC must agree with libcdio's, or nothing is ripped.
+    /// The pass over the subchannel: ISRCs, catalog, CD-Text and pregaps
+    /// (spec §4), read by Deadwax itself since 0.2.16 (SubchannelReader); set
+    /// DEADWAX_SUBCHANNEL=cdrdao to have cdrdao read it instead, for
+    /// comparing the two. Either way its TOC must agree with libcdio's audio
+    /// session, or nothing is ripped.
     public static async Task<PreparedDisc> ReadSubchannelAsync(PreparedDisc disc, CancellationToken ct = default)
     {
-        var cdrdao = await Cdrdao.ReadTocAsync(disc.Device, disc.SpeedLimit, ct);
-        var cdrdaoToc = cdrdao.Toc.ToToc();
-        if (!cdrdaoToc.Tracks.SequenceEqual(disc.Toc.Tracks) || cdrdaoToc.LeadoutLsn != disc.Toc.LeadoutLsn)
-            throw new RipException("cdrdao and libcdio disagree about the TOC; not ripping.");
-        return disc with { Cdrdao = cdrdao };
+        var read = Environment.GetEnvironmentVariable("DEADWAX_SUBCHANNEL") == "cdrdao"
+            ? await Cdrdao.ReadTocAsync(disc.Device, disc.SpeedLimit, ct)
+            : await Task.Run(() =>
+            {
+                using var drive = CdDrive.Open(disc.Device);
+                return SubchannelReader.Read(drive, disc.Toc, null, ct);
+            }, ct);
+        var audio = new Toc(disc.Toc.IdTracks, disc.Toc.AudioLeadoutLsn);
+        var readToc = read.Toc.ToToc();
+        if (!readToc.Tracks.SequenceEqual(audio.Tracks) || readToc.LeadoutLsn != audio.LeadoutLsn)
+            throw new RipException("The subchannel and the TOC disagree about where the tracks are; not ripping.");
+        return disc with { Cdrdao = read };
     }
 
     /// A plan from his own description of the disc (a bootleg, a private

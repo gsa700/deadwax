@@ -304,7 +304,7 @@ public sealed partial class MainWindow : Window
         _subchannel = pass;
         _vm.SubchannelText = disc.SpeedLimit is { } s
             ? $"Reading ISRCs, CD-Text and gaps in the background at {s}x; several minutes. Choose meanwhile."
-            : "Reading ISRCs, CD-Text and gaps in the background, about two minutes. Choose meanwhile.";
+            : "Reading ISRCs, CD-Text and gaps in the background. Choose meanwhile.";
         try
         {
             var full = await Task.Run(() => RipSession.ReadSubchannelAsync(disc, pass.Token), pass.Token);

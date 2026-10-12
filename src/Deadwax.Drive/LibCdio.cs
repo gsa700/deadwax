@@ -100,6 +100,28 @@ internal static partial class LibCdio
         finally { cdio_free(p); }
     }
 
+    // cdio/track.h, track_flag_t
+    public const int TrackFlagTrue = 1;
+
+    [LibraryImport(Lib)]
+    public static partial int cdio_get_track_preemphasis(IntPtr cdio, byte track);
+
+    [LibraryImport(Lib)]
+    public static partial int cdio_get_track_copy_permit(IntPtr cdio, byte track);
+
+    /// 2 or 4; -1 when unknown.
+    [LibraryImport(Lib)]
+    public static partial int cdio_get_track_channels(IntPtr cdio, byte track);
+
+    // cdio/mmc.h: cdio_mmc_direction_t
+    public const int MmcDataRead = 0;
+
+    /// Sends one MMC command through the platform's pass-through (SG_IO on
+    /// Linux, SCSITask on macOS, SPTI on Windows). The CDB is a 16-byte
+    /// mmc_cdb_t; its real length follows from the opcode. 0 = success.
+    [LibraryImport(Lib)]
+    public static unsafe partial int mmc_run_cmd(IntPtr cdio, uint timeoutMs, byte* cdb, int direction, uint bufLen, byte* buf);
+
     static LibCdio() => NativeLibraries.Register();
 
     /// libcdio's version, from its exported `const char *cdio_version_string`,

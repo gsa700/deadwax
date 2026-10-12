@@ -30,8 +30,13 @@ internal static class Commands
               file by file: audio frames, tags, names, logs, .m3u, .cue, .toc.
           deadwax scan [--device DEV] [--speed N] [--full] [--online] [--against ALBUM_DIR|LOG]
               Read the disc's TOC and print its IDs; --full adds catalog, ISRCs,
-              CD-Text and pregaps via cdrdao (~2 min). With --against, compare them
+              CD-Text and pregaps from the subchannel. With --against, compare them
               with the whipper log of the same disc (gate G1).
+          deadwax subchannel [--device DEV] [--speed N] [--cdrdao] [--out FILE]
+              Read the disc's subchannel the way a rip does and print the .toc
+              Deadwax would write. --cdrdao runs `cdrdao read-toc` on the same
+              disc as well and reports every line that differs (the oracle for
+              the reader). --out writes Deadwax's .toc to FILE.
           deadwax read [--device DEV] [--tracks N,N|all] [--offset N] [--retries N] [--speed N] [--offline] [--against ALBUM_DIR]
               Read tracks securely, twice, with the drive's read offset (from
               drives.json unless given). With --against, check the audio equals
@@ -75,6 +80,7 @@ internal static class Commands
                 "post-rip" => await PostRipCommand.RunAsync(args[1..]),
                 "art" => await ArtCommand.RunAsync(args[1..]),
                 "scan" => await ScanCommand.RunAsync(args[1..]),
+                "subchannel" => await SubchannelCommand.RunAsync(args[1..]),
                 "read" => await ReadCommand.RunAsync(args[1..]),
                 "offset" => await OffsetCommand.RunAsync(args[1..]),
                 "check-logs" => await CheckLogsCommand.RunAsync(args[1..]),

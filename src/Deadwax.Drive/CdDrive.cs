@@ -175,6 +175,19 @@ public sealed class CdDrive : IDisposable
 
     private IntPtr Handle => _cdio != IntPtr.Zero ? _cdio : throw new ObjectDisposedException(nameof(CdDrive));
 
+    /// libcdio's handle, for the subchannel reader's MMC commands.
+    internal IntPtr NativeHandle => Handle;
+
+    /// The TOC's control bits for a track, which cdrdao's TOC file records
+    /// (its Q-subchannel reading is only checked against them).
+    public (bool PreEmphasis, bool CopyPermitted, bool FourChannel) TrackFlags(int track)
+    {
+        var n = (byte)track;
+        return (LibCdio.cdio_get_track_preemphasis(Handle, n) == LibCdio.TrackFlagTrue,
+                LibCdio.cdio_get_track_copy_permit(Handle, n) == LibCdio.TrackFlagTrue,
+                LibCdio.cdio_get_track_channels(Handle, n) == 4);
+    }
+
     /// "libcdio-paranoia (libcdio 2.3.0)", for the rip log.
     public static string EngineDescription => $"libcdio-paranoia (libcdio {LibCdio.Version() ?? "unknown"})";
 

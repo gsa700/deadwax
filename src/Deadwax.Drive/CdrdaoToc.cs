@@ -45,9 +45,9 @@ public sealed record CdText(string? Title, string? Performer, string? Isrc, stri
     {
         var first = blocks.Count > 0 ? blocks[0].Items : [];
         string? Item(string key) => first.FirstOrDefault(i => i.Key == key && i.Text is not null)?.Text;
-        var code = Item("ISRC") ?? Item("UPC_EAN");
         return new CdText(Item("TITLE"), Item("PERFORMER"),
-            code is null ? null : CdrdaoToc.Isrc(code), code is null ? null : CdrdaoToc.CatalogNumber(code), blocks, languageMap);
+            Item("ISRC") is { } isrc ? CdrdaoToc.Isrc(isrc) : null,
+            Item("UPC_EAN") is { } upc ? CdrdaoToc.CatalogNumber(upc) : null, blocks, languageMap);
     }
 }
 
@@ -108,6 +108,14 @@ public sealed class CdrdaoToc
     public static string? Isrc(string s) => s.Length == 12 && s.All(char.IsAsciiLetterOrDigit) ? s : null;
 
     public static string? CatalogNumber(string s) => s.Length is 12 or 13 && s.All(char.IsAsciiDigit) ? s : null;
+
+    /// A TOC assembled from what the drive said, for the writer.
+    public static CdrdaoToc Build(string? catalog, CdText? discText, IEnumerable<CdrdaoTrack> tracks)
+    {
+        var toc = new CdrdaoToc { Catalog = catalog, DiscText = discText };
+        toc._tracks.AddRange(tracks);
+        return toc;
+    }
 
     public static CdrdaoToc Parse(string text)
     {
