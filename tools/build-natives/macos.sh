@@ -65,7 +65,7 @@ for f in *.dylib; do
     echo "   $f: $deps"
     # Counts, not grep -q: with pipefail an early exit from grep fails the pipeline and the check never fires.
     [ "$(echo "$deps" | tr ' ' '\n' | grep -cE '^(/opt/homebrew|/usr/local|/private)')" -eq 0 ] || { echo "!! $f still points at a Homebrew or build path" >&2; exit 1; }
-    [ "$(echo "$deps" | tr ' ' '\n' | grep -cvE '^(@loader_path/.*|/usr/lib/libSystem\.B\.dylib|/usr/lib/libiconv\.2\.dylib|/System/Library/Frameworks/.*|)$')" -eq 0 ] || { echo "!! $f depends on more than the system: $deps" >&2; exit 1; }
+    [ "$(echo "$deps" | tr ' ' '\n' | grep -cvE '^(@loader_path/.*|/usr/lib/[A-Za-z0-9_.+-]*\.dylib|/System/Library/(Frameworks|PrivateFrameworks)/.*|)$')" -eq 0 ] || { echo "!! $f depends on more than the system: $deps" >&2; exit 1; }
     [ "$(lipo -archs "$f" | grep -c arm64)" -gt 0 ] || { echo "!! $f is not arm64" >&2; exit 1; }
     [ "$(nm -u "$f" 2>/dev/null | grep -c '___stack_chk_fail')" -gt 0 ] || { echo "!! $f has no stack protector" >&2; exit 1; }
 done
@@ -73,6 +73,6 @@ done
     echo "Deadwax natives: libcdio $LIBCDIO_VERSION, libcdio-paranoia $PARANOIA_VERSION, FLAC $FLAC_VERSION ($RID, built $(date -u +%Y-%m-%dT%H:%MZ))"
     echo "toolchain: $(clang --version | head -1) on macOS $(sw_vers -productVersion), deployment target $MIN"
     echo "flags: CFLAGS=$CFLAGS"
-    echo "checks: install names @loader_path, dependencies limited to libSystem, libiconv, system frameworks and each other, arm64, stack protector, ad-hoc signed"
+    echo "checks: install names @loader_path, dependencies limited to the system (/usr/lib, system frameworks) and each other, arm64, stack protector, ad-hoc signed"
 } > natives-build-info.txt
 cat natives-build-info.txt

@@ -38,7 +38,7 @@ win64)
     # The stack protector and pthreads come as DLLs on mingw (libssp-0.dll,
     # libwinpthread-1.dll) unless the linker can only find the static
     # archives: remove the import libraries, so every build links them in.
-    find /usr -name 'libwinpthread.dll.a' -o -name 'libssp.dll.a' | xargs -r rm -f
+    find /usr \( -name 'libwinpthread.dll.a' -o -name 'libpthread.dll.a' -o -name 'libssp.dll.a' \) -print -delete
     export CC=$T-gcc-posix CXX=$T-g++-posix AR=$T-ar RANLIB=$T-ranlib STRIP=$T-strip WINDRES=$T-windres
     export CFLAGS="-O2 -fstack-protector-strong -D_FORTIFY_SOURCE=2" CXXFLAGS="-O2"
     # No libgcc/libwinpthread DLLs at run time: the runtime bits go in statically.
@@ -144,6 +144,7 @@ win64)
     done
     "$STRIP" --strip-unneeded ./*.dll
     for f in *.dll; do
+        file "$f"
         needed=$($T-objdump -p "$f" | awk '/DLL Name/ {print $3}' | tr '\n' ' ')
         echo "   $f: imports $needed"
         [ "$(echo "$needed" | tr ' ' '\n' | grep -cviE '^(KERNEL32\.dll|msvcrt\.dll|USER32\.dll|ADVAPI32\.dll|SHELL32\.dll|libcdio-19\.dll|libcdio_cdda-2\.dll|)$')" -eq 0 ] \
