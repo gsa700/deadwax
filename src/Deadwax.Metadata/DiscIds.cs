@@ -43,12 +43,15 @@ public static class DiscIds
         return string.Join('+', parts);
     }
 
-    /// mediumId: the disc of a release to attach it to. MusicBrainz then goes
-    /// straight to "attach to this medium?" instead of a search he has to
-    /// drive (2026-10-11: "this site is a nightmare").
-    public static string MusicBrainzAttachUrl(Toc toc, string? mediumId = null) =>
+    /// releaseId: the release to attach it to. The page's search ("Release
+    /// title or MBID") is filled in with it, so the page lists that one release
+    /// and he only picks its disc, instead of a search he has to drive
+    /// (2026-10-11: "this site is a nightmare"). Tried first and dropped:
+    /// `medium=` wants MusicBrainz's internal row number, which no public
+    /// data gives ("The provided medium ID is not valid").
+    public static string MusicBrainzAttachUrl(Toc toc, string? releaseId = null) =>
         $"https://musicbrainz.org/cdtoc/attach?toc={MusicBrainzToc(toc)}&tracks={toc.IdTracks.Count}&id={MusicBrainz(toc)}"
-        + (mediumId is not null && WebLimits.IsMbid(mediumId) ? $"&medium={mediumId}" : "");
+        + (releaseId is not null && WebLimits.IsMbid(releaseId) ? $"&filter-release.query={releaseId}" : "");
 
     /// freedb/CDDB disc ID. Every track counts here, data tracks included, and the
     /// length runs to the disc's real lead-out: this is the one ID that describes

@@ -251,7 +251,7 @@ public sealed class MainViewModel : Observable
     /// This disc's ID is not attached to the release chosen for it (found by
     /// its track lengths, or by a pasted link), or to any release at all.
     /// Attaching it on MusicBrainz is what makes the next copy match at once;
-    /// AttachUrl opens that page, with the release's disc already chosen when
+    /// AttachUrl opens that page, with the chosen release already found when
     /// there is one (2026-10-11: he could not find his way there by search).
     private string _attachText = "";
     public string AttachText { get => _attachText; set { if (Set(ref _attachText, value)) Raise(nameof(HasAttach)); } }

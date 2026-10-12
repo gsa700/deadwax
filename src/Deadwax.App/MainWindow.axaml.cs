@@ -816,16 +816,15 @@ public sealed partial class MainWindow : Window
     }
 
     /// The attach offer: for a chosen release that does not carry this disc's
-    /// ID (matched by track lengths), straight to its disc; for a disc no
-    /// release carries, to MusicBrainz's search. Nothing when the ID is there.
+    /// ID (matched by track lengths), MusicBrainz's attach page with that
+    /// release already found; for a disc no release carries, the page's search. Nothing when the ID is there.
     private void ShowAttach(PreparedDisc disc, ReleasePlan? plan)
     {
         if (plan is { ReleaseId: not null, MatchedByTracks: true })
         {
-            var medium = plan.Medium.TryGetProperty("id", out var id) ? id.GetString() : null;
-            _vm.AttachUrl = DiscIds.MusicBrainzAttachUrl(disc.Toc, medium);
+            _vm.AttachUrl = DiscIds.MusicBrainzAttachUrl(disc.Toc, plan.ReleaseId);
             _vm.AttachText = "This disc's ID is not on this release at MusicBrainz yet, so the next copy of it won't be found by itself. "
-                             + "Attaching it opens the page with this release's disc already chosen (MusicBrainz asks you to log in).";
+                             + "The button opens MusicBrainz with this release already found: pick its disc and press Attach CD TOC (it asks you to log in).";
         }
         else if (plan is null && disc.Candidates.Count == 0)
         {

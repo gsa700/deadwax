@@ -26,7 +26,7 @@ public class MusicBrainzFixesTests
     }
 
     [Fact]
-    public void Attach_link_names_the_disc_of_the_release_when_known()
+    public void Attach_link_finds_the_chosen_release()
     {
         // Lightning to the Nations, disc 2 (the 2022 Silver Lining set).
         var toc = new Toc(
@@ -34,9 +34,10 @@ public class MusicBrainzFixesTests
              new TocTrack(5, 67947, true), new TocTrack(6, 83549, true), new TocTrack(7, 102884, true)], 122521);
         var plain = DiscIds.MusicBrainzAttachUrl(toc);
         Assert.StartsWith("https://musicbrainz.org/cdtoc/attach?toc=1+7+122671+150+19293+35161+50793+68097+83699+103034&tracks=7&id=", plain);
-        Assert.DoesNotContain("medium=", plain);
-        Assert.EndsWith("&medium=ca88ff1e-a572-4237-a733-7a58a00cd69f", DiscIds.MusicBrainzAttachUrl(toc, "ca88ff1e-a572-4237-a733-7a58a00cd69f"));
-        Assert.DoesNotContain("medium=", DiscIds.MusicBrainzAttachUrl(toc, "not an id&x=1"));
+        Assert.DoesNotContain("filter-release", plain);
+        // The release's own ID in the page's "Release title or MBID" search: tried by him, it lists just that release.
+        Assert.EndsWith("&filter-release.query=c2cb10cc-39ef-4b21-856b-f7ba67cbb84e", DiscIds.MusicBrainzAttachUrl(toc, "c2cb10cc-39ef-4b21-856b-f7ba67cbb84e"));
+        Assert.DoesNotContain("filter-release", DiscIds.MusicBrainzAttachUrl(toc, "not an id&x=1"));
     }
 
     private static byte[] Jpeg(int width, int height)
