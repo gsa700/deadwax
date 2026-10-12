@@ -17,4 +17,5 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <Import Project="..\..\native.targets" />
 </Project>

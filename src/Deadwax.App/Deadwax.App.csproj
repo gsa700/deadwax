@@ -31,4 +31,5 @@
   <ItemGroup>
     <AvaloniaResource Include="Assets\icon-256.png" />
   </ItemGroup>
+  <Import Project="..\..\native.targets" />
 </Project>

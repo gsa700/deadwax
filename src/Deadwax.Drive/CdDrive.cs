@@ -97,6 +97,10 @@ public sealed class CdDrive : IDisposable
     public static CdDrive Open(string? device = null)
     {
         device ??= DefaultDevice;
+        // macOS mounts the disc on insertion and libcdio needs it unmounted
+        // for exclusive access (MacDisc). Elsewhere this does nothing.
+        if (OperatingSystem.IsMacOS() && !MacDisc.Unmount(device, out var why))
+            throw new DriveException($"Could not unmount the disc in {device}: {why}");
         IntPtr cdio;
         try
         {

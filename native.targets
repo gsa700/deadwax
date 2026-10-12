@@ -1,0 +1,23 @@
+<Project>
+  <!-- The native libraries the program carries (libcdio, libcdio-paranoia,
+       libFLAC), per platform, from native/<rid>/: built by
+       tools/build-natives (Linux and Windows in a container, macOS on a Mac)
+       or fetched from a natives-N release by tools/release.sh. Never
+       committed: native/ is git-ignored. The folder follows what is being
+       built FOR, so a win-x64 publish made on Fedora picks up the DLLs and
+       not this machine's .so; with no RID, the host decides. A checkout
+       without the folder builds and runs on the distribution's libraries,
+       as before. Same arrangement as AlbumWall's libmpv. -->
+  <PropertyGroup>
+    <NativeRid>$(RuntimeIdentifier)</NativeRid>
+    <HostArch>$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant())</HostArch>
+    <NativeRid Condition="'$(NativeRid)' == '' and $([MSBuild]::IsOSPlatform('Windows'))">win-$(HostArch)</NativeRid>
+    <NativeRid Condition="'$(NativeRid)' == '' and $([MSBuild]::IsOSPlatform('Linux'))">linux-$(HostArch)</NativeRid>
+    <NativeRid Condition="'$(NativeRid)' == '' and $([MSBuild]::IsOSPlatform('OSX'))">osx-$(HostArch)</NativeRid>
+    <NativeDir>$(MSBuildThisFileDirectory)native/$(NativeRid)</NativeDir>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(NativeRid)' != '' and Exists('$(NativeDir)')">
+    <None Include="$(NativeDir)/*.dll;$(NativeDir)/*.so.*;$(NativeDir)/*.dylib;$(NativeDir)/natives-build-info*.txt" Link="%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

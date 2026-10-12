@@ -29,8 +29,8 @@ public sealed class UpdateInfo
 }
 
 /// The in-app updater, ported from AlbumWall (Install/UpdateService.cs) with the
-/// parts Deadwax does not have taken out: no Windows path yet (the drive layer
-/// is Linux-only, spec §8), no kiosk supervision, no install service. What is
+/// parts Deadwax does not have taken out: no kiosk supervision, no install
+/// service. Linux, Windows and macOS alike since 0.3.1. What is
 /// kept is what matters: ask GitHub for the latest release, download the build
 /// for this platform, refuse it unless the release's SHA256SUMS vouches for it,
 /// then hand over to a helper that waits for exit, swaps the executable and
@@ -52,7 +52,7 @@ public static class UpdateService
     public const string ProjectUrl = "https://github.com/" + Repo;
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(30) };
 
-    public static string ExeFileName => "Deadwax";
+    public static string ExeFileName => OperatingSystem.IsWindows() ? "Deadwax.exe" : "Deadwax";
     public static string ExePath => Environment.ProcessPath
         ?? throw new InvalidOperationException("Cannot determine the current executable path.");
 
@@ -62,7 +62,7 @@ public static class UpdateService
     /// never offered an update.
     public static bool IsSingleFile => string.IsNullOrEmpty(typeof(UpdateService).Assembly.Location);
 
-    public static bool CanUpdate => IsSingleFile && OperatingSystem.IsLinux();
+    public static bool CanUpdate => IsSingleFile;
 
     /// The version this copy reports, without the source-revision suffix.
     public static string CurrentVersion
@@ -255,10 +255,14 @@ public static class UpdateService
         var staged = Directory.GetFiles(unpacked, ExeFileName, SearchOption.AllDirectories).FirstOrDefault()
             ?? throw new FileNotFoundException($"{ExeFileName} is not in the downloaded package.");
 
-        // A last look before it is given the keys: an ELF file, and not a stub.
+        // A last look before it is given the keys: an executable for this
+        // system (ELF, PE or Mach-O by its first bytes), and not a stub.
         var head = new byte[4];
         await using (var fs = File.OpenRead(staged)) _ = await fs.ReadAsync(head);
-        if (!(head[0] == 0x7F && head[1] == 'E' && head[2] == 'L' && head[3] == 'F') || new FileInfo(staged).Length < 1_000_000)
+        var isExe = OperatingSystem.IsWindows() ? head[0] == 'M' && head[1] == 'Z'
+            : OperatingSystem.IsMacOS() ? (head[0] == 0xCF && head[1] == 0xFA && head[2] == 0xED && head[3] == 0xFE) || (head[0] == 0xCA && head[1] == 0xFE && head[2] == 0xBA && head[3] == 0xBE)
+            : head[0] == 0x7F && head[1] == 'E' && head[2] == 'L' && head[3] == 'F';
+        if (!isExe || new FileInfo(staged).Length < 1_000_000)
             throw new InvalidOperationException("The downloaded program is not an executable for this system.");
         return staged;
     }
@@ -284,20 +288,69 @@ public static class UpdateService
         // The helper has a private folder of its own, not the staging folder:
         // it deletes that one first, and its own last.
         var helperDir = Directory.CreateTempSubdirectory("deadwax-apply-").FullName;
-        var sh = Path.Combine(helperDir, "apply-update.sh");
-        File.WriteAllText(sh, ApplyScript(pid, stagedExe, target, marker, Path.GetDirectoryName(target)!, stageRoot, OwnExtractionDir, helperDir, args));
-        Process.Start(new ProcessStartInfo("/bin/sh")
+        if (OperatingSystem.IsWindows())
         {
-            ArgumentList = { sh },
-            UseShellExecute = false,
-            WorkingDirectory = Path.GetTempPath(),   // not ours: see _stageRoot
-        });
+            var ps1 = Path.Combine(helperDir, "apply-update.ps1");
+            File.WriteAllText(ps1, WindowsApplyScript(pid, stagedExe, target, marker, Path.GetDirectoryName(target)!, stageRoot, OwnExtractionDir, helperDir, args));
+            Process.Start(new ProcessStartInfo("powershell.exe")
+            {
+                Arguments = $"-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"{ps1}\"",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WorkingDirectory = Path.GetTempPath(),
+            });
+        }
+        else
+        {
+            var sh = Path.Combine(helperDir, "apply-update.sh");
+            File.WriteAllText(sh, ApplyScript(pid, stagedExe, target, marker, Path.GetDirectoryName(target)!, stageRoot, OwnExtractionDir, helperDir, args));
+            Process.Start(new ProcessStartInfo("/bin/sh")
+            {
+                ArgumentList = { sh },
+                UseShellExecute = false,
+                WorkingDirectory = Path.GetTempPath(),   // not ours: see _stageRoot
+            });
+        }
         Console.WriteLine($"[update] helper started; swapping {target} once pid {pid} has gone; then removing {OwnExtractionDir ?? "(nothing unpacked)"}");
     }
 
+    /// The PowerShell helper (AlbumWall's UpdateApplyScript.Windows): wait
+    /// for this process to end, copy the staged exe over the installed one
+    /// (forty tries, since Windows keeps a just-exited exe locked a moment),
+    /// drop the old build's unpacked libraries unless another copy still has
+    /// them loaded, relaunch, tidy up.
+    private static string WindowsApplyScript(int pid, string stagedExe, string targetExe, string failedMarker,
+        string workingDirectory, string stageRoot, string? ownExtractionDir, string helperDir, IReadOnlyList<string> relaunchArgs)
+    {
+        static string Q(string path) => "'" + path.Replace("'", "''") + "'";
+        var argList = relaunchArgs.Count > 0 ? " -ArgumentList " + string.Join(",", relaunchArgs.Select(Q)) : "";
+        return
+            $"while (Get-Process -Id {pid} -ErrorAction SilentlyContinue) {{ Start-Sleep -Milliseconds 300 }}\n" +
+            "$ok = $false\n" +
+            "for ($i = 0; $i -lt 40 -and -not $ok; $i++) {\n" +
+            $"  try {{ Copy-Item -LiteralPath {Q(stagedExe)} -Destination {Q(targetExe)} -Force -ErrorAction Stop; $ok = $true }}\n" +
+            "  catch { Start-Sleep -Milliseconds 250 }\n" +
+            "}\n" +
+            "if ($ok) {\n" +
+            $"  Remove-Item -LiteralPath {Q(failedMarker)} -ErrorAction SilentlyContinue\n" +
+            (ownExtractionDir is null ? "" :
+            $"  $mine = {Q("*\\" + ownExtractionDir.TrimEnd('\\', '/').Split('\\', '/')[^1] + "\\*")}\n" +
+            "  $inUse = Get-Process -Name Deadwax -ErrorAction SilentlyContinue | Where-Object { $_.Modules | Where-Object { $_.FileName -like $mine } }\n" +
+            "  if (-not $inUse) {\n" +
+            $"    Remove-Item -LiteralPath {Q(ownExtractionDir)} -Recurse -Force -ErrorAction SilentlyContinue\n" +
+            "  }\n") +
+            "} else {\n" +
+            $"  New-Item -ItemType File -Path {Q(failedMarker)} -Force | Out-Null\n" +
+            "}\n" +
+            $"Start-Process -FilePath {Q(targetExe)}{argList} -WorkingDirectory {Q(workingDirectory)}\n" +
+            $"Remove-Item -LiteralPath {Q(stageRoot)} -Recurse -Force -ErrorAction SilentlyContinue\n" +
+            $"Remove-Item -LiteralPath {Q(helperDir)} -Recurse -Force -ErrorAction SilentlyContinue\n";
+    }
+
     /// The POSIX shell helper (AlbumWall's UpdateApplyScript.Unix, without
-    /// the supervised branch). Linux replaces a running program's file
-    /// happily, so the retry is for a busy filesystem, not a lock.
+    /// the supervised branch), for Linux and macOS alike. Both replace a
+    /// running program's file happily, so the retry is for a busy
+    /// filesystem, not a lock.
     private static string ApplyScript(int pid, string stagedExe, string targetExe, string failedMarker,
         string workingDirectory, string stageRoot, string? ownExtractionDir, string helperDir, IReadOnlyList<string> relaunchArgs)
     {

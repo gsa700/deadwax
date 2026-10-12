@@ -32,6 +32,8 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/.." && pwd)
 REPO=gsa700/deadwax
 CSPROJ="$ROOT/Directory.Build.props"   # one <Version> for every project
+# The platforms an app release carries. win-x64 and osx-arm64 join when a rip
+# has been proven on each (Hambench; the Mac).
 RIDS=(linux-x64)
 
 VERSION=${1:?usage: release.sh X.Y.Z [--notes-file FILE] [--edge] [--publish] [--dry-run]}
@@ -87,6 +89,28 @@ fi
 
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
+
+# ---- the native libraries, by tag -------------------------------------------
+# THE LIBRARIES ARE FETCHED, NOT TAKEN FROM WHATEVER IS IN native/. The release
+# named in tools/NATIVES_RELEASE is downloaded, checked against its SHA256SUMS,
+# and unpacked into native/<rid>/ for every platform being built; the publish
+# then folds them into the single file. A release is reproducible from its two
+# tags. Same arrangement as AlbumWall's audio engine.
+NATIVES=$(tr -d '[:space:]' < "$HERE/NATIVES_RELEASE")
+[ -n "$NATIVES" ] || die "tools/NATIVES_RELEASE is empty"
+say "native libraries: $NATIVES"
+mkdir -p "$WORK/natives"
+gh release download "$NATIVES" -R "$REPO" -D "$WORK/natives" -p "$NATIVES-*.zip" -p SHA256SUMS \
+    || die "could not download $NATIVES from $REPO"
+(cd "$WORK/natives" && sha256sum -c --quiet SHA256SUMS) || die "$NATIVES does not match its SHA256SUMS"
+for rid in "${RIDS[@]}"; do
+    zip="$WORK/natives/$NATIVES-$rid.zip"
+    [ -f "$zip" ] || die "$NATIVES has no $rid build"
+    rm -rf "$ROOT/native/$rid"; mkdir -p "$ROOT/native/$rid"
+    unzip -q -o "$zip" -d "$ROOT/native/$rid"
+    chmod 755 "$ROOT/native/$rid"/*.so.* "$ROOT/native/$rid"/*.dll "$ROOT/native/$rid"/*.dylib 2>/dev/null || true
+    echo "   native/$rid <- $(head -1 "$ROOT/native/$rid/natives-build-info.txt")"
+done
 
 # ---- build ------------------------------------------------------------------
 for rid in "${RIDS[@]}"; do

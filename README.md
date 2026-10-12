@@ -13,7 +13,9 @@ with Deadwax look the same. The window shows the disc, its MusicBrainz
 releases (with a barcode match against the disc's catalog number), the rip as
 it happens with a read map of the disc surface, and the post-rip filing steps.
 
-Linux only for now; the drive layer is libcdio-paranoia and cdrdao. The design
+Linux today, with Windows and macOS builds on the way; the drive layer is
+libcdio-paranoia, and the disc's pregaps, ISRCs, catalog number and CD-Text
+are read by Deadwax itself through libcdio's MMC pass-through. The design
 is in a spec kept outside the repository, and the build went through its
 validation gates in order, each checked against the 309 whipper 0.10.0 rips
 already in the library.
@@ -22,12 +24,12 @@ already in the library.
 
 Each [release](https://github.com/gsa700/deadwax/releases) carries
 `Deadwax-linux-x64.zip`: one self-contained program, no .NET needed. Unpack it
-anywhere and run `Deadwax`. It needs these from your distribution: `libcdio`,
-`libcdio-paranoia`, `cdrdao` and `flac` (libFLAC). On Fedora:
-
-```
-sudo dnf install libcdio libcdio-paranoia cdrdao flac-libs
-```
+anywhere and run `Deadwax`. Since 0.3.1 it carries its own libcdio,
+libcdio-paranoia and libFLAC (built from pinned source by
+`tools/build-natives`, published as a `natives-N` pre-release with the
+sources attached), so nothing needs installing. Releases before that needed
+`libcdio`, `libcdio-paranoia` and `flac-libs` from the distribution, and
+0.2.x needed `cdrdao` as well.
 
 A running copy checks GitHub for a newer release a few seconds after launch
 and, if there is one, offers it in the title bar. The update is verified against
@@ -143,8 +145,10 @@ and adds it to the app menu with its icon; rerun it after changes, and
 
 ## Build and run
 
-Needs the .NET 10 SDK, libcdio (`libcdio.so.19`; the -devel package is not
-needed) and cdrdao.
+Needs the .NET 10 SDK and, unless `native/` holds the bundled copies
+(`tools/build-natives`), libcdio, libcdio-paranoia and libFLAC from the
+distribution (the -devel packages are not needed). cdrdao is only needed by
+`deadwax subchannel --cdrdao`, which compares Deadwax's reading with it.
 
 ```
 dotnet build
@@ -160,7 +164,7 @@ the IDs Deadwax computes against the ones whipper recorded. `check-audio` decode
 whipper's FLACs (with the `flac` tool) and checks the copy CRC and AccurateRip
 v1/v2 checksums of that audio against the log: G2 and G3 without the drive. `scan` reads the disc
 in the drive; with `--against` it compares the TOC and IDs to that album's
-whipper log. `--full` adds a `cdrdao read-toc` pass (about two minutes) for the
+whipper log. `--full` adds the subchannel pass (a few seconds) for the
 catalog number, ISRCs, CD-Text and pregaps, and compares those with the cue.
 `rip` makes a complete album; with `--post-rip` it then does the steps under
 [After the rip](#after-the-rip) (a set's disc is refiled only with
@@ -174,9 +178,10 @@ nothing.
 ## Layout
 
 ```
-src/Deadwax.Drive      libcdio via P/Invoke (TOC, drive identity); cdrdao TOC files
-                       (catalog, ISRCs, CD-Text, pregaps); libcdio-paranoia secure
-                       reads with offset correction
+src/Deadwax.Drive      libcdio via P/Invoke (TOC, drive identity, MMC pass-through);
+                       the subchannel reader (catalog, ISRCs, CD-Text, pregaps) and
+                       cdrdao's TOC file format; libcdio-paranoia secure reads with
+                       offset correction
 src/Deadwax.Metadata   disc IDs; MusicBrainz client, tags and library conventions;
                        front and back covers from the Cover Art Archive
 src/Deadwax.Verify     AccurateRip IDs, database and checksums; CRC32/MD5 audio

@@ -32,6 +32,9 @@ internal static class Commands
               Read the disc's TOC and print its IDs; --full adds catalog, ISRCs,
               CD-Text and pregaps from the subchannel. With --against, compare them
               with the whipper log of the same disc (gate G1).
+          deadwax natives
+              Which libcdio, libcdio-paranoia and libFLAC the program loads and
+              from where (its own copies, or the system's). Touches no drive.
           deadwax subchannel [--device DEV] [--speed N] [--cdrdao] [--out FILE]
               Read the disc's subchannel the way a rip does and print the .toc
               Deadwax would write. --cdrdao runs `cdrdao read-toc` on the same
@@ -81,6 +84,7 @@ internal static class Commands
                 "art" => await ArtCommand.RunAsync(args[1..]),
                 "scan" => await ScanCommand.RunAsync(args[1..]),
                 "subchannel" => await SubchannelCommand.RunAsync(args[1..]),
+                "natives" => await NativesCommand.RunAsync(args[1..]),
                 "read" => await ReadCommand.RunAsync(args[1..]),
                 "offset" => await OffsetCommand.RunAsync(args[1..]),
                 "check-logs" => await CheckLogsCommand.RunAsync(args[1..]),

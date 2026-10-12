@@ -5,3 +5,5 @@ obj/
 .idea/
 TestResults/
 dist/
+native/
+tools/build-natives/sources/
