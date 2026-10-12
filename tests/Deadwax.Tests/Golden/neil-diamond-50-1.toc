@@ -1,0 +1,272 @@
+CD_DA
+
+CATALOG "0602557390964"
+CD_TEXT {
+  LANGUAGE_MAP {
+    0: 9
+  }
+  LANGUAGE 0 {
+    TITLE "Neil Diamond - 50th Anniversary Collection [Disc One]"
+    PERFORMER "Neil Diamond"
+    CLOSED "Mastered using SADiE v6.1.1"
+    SIZE_INFO { 0,  1, 17,  0, 32, 20,  0,  0,  0,  0,  0,  0,
+                0,  0,  0,  0,  0,  4,  0,  3, 58,  0,  0,  0,
+                0,  0,  0,  0,  9,  0,  0,  0,  0,  0,  0,  0}
+  }
+}
+
+// Track 1
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USSM16600097"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Solitary Man"
+    PERFORMER "Neil Diamond"
+  }
+}
+FILE "data.wav" 0 02:33:34
+
+
+// Track 2
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USSM16600102"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Cherry, Cherry"
+    PERFORMER "Neil Diamond"
+  }
+}
+FILE "data.wav" 02:33:34 02:42:41
+
+
+// Track 3
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USUG11700081"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "I Got The Feelin' (Oh No, No)"
+    PERFORMER "Neil Diamond"
+  }
+}
+FILE "data.wav" 05:16:00 02:09:71
+
+
+// Track 4
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USUG11700078"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "You Got To Me"
+    PERFORMER "Neil Diamond"
+  }
+}
+FILE "data.wav" 07:25:71 02:53:55
+
+
+// Track 5
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USUG11400614"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Girl, You'll Be A Woman Soon"
+    PERFORMER "Neil Diamond"
+  }
+}
+FILE "data.wav" 10:19:51 03:20:72
+
+
+// Track 6
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USUG11700079"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "I'm A Believer"
+    PERFORMER "Neil Diamond"
+  }
+}
+FILE "data.wav" 13:40:48 02:47:37
+
+
+// Track 7
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USSM16700099"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Thank The Lord For The Night Time"
+    PERFORMER "Neil Diamond"
+  }
+}
+FILE "data.wav" 16:28:10 03:02:04
+
+
+// Track 8
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USUG11700080"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Red, Red Wine"
+    PERFORMER "Neil Diamond"
+  }
+}
+FILE "data.wav" 19:30:14 02:42:01
+
+
+// Track 9
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USMC16846623"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Sunday Sun"
+    PERFORMER "Neil Diamond"
+    CLOSED ""
+  }
+}
+FILE "data.wav" 22:12:15 02:47:29
+
+
+// Track 10
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USSM19602709"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Shilo"
+    PERFORMER "Neil Diamond"
+  }
+}
+FILE "data.wav" 24:59:44 03:26:35
+
+
+// Track 11
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USSM16700093"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Kentucky Woman"
+    PERFORMER "Neil Diamond"
+  }
+}
+FILE "data.wav" 28:26:04 02:26:43
+
+
+// Track 12
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USMC16846620"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Brooklyn Roads"
+    PERFORMER "Neil Diamond"
+  }
+}
+FILE "data.wav" 30:52:47 03:38:51
+
+
+// Track 13
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USMC16946627"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Glory Road"
+    PERFORMER "Neil Diamond"
+  }
+}
+FILE "data.wav" 34:31:23 03:21:29
+
+
+// Track 14
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USMC16946634"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Holly Holy"
+    PERFORMER "Neil Diamond"
+  }
+}
+FILE "data.wav" 37:52:52 04:39:28
+
+
+// Track 15
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USMC16911929"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "And The Grass Won't Pay No Mind"
+    PERFORMER "Neil Diamond"
+  }
+}
+FILE "data.wav" 42:32:05 03:33:35
+
+
+// Track 16
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USMC16991138"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Sweet Caroline"
+    PERFORMER "Neil Diamond"
+  }
+}
+FILE "data.wav" 46:05:40 03:22:73
+
+
+// Track 17
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USMC16946624"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Brother Love's Traveling Salvation Show"
+    PERFORMER "Neil Diamond"
+  }
+}
+FILE "data.wav" 49:28:38 03:33:44
+

@@ -1,0 +1,184 @@
+CD_DA
+
+CATALOG "0603497820160"
+CD_TEXT {
+  LANGUAGE_MAP {
+    0: 9
+  }
+  LANGUAGE 0 {
+    TITLE "Fleetwood Mac 1975 to 1987"
+    PERFORMER "Fleetwood Mac"
+    SIZE_INFO { 1,  1, 12,  0, 48,  3,  0,  0,  0,  0,  0,  0,
+                0,  0,  0,  0,  0,  0,  0,  3, 53,  0,  0,  0,
+                0,  0,  0,  0,  9,  0,  0,  0,  0,  0,  0,  0}
+  }
+}
+
+// Track 1
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USRH11602227"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Love in Store (2016 Remaster) - Fleetwood Mac"
+  }
+}
+FILE "data.wav" 0 03:15:08
+
+
+// Track 2
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USRH11602228"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Can't Go Back (2016 Remaster) - Fleetwood Mac"
+  }
+}
+FILE "data.wav" 03:15:08 02:43:34
+
+
+// Track 3
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USRH11602229"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "That's Alright (2016 Remaster) - Fleetwood Mac"
+  }
+}
+FILE "data.wav" 05:58:42 03:10:24
+
+
+// Track 4
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USRH11602230"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Book of Love (2016 Remaster) - Fleetwood Mac"
+  }
+}
+FILE "data.wav" 09:08:66 03:22:49
+
+
+// Track 5
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USRH11602231"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Gypsy (2016 Remaster) - Fleetwood Mac"
+  }
+}
+FILE "data.wav" 12:31:40 04:26:74
+
+
+// Track 6
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USRH11602232"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Only over You (2016 Remaster) - Fleetwood Mac"
+  }
+}
+FILE "data.wav" 16:58:39 04:09:72
+
+
+// Track 7
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USRH11602233"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Empire State (2016 Remaster) - Fleetwood Mac"
+  }
+}
+FILE "data.wav" 21:08:36 02:52:20
+
+
+// Track 8
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USRH11602234"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Straight Back (2016 Remaster) - Fleetwood Mac"
+  }
+}
+FILE "data.wav" 24:00:56 04:11:41
+
+
+// Track 9
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USRH11602235"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Hold Me (2016 Remaster) - Fleetwood Mac"
+  }
+}
+FILE "data.wav" 28:12:22 03:44:74
+
+
+// Track 10
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USRH11602236"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Oh Diane (2016 Remaster) - Fleetwood Mac"
+  }
+}
+FILE "data.wav" 31:57:21 02:38:37
+
+
+// Track 11
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USRH11602237"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Eyes of the World (2016 Remaster) - Fleetwood Mac"
+    PERFORMER ""
+  }
+}
+FILE "data.wav" 34:35:58 03:46:21
+
+
+// Track 12
+TRACK AUDIO
+NO COPY
+NO PRE_EMPHASIS
+TWO_CHANNEL_AUDIO
+ISRC "USRH11602238"
+CD_TEXT {
+  LANGUAGE 0 {
+    TITLE "Wish You Were Here (2016 Remaster) - Fleetwood Mac"
+  }
+}
+FILE "data.wav" 38:22:04 04:51:28
+

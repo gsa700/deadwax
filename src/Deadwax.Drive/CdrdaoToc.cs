@@ -3,7 +3,53 @@ using System.Text;
 
 namespace Deadwax.Drive;
 
-public sealed record CdText(string? Title, string? Performer, string? Isrc, string? UpcEan);
+/// One CD-Text item as a TOC file holds it: a text pack ("TITLE", "PERFORMER",
+/// "ISRC"/"UPC_EAN", "CLOSED", ...) as a string, or a binary pack ("SIZE_INFO",
+/// "GENRE", "TOC_INFO1", ...) as its bytes. Key is cdrdao's name for the pack.
+public sealed record CdTextItem(string Key, string? Text, IReadOnlyList<byte>? Data)
+{
+    public static CdTextItem Of(string key, string text) => new(key, text, null);
+    public static CdTextItem Of(string key, IReadOnlyList<byte> data) => new(key, null, data);
+}
+
+/// One LANGUAGE block of CD-Text: its number and its items in cdrdao's order
+/// (by pack type: TITLE, PERFORMER, SONGWRITER, COMPOSER, ARRANGER, MESSAGE,
+/// DISC_ID, GENRE, TOC_INFO1, TOC_INFO2, RESERVED1-3, CLOSED, UPC_EAN/ISRC, SIZE_INFO).
+public sealed record CdTextBlock(int Language, IReadOnlyList<CdTextItem> Items);
+
+/// The CD-Text of the disc or of one track. Title, Performer, Isrc and UpcEan
+/// are the first block's, the four Deadwax uses; Blocks holds everything the
+/// disc carries, so the TOC file can be written back exactly as cdrdao wrote
+/// it. LanguageMap ("0: 9" = block 0 is English) exists at disc level only.
+public sealed record CdText(string? Title, string? Performer, string? Isrc, string? UpcEan,
+    IReadOnlyList<CdTextBlock> Blocks, IReadOnlyList<KeyValuePair<int, int>>? LanguageMap = null)
+{
+    public CdText(string? title, string? performer, string? isrc, string? upcEan)
+        : this(title, performer, isrc, upcEan, BlockFrom(title, performer, isrc, upcEan)) { }
+
+    /// A block 0 holding just the named fields, for code that builds CD-Text
+    /// by hand (tests, descriptions). ISRC and UPC_EAN share a pack type, so
+    /// only one of them is written: the track form or the disc form.
+    private static IReadOnlyList<CdTextBlock> BlockFrom(string? title, string? performer, string? isrc, string? upcEan)
+    {
+        var items = new List<CdTextItem>();
+        if (title is not null) items.Add(CdTextItem.Of("TITLE", title));
+        if (performer is not null) items.Add(CdTextItem.Of("PERFORMER", performer));
+        if (isrc is not null) items.Add(CdTextItem.Of("ISRC", isrc));
+        else if (upcEan is not null) items.Add(CdTextItem.Of("UPC_EAN", upcEan));
+        return [new CdTextBlock(0, items)];
+    }
+
+    /// From the blocks a disc carries: the named fields are the first block's.
+    public static CdText FromBlocks(IReadOnlyList<CdTextBlock> blocks, IReadOnlyList<KeyValuePair<int, int>>? languageMap = null)
+    {
+        var first = blocks.Count > 0 ? blocks[0].Items : [];
+        string? Item(string key) => first.FirstOrDefault(i => i.Key == key && i.Text is not null)?.Text;
+        var code = Item("ISRC") ?? Item("UPC_EAN");
+        return new CdText(Item("TITLE"), Item("PERFORMER"),
+            code is null ? null : CdrdaoToc.Isrc(code), code is null ? null : CdrdaoToc.CatalogNumber(code), blocks, languageMap);
+    }
+}
 
 public sealed record CdrdaoTrack(
     int Number,
@@ -115,28 +161,145 @@ public sealed class CdrdaoToc
         return toc;
     }
 
-    /// CD_TEXT { LANGUAGE_MAP { ... } LANGUAGE 0 { KEY "value" ... } }. Only
-    /// language block 0 is read; every disc in the library has only that one.
+    /// CD_TEXT { LANGUAGE_MAP { 0: 9 } LANGUAGE 0 { KEY "value" KEY { 1, 2 } ... } }.
+    /// Every block and every item is kept, so Write gives the file back.
     private static CdText ReadCdText(Reader reader)
     {
-        string? title = null, performer = null, isrc = null, upc = null;
-        var depth = 0;
-        var language = -1;
-        while (reader.NextToken() is { } t)
+        var blocks = new List<CdTextBlock>();
+        List<KeyValuePair<int, int>>? languageMap = null;
+        if (reader.NextToken() != "{") throw new FormatException("CD_TEXT without a block.");
+        while (reader.NextToken() is { } t && t != "}")
         {
-            if (t == "{") { depth++; continue; }
-            if (t == "}") { if (--depth == 0) break; continue; }
-            if (t == "LANGUAGE" && depth == 1) { language = int.Parse(reader.NextToken()!, CultureInfo.InvariantCulture); continue; }
-            if (depth != 2 || language != 0) continue;
             switch (t)
             {
-                case "TITLE": title = reader.String(); break;
-                case "PERFORMER": performer = reader.String(); break;
-                case "ISRC": isrc = Isrc(reader.String()); break;
-                case "UPC_EAN": upc = CatalogNumber(reader.String()); break;
+                case "LANGUAGE_MAP":
+                    languageMap = [];
+                    if (reader.NextToken() != "{") throw new FormatException("LANGUAGE_MAP without a block.");
+                    while (reader.NextToken() is { } m && m != "}")
+                    {
+                        // "0:" "9", or "0" ":" "9" if ever written with a space before the colon.
+                        var slot = m.TrimEnd(':');
+                        var code = reader.NextToken();
+                        if (code == ":") code = reader.NextToken();
+                        languageMap.Add(new(int.Parse(slot, CultureInfo.InvariantCulture), int.Parse(code!, CultureInfo.InvariantCulture)));
+                    }
+                    break;
+                case "LANGUAGE":
+                    var number = int.Parse(reader.NextToken()!, CultureInfo.InvariantCulture);
+                    if (reader.NextToken() != "{") throw new FormatException("LANGUAGE without a block.");
+                    var items = new List<CdTextItem>();
+                    while (reader.NextToken() is { } key && key != "}")
+                    {
+                        var value = reader.NextToken();
+                        if (value == "\"") items.Add(CdTextItem.Of(key, reader.LastString!));
+                        else if (value == "{")
+                        {
+                            var data = new List<byte>();
+                            while (reader.NextToken() is { } d && d != "}")
+                                data.Add(byte.Parse(d.TrimEnd(','), CultureInfo.InvariantCulture));
+                            items.Add(CdTextItem.Of(key, data));
+                        }
+                        else throw new FormatException($"CD-Text item {key} has neither a string nor a block.");
+                    }
+                    blocks.Add(new CdTextBlock(number, items));
+                    break;
             }
         }
-        return new CdText(title, performer, isrc, upc);
+        return CdText.FromBlocks(blocks, languageMap);
+    }
+
+    // ---- writing ------------------------------------------------------------
+
+    /// The TOC file for this disc, byte for byte as `cdrdao read-toc` 1.2.6
+    /// writes it (trackdb/Toc.cc, Track.cc, CdTextContainer.cc, CdTextItem.cc),
+    /// so a Deadwax-read disc leaves the same .toc beside its rip as a cdrdao-
+    /// read one. Proven by reading every .toc in the library back through
+    /// Parse and comparing.
+    public string Write()
+    {
+        var sb = new StringBuilder();
+        sb.Append("CD_DA\n\n");
+        if (Catalog is not null) sb.Append("CATALOG \"").Append(Catalog).Append("\"\n");
+        if (DiscText is not null) WriteCdText(sb, DiscText, isTrack: false);
+
+        var fileStart = 0;
+        foreach (var t in _tracks)
+        {
+            sb.Append("\n// Track ").Append(t.Number.ToString(CultureInfo.InvariantCulture)).Append('\n');
+            sb.Append(t.IsAudio ? "TRACK AUDIO\n" : "TRACK MODE1\n");
+            sb.Append(t.CopyPermitted ? "COPY\n" : "NO COPY\n");
+            if (t.IsAudio)
+            {
+                sb.Append(t.PreEmphasis ? "PRE_EMPHASIS\n" : "NO PRE_EMPHASIS\n");
+                sb.Append(t.FourChannel ? "FOUR_CHANNEL_AUDIO\n" : "TWO_CHANNEL_AUDIO\n");
+                if (t.Isrc is not null) sb.Append("ISRC \"").Append(t.Isrc).Append("\"\n");
+                if (t.Text is not null) WriteCdText(sb, t.Text, isTrack: true);
+            }
+            if (t.SilenceSectors > 0) sb.Append("SILENCE ").Append(Msf(t.SilenceSectors)).Append('\n');
+            var fileLength = t.LengthSectors - t.SilenceSectors;
+            sb.Append("FILE \"data.wav\" ").Append(fileStart == 0 ? "0" : Msf(fileStart)).Append(' ').Append(Msf(fileLength)).Append('\n');
+            fileStart += fileLength;
+            if (t.PregapSectors > 0) sb.Append("START ").Append(Msf(t.PregapSectors)).Append('\n');
+            sb.Append('\n');
+        }
+        return sb.ToString();
+    }
+
+    private static void WriteCdText(StringBuilder sb, CdText text, bool isTrack)
+    {
+        if (text.Blocks.Count == 0) return;
+        sb.Append("CD_TEXT {\n");
+        if (!isTrack && text.LanguageMap is { Count: > 0 } map)
+        {
+            sb.Append("  LANGUAGE_MAP {\n");
+            foreach (var (slot, code) in map)
+                sb.Append("    ").Append(slot.ToString(CultureInfo.InvariantCulture)).Append(": ").Append(code.ToString(CultureInfo.InvariantCulture)).Append('\n');
+            sb.Append("  }\n");
+        }
+        foreach (var block in text.Blocks)
+        {
+            sb.Append("  LANGUAGE ").Append(block.Language.ToString(CultureInfo.InvariantCulture)).Append(" {\n");
+            foreach (var item in block.Items)
+            {
+                sb.Append("    ").Append(item.Key);
+                if (item.Text is { } str)
+                {
+                    sb.Append(" \"");
+                    foreach (var c in str)
+                    {
+                        if (c == '"') sb.Append("\\\"");
+                        else if (c == '\\') sb.Append("\\\\");
+                        else sb.Append(c);
+                    }
+                    sb.Append('"');
+                }
+                else
+                {
+                    // "{ 0,  1, 11, ..." : each value %2d, twelve to a line.
+                    sb.Append(" {");
+                    var i = 0;
+                    foreach (var b in item.Data!)
+                    {
+                        if (i > 0) sb.Append(i % 12 == 0 ? ",\n               " : ", ");
+                        sb.Append(b.ToString(CultureInfo.InvariantCulture).PadLeft(2));
+                        i++;
+                    }
+                    sb.Append('}');
+                }
+                sb.Append('\n');
+            }
+            sb.Append("  }\n");
+        }
+        sb.Append("}\n");
+    }
+
+    /// "mm:ss:ff" for a sector count, as cdrdao's Msf::str ("%02d:%02d:%02d").
+    public static string Msf(int sectors)
+    {
+        var min = sectors / (Toc.SectorsPerSecond * 60);
+        var sec = sectors / Toc.SectorsPerSecond % 60;
+        var frames = sectors % Toc.SectorsPerSecond;
+        return $"{min:00}:{sec:00}:{frames:00}";
     }
 
     /// "mm:ss:ff" in sectors, or a bare sample count ("0").
@@ -166,6 +329,9 @@ public sealed class CdrdaoToc
     {
         private int _at;
         private string? _string;
+
+        /// The text of the quoted string NextToken last returned "\"" for.
+        public string? LastString => _string;
 
         public string? NextToken()
         {
