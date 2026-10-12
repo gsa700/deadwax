@@ -21,27 +21,40 @@ public sealed class MusicBrainzClient : IDisposable
     private readonly string? _cacheDir;
     private DateTime _last = DateTime.MinValue;
 
-    /// cacheDir: keep release JSON on disk (a release does not change between
-    /// the lookup at pick time and the tagging after the rip); null for none.
+    /// cacheDir: keep release JSON on disk for CacheLifetime, so picking a
+    /// release and planning the rip do not ask twice; null for none. It was
+    /// kept for ever, on the idea that a release does not change. It does:
+    /// on 2026-10-11 he added a missing second disc to a release on
+    /// MusicBrainz, and Deadwax went on reading the copy cached 40 minutes
+    /// earlier, which had only the first. A plan holds its own copy, so the
+    /// tagging after a long rip never needs the cache.
     public MusicBrainzClient(string? cacheDir = null)
     {
         _http = new HttpClient { BaseAddress = new Uri("https://musicbrainz.org/ws/2/"), Timeout = TimeSpan.FromSeconds(30) };
-        _http.DefaultRequestHeaders.UserAgent.ParseAdd("Deadwax/0.1 ( https://github.com/gsa700/deadwax )");
+        _http.DefaultRequestHeaders.UserAgent.ParseAdd($"Deadwax/{AppVersion.Current} ( https://github.com/gsa700/deadwax )");
         _http.DefaultRequestHeaders.Accept.ParseAdd("application/json");
         _cacheDir = cacheDir;
         if (cacheDir is not null) Directory.CreateDirectory(cacheDir);
     }
+
+    public static readonly TimeSpan CacheLifetime = TimeSpan.FromMinutes(10);
+
+    /// A cached release younger than CacheLifetime.
+    public static bool CacheUsable(string path, DateTime nowUtc) =>
+        File.Exists(path) && nowUtc - File.GetLastWriteTimeUtc(path) < CacheLifetime;
 
     public static string DefaultCacheDir =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".cache", "deadwax", "musicbrainz");
 
     /// A release with everything tagging needs, or null if MusicBrainz has no
     /// such release.
-    public async Task<JsonDocument?> GetReleaseAsync(string releaseId, CancellationToken ct = default)
+    /// fresh: ask MusicBrainz even if a copy is cached, for a release he has
+    /// just named by link (likely one he has just been editing).
+    public async Task<JsonDocument?> GetReleaseAsync(string releaseId, CancellationToken ct = default, bool fresh = false)
     {
         if (!WebLimits.IsMbid(releaseId)) throw new MusicBrainzException($"\"{releaseId}\" is not a MusicBrainz release ID.");
         var cached = _cacheDir is null ? null : Path.Combine(_cacheDir, $"release-{releaseId}.json");
-        if (cached is not null && File.Exists(cached))
+        if (cached is not null && !fresh && CacheUsable(cached, DateTime.UtcNow))
             return JsonDocument.Parse(await File.ReadAllBytesAsync(cached, ct));
 
         var body = await GetAsync($"release/{releaseId}?inc={ReleaseIncludes}&fmt=json", ct);

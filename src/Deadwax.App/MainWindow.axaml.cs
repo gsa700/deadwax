@@ -359,6 +359,7 @@ public sealed partial class MainWindow : Window
         _vm.Releases.Clear();
         foreach (var c in disc.Candidates) _vm.Releases.Add(Row(c));
         _vm.ReleasesChanged();
+        ShowAttach(disc, null);
 
         // The description card: the tracks from the TOC, filled from what he
         // typed for this disc before, open by itself when MusicBrainz has nothing.
@@ -500,7 +501,7 @@ public sealed partial class MainWindow : Window
             var candidate = await Task.Run(async () =>
             {
                 using var mb = new MusicBrainzClient(MusicBrainzClient.DefaultCacheDir);
-                using var doc = await mb.GetReleaseAsync(id) ?? throw new MusicBrainzException("MusicBrainz has no release with that ID.");
+                using var doc = await mb.GetReleaseAsync(id, fresh: true) ?? throw new MusicBrainzException("MusicBrainz has no release with that ID.");
                 var root = doc.RootElement;
                 var medium = ReleaseTags.FindMedium(root, disc.DiscId) ?? ReleaseTags.MediumByTracks(root, disc.Toc);
                 return ReleaseChoice.FromRelease(root, medium);
@@ -545,6 +546,7 @@ public sealed partial class MainWindow : Window
             _vm.SetChoiceNote = _vm.SetChoice is null
                 ? "Pick one before ripping. Deadwax remembers it for the other discs of this set."
                 : "Remembered from an earlier disc of this set. Change it here if you like.";
+            ShowAttach(disc, plan);
             _vm.NoteText = plan.Disambiguation ?? "";
             _vm.KeepNote = false;
 
@@ -635,6 +637,8 @@ public sealed partial class MainWindow : Window
         _vm.Cover = null;
         _vm.Releases.Clear();
         _vm.ReleasesChanged();
+        _vm.AttachText = "";
+        _vm.AttachUrl = null;
         _vm.CanRip = false;
         _vm.HasYearChoice = false;
         _vm.IsSetDisc = false;
@@ -809,6 +813,35 @@ public sealed partial class MainWindow : Window
     {
         var log = _lastAlbum is null ? null : Directory.EnumerateFiles(_lastAlbum, "*.log").FirstOrDefault();
         if (log is not null) Open(log);
+    }
+
+    /// The attach offer: for a chosen release that does not carry this disc's
+    /// ID (matched by track lengths), straight to its disc; for a disc no
+    /// release carries, to MusicBrainz's search. Nothing when the ID is there.
+    private void ShowAttach(PreparedDisc disc, ReleasePlan? plan)
+    {
+        if (plan is { ReleaseId: not null, MatchedByTracks: true })
+        {
+            var medium = plan.Medium.TryGetProperty("id", out var id) ? id.GetString() : null;
+            _vm.AttachUrl = DiscIds.MusicBrainzAttachUrl(disc.Toc, medium);
+            _vm.AttachText = "This disc's ID is not on this release at MusicBrainz yet, so the next copy of it won't be found by itself. "
+                             + "Attaching it opens the page with this release's disc already chosen (MusicBrainz asks you to log in).";
+        }
+        else if (plan is null && disc.Candidates.Count == 0)
+        {
+            _vm.AttachUrl = DiscIds.MusicBrainzAttachUrl(disc.Toc);
+            _vm.AttachText = "Once this disc's release is on MusicBrainz, attaching the disc there lets every copy of it be found by itself.";
+        }
+        else
+        {
+            _vm.AttachUrl = null;
+            _vm.AttachText = "";
+        }
+    }
+
+    private void OnAttachDisc(object? sender, RoutedEventArgs e)
+    {
+        if (_vm.AttachUrl is { } url) Open(url);
     }
 
     private static void Open(string path)

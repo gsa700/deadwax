@@ -247,6 +247,16 @@ public sealed class MainViewModel : Observable
     private string _setMismatch = "";
     public string SetMismatch { get => _setMismatch; set { if (Set(ref _setMismatch, value)) Raise(nameof(HasSetMismatch)); } }
     public string? SetMismatchRelease { get; set; }
+
+    /// This disc's ID is not attached to the release chosen for it (found by
+    /// its track lengths, or by a pasted link), or to any release at all.
+    /// Attaching it on MusicBrainz is what makes the next copy match at once;
+    /// AttachUrl opens that page, with the release's disc already chosen when
+    /// there is one (2026-10-11: he could not find his way there by search).
+    private string _attachText = "";
+    public string AttachText { get => _attachText; set { if (Set(ref _attachText, value)) Raise(nameof(HasAttach)); } }
+    public string? AttachUrl { get; set; }
+    public bool HasAttach => AttachText.Length > 0;
     public bool HasSetMismatch => SetMismatch.Length > 0 && SetChoice != true;
     public event Action? SetChoiceChanged;
     public event Action? YearChanged;

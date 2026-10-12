@@ -191,6 +191,13 @@
                                 </Grid>
                             </StackPanel>
 
+                            <!-- The disc ID is not on the chosen release (or on any): one click
+                                 to MusicBrainz's attach page, so the next copy matches by itself. -->
+                            <StackPanel Spacing="6" IsVisible="{Binding HasAttach}">
+                                <TextBlock Classes="dim" FontSize="13" TextWrapping="Wrap" Text="{Binding AttachText}"/>
+                                <Button Classes="quiet" Content="Attach this disc on MusicBrainz…" Click="OnAttachDisc" HorizontalAlignment="Left"/>
+                            </StackPanel>
+
                             <!-- A disc MusicBrainz does not have (a bootleg, a private pressing):
                                  he describes it, and it rips like any other, minus the IDs. -->
                             <Expander IsExpanded="{Binding DescribeOpen}" Padding="0" Margin="0,4,0,0">

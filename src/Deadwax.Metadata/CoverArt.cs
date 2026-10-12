@@ -22,6 +22,7 @@ public static class CoverArt
     {
         if (!WebLimits.IsMbid(releaseId)) return releaseGroupId is null ? null : await GroupFrontAsync(http, releaseGroupId, ct, attempts);
         return await FetchAsync(http, $"https://coverartarchive.org/release/{releaseId}/front-500", ct, attempts)
+               ?? await FullFrontAsync(http, releaseId, ct, attempts)
                ?? (!WebLimits.IsMbid(releaseGroupId) ? null
                    : await FetchAsync(http, $"https://coverartarchive.org/release-group/{releaseGroupId}/front-500", ct, attempts));
     }
@@ -30,6 +31,39 @@ public static class CoverArt
     /// where no single release of that album is known.
     public static Task<byte[]?> GroupFrontAsync(HttpClient http, string releaseGroupId, CancellationToken ct = default, int attempts = DefaultAttempts) =>
         !WebLimits.IsMbid(releaseGroupId) ? Task.FromResult<byte[]?>(null) : FetchAsync(http, $"https://coverartarchive.org/release-group/{releaseGroupId}/front-500", ct, attempts);
+
+    /// The full-size front, scaled to the 500 pixels the library uses. The
+    /// archive makes its 500-pixel copy some minutes to an hour after an
+    /// upload; until then front-500 is "not found" while the front itself is
+    /// there. Without this the release group's front was used instead, a
+    /// different edition's sleeve (2026-10-11, a front uploaded minutes before
+    /// the rip).
+    private static async Task<byte[]?> FullFrontAsync(HttpClient http, string releaseId, CancellationToken ct, int attempts)
+    {
+        var full = await FetchAsync(http, $"https://coverartarchive.org/release/{releaseId}/front", ct, attempts);
+        return full is null ? null : ScaleToFit(full, 500);
+    }
+
+    /// A JPEG no larger than max pixels on its longer side (smaller images are
+    /// returned as they came). Null when the bytes are not an image.
+    public static byte[]? ScaleToFit(byte[] image, int max)
+    {
+        // SKBitmap.Decode throws on bytes no codec recognises (a cut-off
+        // download, an error page); asking for the codec first does not.
+        using var data = SkiaSharp.SKData.CreateCopy(image);
+        using var codec = SkiaSharp.SKCodec.Create(data);
+        if (codec is null) return null;
+        using var bitmap = SkiaSharp.SKBitmap.Decode(codec);
+        if (bitmap is null) return null;
+        if (bitmap.Width <= max && bitmap.Height <= max) return image;
+        var scale = (double)max / Math.Max(bitmap.Width, bitmap.Height);
+        var info = new SkiaSharp.SKImageInfo(Math.Max(1, (int)Math.Round(bitmap.Width * scale)), Math.Max(1, (int)Math.Round(bitmap.Height * scale)));
+        using var scaled = bitmap.Resize(info, new SkiaSharp.SKSamplingOptions(SkiaSharp.SKCubicResampler.Mitchell));
+        if (scaled is null) return null;
+        using var picture = SkiaSharp.SKImage.FromBitmap(scaled);
+        using var jpeg = picture.Encode(SkiaSharp.SKEncodedImageFormat.Jpeg, 90);
+        return jpeg?.ToArray();
+    }
 
     private static async Task<byte[]?> FetchAsync(HttpClient http, string url, CancellationToken ct, int attempts)
     {

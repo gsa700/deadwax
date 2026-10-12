@@ -165,17 +165,7 @@ public sealed class RipSession
     /// read from the assembly that is running (the app, or the CLI), without
     /// the source-revision suffix. It was a constant, "0.1", and every log up
     /// to 0.2.11 says so whatever version made it (he noticed, 2026-10-10).
-    public static string Version
-    {
-        get
-        {
-            var assembly = System.Reflection.Assembly.GetEntryAssembly() ?? typeof(RipSession).Assembly;
-            var v = assembly.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>()?.InformationalVersion
-                    ?? assembly.GetName().Version?.ToString(3) ?? "0.0.0";
-            var plus = v.IndexOf('+');
-            return plus >= 0 ? v[..plus] : v;
-        }
-    }
+    public static string Version => AppVersion.Current;
 
     public static async Task<PreparedDisc> PrepareAsync(
         string? device, int? offsetOverride, Action<string> say, bool readSubchannel = true,

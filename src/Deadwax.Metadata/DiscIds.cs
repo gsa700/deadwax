@@ -43,8 +43,12 @@ public static class DiscIds
         return string.Join('+', parts);
     }
 
-    public static string MusicBrainzAttachUrl(Toc toc) =>
-        $"https://musicbrainz.org/cdtoc/attach?toc={MusicBrainzToc(toc)}&tracks={toc.IdTracks.Count}&id={MusicBrainz(toc)}";
+    /// mediumId: the disc of a release to attach it to. MusicBrainz then goes
+    /// straight to "attach to this medium?" instead of a search he has to
+    /// drive (2026-10-11: "this site is a nightmare").
+    public static string MusicBrainzAttachUrl(Toc toc, string? mediumId = null) =>
+        $"https://musicbrainz.org/cdtoc/attach?toc={MusicBrainzToc(toc)}&tracks={toc.IdTracks.Count}&id={MusicBrainz(toc)}"
+        + (mediumId is not null && WebLimits.IsMbid(mediumId) ? $"&medium={mediumId}" : "");
 
     /// freedb/CDDB disc ID. Every track counts here, data tracks included, and the
     /// length runs to the disc's real lead-out: this is the one ID that describes
