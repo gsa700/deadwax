@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deadwax - cut a release: one GitHub release carrying the Linux build.
+# Deadwax - cut a release: one GitHub release carrying the build for every platform in RIDS.
 #
 #   tools/release.sh 0.2.0                     a DRAFT release, to look at first
 #   tools/release.sh 0.2.0 --notes-file N.md   with the notes written by hand
@@ -14,7 +14,8 @@
 #
 # WHAT A RELEASE IS, because the updater (src/Deadwax.App/UpdateService.cs) reads
 # exactly this and nothing else: a GitHub release tagged vX.Y.Z, carrying
-# Deadwax-linux-x64.zip (the single-file program) and SHA256SUMS listing it.
+# Deadwax-<rid>.zip per platform (the single-file program: Deadwax, or
+# Deadwax.exe on Windows) and SHA256SUMS listing them.
 # Two channels (Deadwax.Core/ReleaseFeed.cs): Stable reads /releases/latest,
 # which never returns a pre-release; Edge reads the release list and takes the
 # newest version, pre-release or not. Both refuse a download SHA256SUMS does not
@@ -32,9 +33,11 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/.." && pwd)
 REPO=gsa700/deadwax
 CSPROJ="$ROOT/Directory.Build.props"   # one <Version> for every project
-# The platforms an app release carries. win-x64 and osx-arm64 join when a rip
-# has been proven on each (Hambench; the Mac).
-RIDS=(linux-x64)
+# The platforms an app release carries. Each joined once a rip was proven on
+# it: linux-x64 (Techbench), win-x64 (Hambench, 2026-10-13: natives-2 rip
+# byte-identical to Linux). osx-arm64 joins after the Mac's. All are built
+# here: a win-x64 publish on Linux takes native/win-x64 (native.targets).
+RIDS=(linux-x64 win-x64)
 
 VERSION=${1:?usage: release.sh X.Y.Z [--notes-file FILE] [--edge] [--publish] [--dry-run]}
 shift
@@ -119,9 +122,15 @@ for rid in "${RIDS[@]}"; do
     "$DOTNET" publish "$ROOT/src/Deadwax.App" -c Release -r "$rid" --self-contained \
         -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o "$out" -v quiet -nologo \
         | grep -E ' error |warning CS' || true
-    exe=Deadwax
+    # The program's name and first bytes per platform, as UpdateService checks
+    # them before installing an update: ELF, PE ("MZ"), Mach-O.
+    case $rid in
+        win-*) exe=Deadwax.exe; magic='^4d5a'; kind=PE ;;
+        osx-*) exe=Deadwax; magic='^(cffaedfe|cafebabe)'; kind=Mach-O ;;
+        *)     exe=Deadwax; magic='^7f454c46'; kind=ELF ;;
+    esac
     [ -f "$out/$exe" ] || die "$rid: no $exe after publish"
-    head -c 4 "$out/$exe" | od -An -tx1 | tr -d ' \n' | grep -q '^7f454c46' || die "$rid: $exe is not an ELF executable"
+    head -c 4 "$out/$exe" | od -An -tx1 | tr -d ' \n' | grep -qE "$magic" || die "$rid: $exe is not a $kind executable"
     [ "$(stat -c %s "$out/$exe")" -gt 50000000 ] || die "$rid: $exe is too small to be the single-file build"
     python3 - "$WORK/Deadwax-$rid.zip" "$out/$exe" <<'PY'
 import sys, zipfile, os
@@ -153,10 +162,15 @@ if [ -z "$NOTES" ]; then
     NOTES="$WORK/notes.md"
     prev=$(git describe --tags --abbrev=0 --match 'v[0-9]*' "$TAG^" 2>/dev/null || true)
     {
-        echo "Deadwax $VERSION, for Linux x86-64.$([ $EDGE -eq 1 ] && echo " An Edge build: offered to copies set to Edge until it is promoted to Stable.")"
+        platforms=$(for rid in "${RIDS[@]}"; do case $rid in linux-x64) echo "Linux x86-64";; win-x64) echo "Windows x64";; osx-arm64) echo "macOS (Apple silicon)";; *) echo "$rid";; esac; done | paste -sd, | sed 's/,/, /g')
+        echo "Deadwax $VERSION, for $platforms.$([ $EDGE -eq 1 ] && echo " An Edge build: offered to copies set to Edge until it is promoted to Stable.")"
         echo
         echo "Unpack the zip and run Deadwax. Nothing else to install: libcdio, libcdio-paranoia and libFLAC are built in ($NATIVES; sources on that release)."
         echo "A running copy offers newer releases from its title bar and updates itself in place."
+        if printf '%s\n' "${RIDS[@]}" | grep -q '^win-'; then
+            echo
+            echo "Windows: Deadwax.exe is not signed, so the first run may show \"Windows protected your PC\": More info, then Run anyway."
+        fi
         echo
         echo "Changes${prev:+ since $prev}:"
         git log --no-merges --format='- %s' ${prev:+"$prev..$TAG"} | head -60
