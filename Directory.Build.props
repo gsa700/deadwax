@@ -3,6 +3,6 @@
        all report the same number (the CLI used to say 1.0.0 in its logs).
        Bump it here, in a commit of its own, before tools/release.sh. -->
   <PropertyGroup>
-    <Version>0.3.0</Version>
+    <Version>0.3.1</Version>
   </PropertyGroup>
 </Project>
