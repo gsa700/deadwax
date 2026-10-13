@@ -155,7 +155,7 @@ if [ -z "$NOTES" ]; then
     {
         echo "Deadwax $VERSION, for Linux x86-64.$([ $EDGE -eq 1 ] && echo " An Edge build: offered to copies set to Edge until it is promoted to Stable.")"
         echo
-        echo "Unpack the zip and run Deadwax. It needs libcdio, libcdio-paranoia, cdrdao and libFLAC from your distribution."
+        echo "Unpack the zip and run Deadwax. Nothing else to install: libcdio, libcdio-paranoia and libFLAC are built in ($NATIVES; sources on that release)."
         echo "A running copy offers newer releases from its title bar and updates itself in place."
         echo
         echo "Changes${prev:+ since $prev}:"
