@@ -39,8 +39,15 @@ win64)
     # libwinpthread-1.dll) unless the linker can only find the static
     # archives: remove the import libraries, so every build links them in.
     find /usr \( -name 'libwinpthread.dll.a' -o -name 'libpthread.dll.a' -o -name 'libssp.dll.a' \) -print -delete
-    export CC=$T-gcc-posix CXX=$T-g++-posix AR=$T-ar RANLIB=$T-ranlib STRIP=$T-strip WINDRES=$T-windres
-    export CFLAGS="-O2 -fstack-protector-strong -D_FORTIFY_SOURCE=2" CXXFLAGS="-O2"
+    # No CXX here: libcdio's configure never probes a C++ compiler (C++ is
+    # disabled), but with CXX in the environment libtool still runs its C++
+    # tag, decides that compiler is "not GCC", picks MSVC-style library
+    # naming, and because libtool's naming variables are global the C++ pass
+    # overwrites the C one: the import library then gets the DLL's own name
+    # and the link writes an ar archive called libcdio-19.dll (2026-10-12).
+    # FLAC's cmake takes its compilers from the toolchain file below.
+    export CC=$T-gcc-posix AR=$T-ar RANLIB=$T-ranlib STRIP=$T-strip WINDRES=$T-windres
+    export CFLAGS="-O2 -fstack-protector-strong -D_FORTIFY_SOURCE=2"
     # No libgcc/libwinpthread DLLs at run time: the runtime bits go in statically.
     # --exclude-libs: the static runtimes' symbols stay private to each DLL,
     # or libcdio_cdda.dll.a exports __stack_chk_fail and the next link sees
@@ -86,13 +93,12 @@ run libcdio-configure ./configure --prefix="$PREFIX" "${HOST_FLAG[@]}" --disable
 # they do not even link against the static runtimes chosen above.
 run libcdio-make make -j"$JOBS" -C lib "${MAKE_EXTRA[@]}"
 grep -i "building static\|undefined symbols not allowed\|warning: .*libtool" /tmp/logs/libcdio-make.log | head -5 || true
-# On mingw the install step replaces lib/driver/.libs/libcdio-19.dll with an
-# ar archive of the same name (an import library), so the DLL is taken from
-# the build tree now, before anything installs.
+# The DLL is taken from the build tree: libcdio's install step puts it under
+# lib/ rather than bin/, and a mis-configured libtool (see CXX above) can
+# leave an ar archive under the DLL's name, which the PE check catches.
 if [ "$TARGET" = win64 ]; then
-    find . -name '*.dll' -o -name '*.dll.a' | while read -r f; do echo "   built: $f: $(file -b "$f" | cut -c1-50) $(stat -c %s "$f")"; done
-    dll=$(find . -name 'libcdio-19.dll' -type f -exec sh -c 'file -b "$1" | grep -q "PE32+" && echo "$1"' _ {} \; | head -1)
-    [ -n "$dll" ] || { echo "!! libcdio-19.dll was not linked as a DLL" >&2; grep -i "libtool\|dll" /tmp/logs/libcdio-make.log | tail -20 >&2; exit 1; }
+    dll=lib/driver/.libs/libcdio-19.dll
+    file -b "$dll" | grep -q 'PE32+' || { echo "!! $dll is not a DLL: $(file -b "$dll")" >&2; grep -n 'libtool: link' /tmp/logs/libcdio-make.log | grep -i driver >&2; exit 1; }
     cp "$dll" /out/
 fi
 run libcdio-install make -C lib install
@@ -146,26 +152,20 @@ linux)
     GLIBC=$(ldd --version 2>/dev/null | sed -n '1p')   # not head: with pipefail its early exit fails the pipeline
     ;;
 win64)
-    # libcdio's own Makefiles install their DLLs under lib/, paranoia's and
-    # FLAC's under bin/: take each from wherever it landed.
-    # ...and libcdio's Makefile also leaves an MSVC-style import library
-    # NAMED libcdio-19.dll (an ar archive) beside the real one, so take the
-    # candidate that is a PE image.
-    for dll in libFLAC.dll; do
-        found=""
-        for candidate in $(find /src "$PREFIX" -name "$dll" -type f); do
-            echo "   candidate $candidate: $(file -b "$candidate" | cut -c1-60)"
-            if file -b "$candidate" | grep -q 'PE32+'; then found=$candidate; break; fi
-        done
-        [ -n "$found" ] || { echo "!! no PE image named $dll under $PREFIX" >&2; find "$PREFIX" -name '*.dll' >&2; exit 1; }
-        cp "$found" .
-    done
+    # The libcdio DLLs were taken from their build trees above; FLAC's cmake
+    # build installs its DLL under bin/.
+    cp "$PREFIX/bin/libFLAC.dll" .
     "$STRIP" --strip-unneeded ./*.dll
     for f in *.dll; do
         file -b "$f" | grep -q 'PE32+ executable.*DLL' || { echo "!! $f is not a Windows DLL: $(file -b "$f")" >&2; exit 1; }
+        # DllCharacteristics: 0x20 high-entropy VA, 0x40 ASLR (dynamic base), 0x100 NX.
+        chars=$(( 16#$($T-objdump -p "$f" | awk '/DllCharacteristics/ {print $2}') ))
+        [ $(( chars & 0x160 )) -eq $(( 0x160 )) ] || { echo "!! $f lacks NX/ASLR/high-entropy VA: $(printf '0x%x' "$chars")" >&2; exit 1; }
+        # The stack protector is linked in statically (libssp.a): its failure message is the trace it leaves.
+        [ "$(strings -a "$f" | grep -c 'stack smashing detected')" -gt 0 ] || { echo "!! $f has no stack protector" >&2; exit 1; }
         needed=$($T-objdump -p "$f" | awk '/DLL Name/ {print $3}' | tr '\n' ' ')
         echo "   $f: imports $needed"
-        [ "$(echo "$needed" | tr ' ' '\n' | grep -cviE '^(KERNEL32\.dll|msvcrt\.dll|USER32\.dll|ADVAPI32\.dll|SHELL32\.dll|libcdio-19\.dll|libcdio_cdda-2\.dll|)$')" -eq 0 ] \
+        [ "$(echo "$needed" | tr ' ' '\n' | grep -cviE '^(KERNEL32\.dll|msvcrt\.dll|USER32\.dll|ADVAPI32\.dll|SHELL32\.dll|WINMM\.dll|libcdio-19\.dll|libcdio_cdda-2\.dll|)$')" -eq 0 ] \
             || { echo "!! $f imports more than Windows and libcdio: $needed" >&2; exit 1; }
     done
     GLIBC="mingw-w64 $($T-gcc-posix -dumpversion)"
@@ -175,6 +175,6 @@ esac
     echo "Deadwax natives: libcdio $LIBCDIO_VERSION, libcdio-paranoia $PARANOIA_VERSION, FLAC $FLAC_VERSION ($TARGET, built $(date -u +%Y-%m-%dT%H:%MZ))"
     echo "toolchain: $GLIBC in $(. /etc/os-release; echo "$PRETTY_NAME")"
     echo "flags: CFLAGS=$CFLAGS LDFLAGS=$LDFLAGS"
-    echo "checks: dependencies limited to the platform and each other; $([ $TARGET = linux ] && echo 'RUNPATH $ORIGIN, full RELRO, stack protector' || echo 'NX, ASLR, high-entropy VA')"
+    echo "checks: dependencies limited to the platform and each other; $([ $TARGET = linux ] && echo 'RUNPATH $ORIGIN, full RELRO, stack protector' || echo 'NX, ASLR, high-entropy VA, stack protector')"
 } > natives-build-info.txt
 cat natives-build-info.txt
