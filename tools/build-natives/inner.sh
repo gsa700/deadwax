@@ -122,7 +122,15 @@ run paranoia-install-pc make install-pkgconfigDATA
 echo "== FLAC $FLAC_VERSION"
 tar xJf "/tarballs/flac-$FLAC_VERSION.tar.xz" -C /src
 cd "/src/flac-$FLAC_VERSION"
-run flac-configure cmake -S . -B build "${CMAKE_CROSS[@]}" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$PREFIX" \
+# THE SAME BYTES ON EVERY PLATFORM (2026-10-13): the encoder's floating-point
+# choices are made identically everywhere, so the same audio gives the same
+# file on Linux, Windows and macOS, on any CPU. Three parts: cosf and log
+# through CORE-MATH (correctly rounded) instead of the platform's libm; no SIMD
+# (WITH_ASM=OFF: AVX2/FMA/NEON sum in other orders); no fused multiply-add
+# (-ffp-contract=off). See patches/README.md.
+for p in /patches/flac-*.patch; do echo "   patch $(basename "$p")"; patch -p1 -s < "$p"; done
+cp /coremath/cosf.c src/libFLAC/crmath_cosf.c; cp /coremath/log.c src/libFLAC/crmath_log.c; cp /coremath/dint.h src/libFLAC/
+CFLAGS="$CFLAGS -ffp-contract=off" run flac-configure cmake -S . -B build "${CMAKE_CROSS[@]}" -DCMAKE_BUILD_TYPE=Release -DWITH_ASM=OFF -DCMAKE_INSTALL_PREFIX="$PREFIX" \
     -DBUILD_SHARED_LIBS=ON -DWITH_OGG=OFF -DENABLE_MULTITHREADING=OFF -DBUILD_PROGRAMS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_TESTING=OFF \
     -DBUILD_DOCS=OFF -DINSTALL_MANPAGES=OFF -DBUILD_CXXLIBS=OFF -DWITH_STACK_PROTECTOR=ON -DWITH_FORTIFY_SOURCE=ON \
     -DINSTALL_PKGCONFIG_MODULES=OFF -DINSTALL_CMAKE_CONFIG_MODULE=OFF
@@ -171,10 +179,29 @@ win64)
     GLIBC="mingw-w64 $($T-gcc-posix -dumpversion)"
     ;;
 esac
+# ---- the same bytes as every other platform ---------------------------------
+# encode-check.c encodes a generated signal through the libFLAC just built;
+# its SHA-256 is pinned in encode-check.sha256 (the Linux build's). A tripwire,
+# not a proof: it catches a glibc-style rounding difference, and a build that
+# sums or fuses differently. Windows runs it under Wine.
+echo "== encode check"
+case "$TARGET" in
+linux)
+    gcc -O2 -o /tmp/encode-check /encode-check.c -ldl
+    /tmp/encode-check /out/libFLAC.so.14 /tmp/encode-check.flac ;;
+win64)
+    apt-get install -y -qq --no-install-recommends wine wine64 >/dev/null
+    $T-gcc-posix -O2 -o /tmp/encode-check.exe /encode-check.c
+    WINEDEBUG=-all wineboot -i >/dev/null 2>&1 || true
+    cp /out/libFLAC.dll /tmp/
+    (cd /tmp && WINEDEBUG=-all wine encode-check.exe libFLAC.dll encode-check.flac >/dev/null 2>&1) ;;
+esac
+(cd /tmp && sha256sum -c --quiet /encode-check.sha256) || { echo "!! libFLAC encodes differently from the pinned build (encode-check.sha256)" >&2; exit 1; }
+echo "   encode-check.flac matches the pinned SHA-256"
 {
     echo "Deadwax natives: libcdio $LIBCDIO_VERSION, libcdio-paranoia $PARANOIA_VERSION, FLAC $FLAC_VERSION ($TARGET, built $(date -u +%Y-%m-%dT%H:%MZ))"
     echo "toolchain: $GLIBC in $(. /etc/os-release; echo "$PRETTY_NAME")"
     echo "flags: CFLAGS=$CFLAGS LDFLAGS=$LDFLAGS"
-    echo "checks: dependencies limited to the platform and each other; $([ $TARGET = linux ] && echo 'RUNPATH $ORIGIN, full RELRO, stack protector' || echo 'NX, ASLR, high-entropy VA, stack protector')"
+    echo "checks: dependencies limited to the platform and each other; $([ $TARGET = linux ] && echo 'RUNPATH $ORIGIN, full RELRO, stack protector' || echo 'NX, ASLR, high-entropy VA, stack protector'); encode check (same bytes)"
 } > natives-build-info.txt
 cat natives-build-info.txt

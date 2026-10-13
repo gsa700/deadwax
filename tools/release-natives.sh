@@ -59,6 +59,9 @@ done
 (cd "$WORK" && sha256sum natives-*.zip > SHA256SUMS)
 mkdir -p "$WORK/src"
 cp "$HERE/build-natives/sources/"* "$WORK/src/"
+# Our changes to those sources go up with them: the patches, CORE-MATH's two
+# files that the flac patch compiles in, and the encode check.
+tar -C "$HERE/build-natives" -czf "$WORK/src/deadwax-$TAG-patches.tar.gz" patches coremath encode-check.c encode-check.sha256
 (cd "$WORK/src" && sha256sum -- * > ../SHA256SUMS-sources)
 
 ARGS=(--repo "$REPO" --prerelease --title "$TAG (libcdio $LIBCDIO_VERSION, libcdio-paranoia $PARANOIA_VERSION, FLAC $FLAC_VERSION; three platforms)")

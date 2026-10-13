@@ -1,0 +1,126 @@
+diff -ruN a/src/libFLAC/CMakeLists.txt b/src/libFLAC/CMakeLists.txt
+--- a/src/libFLAC/CMakeLists.txt
++++ b/src/libFLAC/CMakeLists.txt
+@@ -65,6 +65,9 @@
+     stream_encoder_framing.c
+     version.rc
+     window.c
++    crmath_cosf.c
++    crmath_log.c
++    crmath_roundeven.c
+     $<$<BOOL:${WIN32}>:../../include/share/win_utf8_io.h>
+     $<$<BOOL:${WIN32}>:../share/win_utf8_io/win_utf8_io.c>
+     $<$<BOOL:${OGG_FOUND}>:ogg_decoder_aspect.c>
+diff -ruN a/src/libFLAC/crmath_roundeven.c b/src/libFLAC/crmath_roundeven.c
+--- a/src/libFLAC/crmath_roundeven.c
++++ b/src/libFLAC/crmath_roundeven.c
+@@ -0,0 +1,8 @@
++/* Deadwax: CORE-MATH's cosf calls roundeven, which glibc and Apple's libm
++ * have and mingw-w64 does not. Exact either way: nearbyint in the default
++ * rounding mode (to nearest, ties to even; libFLAC never changes it). */
++#ifdef _WIN32
++#include <math.h>
++double roundeven(double x);
++double roundeven(double x) { return nearbyint(x); }
++#endif
+diff -ruN a/src/libFLAC/fixed.c b/src/libFLAC/fixed.c
+--- a/src/libFLAC/fixed.c
++++ b/src/libFLAC/fixed.c
+@@ -41,6 +41,7 @@
+ #include "private/fixed.h"
+ #include "private/macros.h"
+ #include "FLAC/assert.h"
++#include "private/crmath.h"
+ 
+ #ifdef local_abs
+ #undef local_abs
+diff -ruN a/src/libFLAC/fixed_intrin_avx2.c b/src/libFLAC/fixed_intrin_avx2.c
+--- a/src/libFLAC/fixed_intrin_avx2.c
++++ b/src/libFLAC/fixed_intrin_avx2.c
+@@ -47,6 +47,7 @@
+ #include "private/macros.h"
+ #include "share/compat.h"
+ #include "FLAC/assert.h"
++#include "private/crmath.h"
+ 
+ #ifdef local_abs
+ #undef local_abs
+diff -ruN a/src/libFLAC/fixed_intrin_sse2.c b/src/libFLAC/fixed_intrin_sse2.c
+--- a/src/libFLAC/fixed_intrin_sse2.c
++++ b/src/libFLAC/fixed_intrin_sse2.c
+@@ -47,6 +47,7 @@
+ #include "private/macros.h"
+ #include "share/compat.h"
+ #include "FLAC/assert.h"
++#include "private/crmath.h"
+ 
+ #ifdef FLAC__CPU_IA32
+ #define m128i_to_i64(dest, src) _mm_storel_epi64((__m128i*)&dest, src)
+diff -ruN a/src/libFLAC/fixed_intrin_sse42.c b/src/libFLAC/fixed_intrin_sse42.c
+--- a/src/libFLAC/fixed_intrin_sse42.c
++++ b/src/libFLAC/fixed_intrin_sse42.c
+@@ -47,6 +47,7 @@
+ #include "private/macros.h"
+ #include "share/compat.h"
+ #include "FLAC/assert.h"
++#include "private/crmath.h"
+ 
+ #ifdef local_abs64
+ #undef local_abs64
+diff -ruN a/src/libFLAC/fixed_intrin_ssse3.c b/src/libFLAC/fixed_intrin_ssse3.c
+--- a/src/libFLAC/fixed_intrin_ssse3.c
++++ b/src/libFLAC/fixed_intrin_ssse3.c
+@@ -47,6 +47,7 @@
+ #include "private/macros.h"
+ #include "share/compat.h"
+ #include "FLAC/assert.h"
++#include "private/crmath.h"
+ 
+ #ifdef FLAC__CPU_IA32
+ #define m128i_to_i64(dest, src) _mm_storel_epi64((__m128i*)&dest, src)
+diff -ruN a/src/libFLAC/include/private/crmath.h b/src/libFLAC/include/private/crmath.h
+--- a/src/libFLAC/include/private/crmath.h
++++ b/src/libFLAC/include/private/crmath.h
+@@ -0,0 +1,20 @@
++/* Deadwax: cosf and log through CORE-MATH's correctly rounded versions
++ * (crmath_cosf.c, crmath_log.c), not the platform's maths library.
++ *
++ * The encoder picks its apodization window with cosf and estimates each
++ * frame's best predictor with log. glibc, mingw-w64 and Apple's libm can
++ * differ in the last bit, which now and then tips a choice and changes the
++ * bytes of a frame (never the audio). A correctly rounded result is the same
++ * everywhere, so the same audio encodes to the same file on every platform.
++ * Include after <math.h>.
++ */
++#ifndef FLAC__PRIVATE__CRMATH_H
++#define FLAC__PRIVATE__CRMATH_H
++#include <math.h>
++float cr_cosf(float x);
++double cr_log(double x);
++#undef cosf
++#undef log
++#define cosf cr_cosf
++#define log cr_log
++#endif
+diff -ruN a/src/libFLAC/lpc.c b/src/libFLAC/lpc.c
+--- a/src/libFLAC/lpc.c
++++ b/src/libFLAC/lpc.c
+@@ -43,6 +43,7 @@
+ #include "private/bitmath.h"
+ #include "private/lpc.h"
+ #include "private/macros.h"
++#include "private/crmath.h"
+ 
+ #if !defined(NDEBUG) || defined FLAC__OVERFLOW_DETECT || defined FLAC__OVERFLOW_DETECT_VERBOSE
+ #include <stdio.h>
+diff -ruN a/src/libFLAC/window.c b/src/libFLAC/window.c
+--- a/src/libFLAC/window.c
++++ b/src/libFLAC/window.c
+@@ -39,6 +39,7 @@
+ #include "FLAC/assert.h"
+ #include "FLAC/format.h"
+ #include "private/window.h"
++#include "private/crmath.h"
+ 
+ #ifndef FLAC__INTEGER_ONLY_LIBRARY
+ 

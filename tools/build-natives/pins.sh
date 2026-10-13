@@ -5,7 +5,9 @@
 # libcdio 2.3.0 and libcdio-paranoia 10.2+2.0.2 are what Fedora ships and what
 # every log in the library names ("libcdio-paranoia (libcdio 2.3.0 ...)");
 # FLAC 1.5.0 likewise ("reference libFLAC 1.5.0" is the vendor string in every
-# file). Same versions bundled = same engine everywhere.
+# file). Same versions bundled = same engine everywhere. FLAC is built with
+# correctly rounded maths and no SIMD so it encodes the same bytes everywhere
+# (patches/README.md, flac-01).
 LIBCDIO_VERSION=2.3.0
 LIBCDIO_URL=https://github.com/libcdio/libcdio/releases/download/2.3.0/libcdio-2.3.0.tar.bz2
 LIBCDIO_SHA256=53e83d284667535a767fd2d31edad1a6701591960459df373a10f1f21e80a7ed

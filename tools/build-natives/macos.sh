@@ -44,7 +44,9 @@ tar xjf "$HERE/sources/libcdio-paranoia-$PARANOIA_VERSION.tar.bz2" -C "$SRC"
 
 echo "== FLAC $FLAC_VERSION"
 tar xJf "$HERE/sources/flac-$FLAC_VERSION.tar.xz" -C "$SRC"
-( cd "$SRC/flac-$FLAC_VERSION" && run flac-configure cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$PREFIX" \
+( cd "$SRC/flac-$FLAC_VERSION" && for p in "$HERE"/patches/flac-*.patch; do echo "   patch $(basename "$p")"; patch -p1 -s < "$p"; done \
+    && cp "$HERE/coremath/cosf.c" src/libFLAC/crmath_cosf.c && cp "$HERE/coremath/log.c" src/libFLAC/crmath_log.c && cp "$HERE/coremath/dint.h" src/libFLAC/ \
+    && CFLAGS="$CFLAGS -ffp-contract=off" run flac-configure cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DWITH_ASM=OFF -DCMAKE_INSTALL_PREFIX="$PREFIX" \
     -DCMAKE_OSX_DEPLOYMENT_TARGET=$MIN -DBUILD_SHARED_LIBS=ON -DWITH_OGG=OFF -DENABLE_MULTITHREADING=OFF -DBUILD_PROGRAMS=OFF -DBUILD_EXAMPLES=OFF \
     -DBUILD_TESTING=OFF -DBUILD_DOCS=OFF -DINSTALL_MANPAGES=OFF -DBUILD_CXXLIBS=OFF -DWITH_STACK_PROTECTOR=ON -DWITH_FORTIFY_SOURCE=ON \
     -DINSTALL_PKGCONFIG_MODULES=OFF -DINSTALL_CMAKE_CONFIG_MODULE=OFF \
@@ -70,10 +72,16 @@ for f in *.dylib; do
     [ "$(lipo -archs "$f" | grep -c arm64)" -gt 0 ] || { echo "!! $f is not arm64" >&2; exit 1; }
     [ "$(nm -u "$f" 2>/dev/null | grep -c '___stack_chk_fail')" -gt 0 ] || { echo "!! $f has no stack protector" >&2; exit 1; }
 done
+# The same bytes as every other platform: see encode-check.c and inner.sh.
+echo "== encode check"
+cc -O2 -o "$SRC/encode-check" "$HERE/encode-check.c"
+"$SRC/encode-check" "$OUT/libFLAC.14.dylib" "$SRC/encode-check.flac"
+(cd "$SRC" && shasum -a 256 -c "$HERE/encode-check.sha256" >/dev/null) || { echo "!! libFLAC encodes differently from the pinned build (encode-check.sha256): $(shasum -a 256 "$SRC/encode-check.flac")" >&2; exit 1; }
+echo "   encode-check.flac matches the pinned SHA-256"
 {
     echo "Deadwax natives: libcdio $LIBCDIO_VERSION, libcdio-paranoia $PARANOIA_VERSION, FLAC $FLAC_VERSION ($RID, built $(date -u +%Y-%m-%dT%H:%MZ))"
     echo "toolchain: $(clang --version | head -1) on macOS $(sw_vers -productVersion), deployment target $MIN"
     echo "flags: CFLAGS=$CFLAGS"
-    echo "checks: install names @loader_path, dependencies limited to the system (/usr/lib, system frameworks) and each other, arm64, stack protector, ad-hoc signed"
+    echo "checks: install names @loader_path, dependencies limited to the system (/usr/lib, system frameworks) and each other, arm64, stack protector, ad-hoc signed; encode check (same bytes)"
 } > natives-build-info.txt
 cat natives-build-info.txt
