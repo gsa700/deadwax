@@ -11,6 +11,23 @@ diff -ruN a/src/libFLAC/CMakeLists.txt b/src/libFLAC/CMakeLists.txt
      $<$<BOOL:${WIN32}>:../../include/share/win_utf8_io.h>
      $<$<BOOL:${WIN32}>:../share/win_utf8_io/win_utf8_io.c>
      $<$<BOOL:${OGG_FOUND}>:ogg_decoder_aspect.c>
+@@ -100,13 +103,9 @@
+ 
+ check_c_compiler_flag("-fassociative-math -fno-signed-zeros -fno-trapping-math -freciprocal-math" HAVE_ASSOC_MATH)
+ 
+-if(MSVC)
+-        target_compile_options(FLAC BEFORE PRIVATE "/fp:fast")
+-else()
+-    if(HAVE_ASSOC_MATH)
+-        target_compile_options(FLAC BEFORE PRIVATE -fassociative-math -fno-signed-zeros -fno-trapping-math -freciprocal-math)
+-    endif()
+-endif()
++# Deadwax: no fast-math. Reassociated sums differ between gcc and clang (and
++# break CORE-MATH's exact arithmetic); strict IEEE gives the same bytes on
++# every platform. See crmath.h.
+ 
+ if(HAVE_PTHREAD)
+     target_link_libraries(FLAC PUBLIC Threads::Threads)
 diff -ruN a/src/libFLAC/crmath_roundeven.c b/src/libFLAC/crmath_roundeven.c
 --- a/src/libFLAC/crmath_roundeven.c
 +++ b/src/libFLAC/crmath_roundeven.c
