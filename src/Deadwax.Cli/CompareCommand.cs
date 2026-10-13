@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Text.RegularExpressions;
 using Deadwax.Metadata;
 using Deadwax.Verify;
@@ -98,17 +97,10 @@ internal static partial class CompareCommand
         }
     }
 
-    private static async Task<List<Tag>> TagsAsync(string flac)
-    {
-        var start = new ProcessStartInfo("metaflac") { RedirectStandardOutput = true };
-        start.ArgumentList.Add("--export-tags-to=-");
-        start.ArgumentList.Add(flac);
-        using var p = Process.Start(start)!;
-        var text = await p.StandardOutput.ReadToEndAsync();
-        await p.WaitForExitAsync();
-        return text.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(l => l.Split('=', 2))
-            .Where(kv => kv.Length == 2).Select(kv => new Tag(kv[0].ToUpperInvariant(), kv[1])).ToList();
-    }
+    // In-process (TagLib), not metaflac: works where FLAC's tools aren't
+    // installed (Windows, macOS), and multi-line values stay whole.
+    private static Task<List<Tag>> TagsAsync(string flac) =>
+        Task.Run(() => FlacTags.Read(flac).Select(kv => new Tag(kv.Key, kv.Value)).ToList());
 
     [GeneratedRegex(@" - (\d{2,3}) - ")]
     private static partial Regex TrackNumber();

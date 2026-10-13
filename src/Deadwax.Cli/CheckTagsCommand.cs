@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Deadwax.Drive;
 using Deadwax.Metadata;
 using static Deadwax.Cli.Commands;
@@ -125,16 +124,8 @@ internal static class CheckTagsCommand
         string Rel(string p) => Path.GetRelativePath(root, p);
     }
 
-    private static async Task<List<Tag>> ReadTagsAsync(string flac)
-    {
-        var start = new ProcessStartInfo("metaflac") { RedirectStandardOutput = true };
-        start.ArgumentList.Add("--export-tags-to=-");
-        start.ArgumentList.Add(flac);
-        using var p = Process.Start(start)!;
-        var text = await p.StandardOutput.ReadToEndAsync();
-        await p.WaitForExitAsync();
-        return text.Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Select(l => l.Split('=', 2)).Where(kv => kv.Length == 2)
-            .Select(kv => new Tag(kv[0].ToUpperInvariant(), kv[1])).ToList();
-    }
+    // In-process (TagLib), not metaflac: works where FLAC's tools aren't
+    // installed (Windows, macOS), and multi-line values stay whole.
+    private static Task<List<Tag>> ReadTagsAsync(string flac) =>
+        Task.Run(() => FlacTags.Read(flac).Select(kv => new Tag(kv.Key, kv.Value)).ToList());
 }
