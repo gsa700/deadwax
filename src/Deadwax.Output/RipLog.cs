@@ -72,7 +72,8 @@ public static class RipLog
         foreach (var t in tracks)
         {
             L($"  {t.Number}:");
-            L($"    Filename: {Yaml(t.FileName)}");
+            // '/' on every platform: the same rip logs the same text on Windows.
+            L($"    Filename: {Yaml(t.FileName.Replace('\\', '/'))}");
             L($"    Peak level: {t.Peak.ToString("0.######", CultureInfo.InvariantCulture)}");
             L($"    Pre-emphasis:{(t.PreEmphasis ? " true" : "")}");
             L($"    Extraction speed: {t.Speed.ToString("0.0", CultureInfo.InvariantCulture)} X");

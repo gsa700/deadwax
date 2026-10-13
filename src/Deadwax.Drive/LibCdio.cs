@@ -147,14 +147,16 @@ internal static partial class LibCdio
     }
 
     /// libcdio's version, from its exported `const char *cdio_version_string`,
-    /// for the rip log ("2.3.0"); null if the library cannot be loaded.
+    /// for the rip log ("2.3.0"); null if the library cannot be loaded. The
+    /// string also names the machine that COMPILED it ("2.3.0
+    /// x86_64-pc-linux-gnu", even in our Windows DLL): only the version is kept.
     public static string? Version()
     {
         NativeLibraries.Register();
         var handle = NativeLibraries.Load(Lib);
         if (handle == IntPtr.Zero) return null;
         if (!NativeLibrary.TryGetExport(handle, "cdio_version_string", out var slot)) return null;
-        return Marshal.PtrToStringUTF8(Marshal.ReadIntPtr(slot));
+        return Marshal.PtrToStringUTF8(Marshal.ReadIntPtr(slot))?.Split(' ')[0];
     }
 
     // cdio_log_level_t: DEBUG = 1, INFO, WARN, ERROR, ASSERT.
