@@ -1010,13 +1010,16 @@ public sealed partial class MainWindow : Window
         var (left, right) = WindowButtons.Layout();
         foreach (var k in left) LeftButtons.Children.Add(WindowButtons.Create(k, () => Invoke(k)));
         foreach (var k in right) RightButtons.Children.Add(WindowButtons.Create(k, () => Invoke(k)));
-        // Square buttons (Windows): flush to each other and to the window's edge,
-        // the close button's red filling the corner (the Surface clip rounds it),
-        // as Windows' own caption buttons do. Round ones (Linux) keep their gaps.
+        // Square buttons (Windows, macOS): flush to each other and to the window's
+        // edge, the close button's red filling the corner (the Surface clip rounds
+        // it), as Windows' own caption buttons do; AlbumWall's BuildWindowButtons
+        // does the same. Round ones (Linux) keep their gaps. -12 undoes the top
+        // bar's 12 px side margin on the side the buttons are on.
         if (!OperatingSystem.IsLinux())
         {
-            RightButtons.Spacing = 0;
-            RightButtons.Margin = new Thickness(0, 0, -12, 0);   // the top bar's 12 px side margin
+            LeftButtons.Spacing = RightButtons.Spacing = 0;
+            if (right.Length > 0) RightButtons.Margin = new Thickness(0, 0, -12, 0);
+            if (left.Length > 0) LeftButtons.Margin = new Thickness(-12, 0, LeftButtons.Margin.Right, 0);
         }
 
         void Invoke(WindowButtons.Kind k)
