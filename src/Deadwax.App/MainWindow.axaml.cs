@@ -42,7 +42,10 @@ public sealed partial class MainWindow : Window
         if (_settings.EmbedCover is null) { _settings.EmbedCover = false; _settings.Save(); }   // decided once, not re-guessed
         Width = Math.Max(_settings.Width, MinWidth);
         Height = Math.Max(_settings.Height, MinHeight);
-        if (_settings.Maximized) WindowState = WindowState.Maximized;
+        // Maximized only once placed (Opened), so it maximizes on the screen it
+        // was on rather than the primary one.
+        if (_settings.Maximized && Program.NativeWayland) WindowState = WindowState.Maximized;
+        PositionChanged += (_, _) => { if (_placed && WindowState == WindowState.Normal) _normalPosition = Position; };
         PropertyChanged += (_, e) => { if (e.Property == WindowStateProperty) ApplyCorners(); };
         ApplyCorners();
         DataContext = _vm;
@@ -68,6 +71,9 @@ public sealed partial class MainWindow : Window
         _watch.Tick += async (_, _) => await WatchAsync();
         Opened += async (_, _) =>
         {
+            RestorePosition();
+            if (_settings.Maximized) WindowState = WindowState.Maximized;
+            _placed = true;
             WaylandShell.ClaimIdentity(this);   // the dash's icon, on native Wayland
             _watch.Start();
             await WatchAsync();
@@ -83,7 +89,11 @@ public sealed partial class MainWindow : Window
             {
                 _settings.Width = Bounds.Width;
                 _settings.Height = Bounds.Height;
+                _normalPosition = Position;
             }
+            // On native Wayland the position is unknowable (0,0): writing it
+            // down would throw away nothing useful but mislead an X11 session.
+            if (!Program.NativeWayland && _normalPosition is { } p) (_settings.WindowX, _settings.WindowY) = (p.X, p.Y);
             _settings.Save();
         };
     }
@@ -108,6 +118,32 @@ public sealed partial class MainWindow : Window
     }
 
     private const string NoDisc = "No disc";
+
+    private bool _placed;
+    private PixelPoint? _normalPosition;
+
+    /// Puts the window back where it was (Windows, X11, macOS; native Wayland
+    /// does not let a window place itself). AlbumWall's rules: the screen is the
+    /// one under the saved corner, with ITS scaling (RenderScaling is not settled
+    /// at Opened); the window is shrunk to fit that screen's working area and
+    /// then moved fully inside it, so a monitor unplugged or a resolution
+    /// changed since cannot leave it off-screen.
+    private void RestorePosition()
+    {
+        if (Program.NativeWayland || _settings.WindowX is not { } x || _settings.WindowY is not { } y) return;
+        var screen = Screens.ScreenFromPoint(new PixelPoint(x, y)) ?? Screens.Primary;
+        if (screen is null) return;
+        var scale = screen.Scaling > 0 ? screen.Scaling : RenderScaling;
+        var area = screen.WorkingArea;
+        var w = (int)(Width * scale);
+        var h = (int)(Height * scale);
+        if (w > area.Width) { w = area.Width; Width = Math.Max(w / scale, MinWidth); }
+        if (h > area.Height) { h = area.Height; Height = Math.Max(h / scale, MinHeight); }
+        var cx = Math.Clamp(x, area.X, Math.Max(area.X, area.X + area.Width - w));
+        var cy = Math.Clamp(y, area.Y, Math.Max(area.Y, area.Y + area.Height - h));
+        Position = new PixelPoint(cx, cy);
+        _normalPosition = Position;
+    }
 
     /// 12 px corners on a normal window; square when maximized (or minimized,
     /// full screen): the window is transparent, so a rounded corner on a

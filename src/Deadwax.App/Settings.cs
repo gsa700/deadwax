@@ -11,6 +11,11 @@ public sealed class Settings
     public double Width { get; set; } = 1444;
     public double Height { get; set; } = 1080;
     public bool Maximized { get; set; }
+    /// Where the normal window's top-left corner was, in screen pixels. Null
+    /// on a first run and on native Wayland, where a window cannot place
+    /// itself and its position reads 0,0 (his ask on Windows, 2026-10-13).
+    public int? WindowX { get; set; }
+    public int? WindowY { get; set; }
     /// The drive speed cap, kept between runs: a vibrating disc is usually
     /// one of several. SlowSpin false = "Full speed"; 4x is what read Now
     /// and Zen (2026-10-05).
