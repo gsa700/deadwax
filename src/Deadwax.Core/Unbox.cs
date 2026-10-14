@@ -185,6 +185,10 @@ public static partial class Unbox
             var cover = Path.Combine(albumDir, "cover.jpg");
             await File.WriteAllBytesAsync(cover + ".part", front!, ct);
             File.Move(cover + ".part", cover, overwrite: true);
+            // Files that carry the set's front embedded get the album's instead.
+            // Decided by the files, not by Preferences: the CLI never loads them,
+            // and a CLI unbox left the box art inside the files (Hambench, 2026-10-13).
+            if (flacs.Any(CoverEmbed.HasFront)) CoverEmbed.Apply(albumDir);
         }
         File.Delete(Path.Combine(albumDir, "back.jpg"));
 
