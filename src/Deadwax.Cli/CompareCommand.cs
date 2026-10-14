@@ -18,10 +18,16 @@ internal static partial class CompareCommand
         var ourFlacs = Flacs(ours);
         var theirFlacs = Flacs(theirs);
         var problems = 0;
+        var notes = 0;
         void Report(bool same, string what, string detail = "")
         {
             if (!same) problems++;
             Console.WriteLine($"  {(same ? "same" : "DIFF")}  {what}{(detail.Length > 0 ? "  " + detail : "")}");
+        }
+        void Note(string what, string detail)
+        {
+            notes++;
+            Console.WriteLine($"  note  {what}  {detail}");
         }
 
         Report(ourFlacs.Keys.SequenceEqual(theirFlacs.Keys), "track numbers", $"{ourFlacs.Count} vs {theirFlacs.Count}");
@@ -30,7 +36,14 @@ internal static partial class CompareCommand
             var (a, b) = (ourFlacs[n], theirFlacs[n]);
             var sameAudio = FlacInfo.AudioMd5(a) == FlacInfo.AudioMd5(b);
             var sameFrames = sameAudio && FramesEqual(a, b);
-            Report(sameFrames, $"track {n} FLAC", sameFrames ? "byte-identical audio frames" : sameAudio ? "same audio, different frames" : "DIFFERENT AUDIO");
+            // Same audio in different frames is a pass: a libFLAC built another way
+            // makes other (equally lossless) choices. Since natives-2 every platform
+            // encodes alike (the natives recipe's encode check enforces that), so
+            // this shows up against rips encoded before it, about half their tracks.
+            if (sameAudio && !sameFrames)
+                Note($"track {n} FLAC", "same audio, different frames (another libFLAC build: expected against rips made before natives-2)");
+            else
+                Report(sameFrames, $"track {n} FLAC", sameFrames ? "byte-identical audio frames" : "DIFFERENT AUDIO");
 
             var ta = await TagsAsync(a);
             var tb = await TagsAsync(b);
@@ -72,7 +85,8 @@ internal static partial class CompareCommand
         }
 
         Console.WriteLine();
-        Console.WriteLine(problems == 0 ? "G5: PASS, the Deadwax rip matches whipper's." : $"G5: {problems} difference(s).");
+        var noted = notes == 0 ? "" : $" ({notes} track(s) with the same audio in different frames)";
+        Console.WriteLine(problems == 0 ? $"G5: PASS, the Deadwax rip matches whipper's{noted}." : $"G5: {problems} difference(s){noted}.");
         return problems == 0 ? 0 : 1;
     }
 
