@@ -88,8 +88,17 @@ public static partial class Unbox
             return new(null, $"MusicBrainz could not be asked ({e.Message})");
         }
         (string Id, string Year)? hit;
-        using (found) hit = found is null ? null : Pick(found.RootElement, title);
+        string? groupTitle = null;
+        using (found)
+        {
+            hit = found is null ? null : Pick(found.RootElement, title);
+            if (hit is { } found1) groupTitle = TitleOf(found!.RootElement, found1.Id);
+        }
         if (hit is not { } h) return new(null, $"\"{title}\" does not resolve as an album or EP by {artist}");
+        // A Windows folder has '_' where the title had ':', '?' and the like
+        // (FileNames.Safe); the tag gets MusicBrainz's spelling, not the folder's.
+        // Pick matched it ignoring punctuation, so it is the same title.
+        if (title.Contains('_') && groupTitle is { Length: > 0 } && !groupTitle.Contains('_')) title = groupTitle;
 
         var target = Path.Combine(Path.GetDirectoryName(albumDir)!, FileNames.AlbumLeaf(Filing.Current.Folder, artist, h.Year, title));
         if (Directory.Exists(target) && Path.GetFullPath(target) != Path.GetFullPath(albumDir))
@@ -125,6 +134,12 @@ public static partial class Unbox
         var best = matches.OrderBy(m => m.Secondary).ThenBy(m => m.Year, StringComparer.Ordinal).ThenBy(m => m.Id, StringComparer.Ordinal).First();
         return (best.Id, best.Year);
     }
+
+    /// The title of the release group with this id in a search answer.
+    public static string? TitleOf(JsonElement search, string id) =>
+        search.TryGetProperty("release-groups", out var groups) && groups.ValueKind == JsonValueKind.Array
+            ? groups.EnumerateArray().Where(g => Str(g, "id") == id).Select(g => Str(g, "title")).FirstOrDefault()
+            : null;
 
     /// Retags the disc, replaces its front, drops its back and renames the
     /// folder, after copying the old tags and art to BackupRoot.
@@ -205,12 +220,14 @@ public static partial class Unbox
     private static string? Str(JsonElement e, string name) =>
         e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
 
-    // The colon is optional: one Led Zeppelin folder has none.
+    // The colon is optional: one Led Zeppelin folder has none. On Windows it
+    // is '_' (FileNames.Safe: ':' is not allowed there), so either is taken;
+    // an unbox on Hambench silently did nothing until it was (2026-10-13).
     // The year in front is optional: only the default folder style puts it
     // there ("Album (1989)" ends with it, and TrailingYear takes that off the
     // title; "Artist - Album" begins with the artist, which the lazy
     // collection group absorbs).
-    [GeneratedRegex(@"^(?:\d{4} - )?(?<collection>.+?) \(Disc (?<n>\d+) of (?<of>\d+)\)(?:\s*:\s*|\s+)?(?<title>.*)$")]
+    [GeneratedRegex(@"^(?:\d{4} - )?(?<collection>.+?) \(Disc (?<n>\d+) of (?<of>\d+)\)(?:\s*[:_]\s*|\s+)?(?<title>.*)$")]
     private static partial Regex Folder();
 
     [GeneratedRegex(@"\s*\((?:19|20)\d{2}\)\s*$")]

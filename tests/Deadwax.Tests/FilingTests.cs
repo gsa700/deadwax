@@ -38,10 +38,22 @@ public class FilingTests
     [InlineData("The Atlantic Years (1989–1996) (Disc 1 of 5): Skid Row (2023)")]
     [InlineData("The Atlantic Years (1989–1996) (Disc 1 of 5): Skid Row")]
     [InlineData("Skid Row - The Atlantic Years (1989–1996) (Disc 1 of 5): Skid Row")]
+    [InlineData("1989 - The Atlantic Years (1989–1996) (Disc 1 of 5)_ Skid Row")]   // Windows: FileNames.Safe made ':' '_'
     public void Unbox_reads_a_set_disc_in_every_style(string folder)
     {
         Assert.True(Unbox.IsSetDisc(Path.Combine("/lib", "Skid Row", folder)));
         Assert.Equal("Skid Row", Unbox.Subtitle(folder));
+    }
+
+    /// The folder a Windows rip writes for a set disc, from the same title the
+    /// plan builds: Unbox must read it back (Hambench, Frontiers, 2026-10-13).
+    [Fact]
+    public void Unbox_reads_the_folder_a_Windows_rip_writes()
+    {
+        var folder = FileNames.Safe("2011 - Original Album Classics (Disc 4 of 5): Frontiers", windows: true);
+        Assert.Equal("2011 - Original Album Classics (Disc 4 of 5)_ Frontiers", folder);
+        Assert.True(Unbox.IsSetDisc(Path.Combine("/lib", "Journey", folder)));
+        Assert.Equal("Frontiers", Unbox.Subtitle(folder));
     }
 
     // FiledCheck's album-wide rules, on a real ripped album copied aside.

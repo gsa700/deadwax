@@ -44,6 +44,16 @@ public class UnboxTests
         Assert.Equal(("reo", "1977"), Unbox.Pick(search, "Live: You Get What You Play For"));
     }
 
+    /// A Windows folder says "Live_ You Get What You Play For" (FileNames.Safe):
+    /// it still resolves, and the title to tag with is MusicBrainz's.
+    [Fact]
+    public void AWindowsFolderTitleResolvesAndTakesMusicBrainzSpelling()
+    {
+        var search = Search("""{"id": "reo", "title": "Live: You Get What You Play For", "score": 100, "first-release-date": "1977", "secondary-types": ["Live"]}""");
+        Assert.Equal(("reo", "1977"), Unbox.Pick(search, "Live_ You Get What You Play For"));
+        Assert.Equal("Live: You Get What You Play For", Unbox.TitleOf(search, "reo"));
+    }
+
     [Fact]
     public void CompilationsOtherTitlesLowScoresAndNoDateAreRefused()
     {
