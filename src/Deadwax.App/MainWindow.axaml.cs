@@ -58,7 +58,10 @@ public sealed partial class MainWindow : Window
         AddHandler(PointerMovedEvent, OnPointerMovedForResize, RoutingStrategies.Tunnel);
         TopBar.PointerPressed += OnTitleBarPressed;
 
-        _vm.DriveText = CdDrive.DefaultDevice;
+        // "No disc" until one is read, then the drive and its offset (ShowDisc).
+        // Not the device path: "\\.\D:" on Windows looked like an error, and
+        // "/dev/sr0" told him nothing either (2026-10-13, his call).
+        _vm.DriveText = NoDisc;
         _vm.StatusText = "Put a CD in the drive.";
         _watch.Tick += async (_, _) => await WatchAsync();
         Opened += async (_, _) =>
@@ -91,6 +94,7 @@ public sealed partial class MainWindow : Window
     {
         if (_vm.IsScanning || _vm.IsRipping) return;
         var (present, audio) = await MediaAsync(CdDrive.DefaultDevice);
+        if (!present) _vm.DriveText = NoDisc;
         if (_vm.IsWaiting && present && audio > 0 && !_vm.HasError) await ScanAsync();
         else if (_vm.IsWaiting && present && audio == 0) _vm.StatusText = "That disc has no audio tracks.";
         else if (!present && _vm.IsDisc) Reset("Put a CD in the drive.");
@@ -100,6 +104,8 @@ public sealed partial class MainWindow : Window
             _vm.StatusText = "Put a CD in the drive.";
         }
     }
+
+    private const string NoDisc = "No disc";
 
     /// Asks the drive (libcdio: open, TOC, count), off the UI thread. Until
     /// 0.2.16 this asked udev, which exists only on Linux.
