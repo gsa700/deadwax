@@ -122,27 +122,10 @@ public sealed partial class MainWindow : Window
     private bool _placed;
     private PixelPoint? _normalPosition;
 
-    /// Puts the window back where it was (Windows, X11, macOS; native Wayland
-    /// does not let a window place itself). AlbumWall's rules: the screen is the
-    /// one under the saved corner, with ITS scaling (RenderScaling is not settled
-    /// at Opened); the window is shrunk to fit that screen's working area and
-    /// then moved fully inside it, so a monitor unplugged or a resolution
-    /// changed since cannot leave it off-screen.
+    /// Puts the window back where it was (WindowPlacement's rules).
     private void RestorePosition()
     {
-        if (Program.NativeWayland || _settings.WindowX is not { } x || _settings.WindowY is not { } y) return;
-        var screen = Screens.ScreenFromPoint(new PixelPoint(x, y)) ?? Screens.Primary;
-        if (screen is null) return;
-        var scale = screen.Scaling > 0 ? screen.Scaling : RenderScaling;
-        var area = screen.WorkingArea;
-        var w = (int)(Width * scale);
-        var h = (int)(Height * scale);
-        if (w > area.Width) { w = area.Width; Width = Math.Max(w / scale, MinWidth); }
-        if (h > area.Height) { h = area.Height; Height = Math.Max(h / scale, MinHeight); }
-        var cx = Math.Clamp(x, area.X, Math.Max(area.X, area.X + area.Width - w));
-        var cy = Math.Clamp(y, area.Y, Math.Max(area.Y, area.Y + area.Height - h));
-        Position = new PixelPoint(cx, cy);
-        _normalPosition = Position;
+        if (WindowPlacement.Restore(this, _settings.WindowX, _settings.WindowY)) _normalPosition = Position;
     }
 
     /// 12 px corners on a normal window; square when maximized (or minimized,
@@ -1027,6 +1010,14 @@ public sealed partial class MainWindow : Window
         var (left, right) = WindowButtons.Layout();
         foreach (var k in left) LeftButtons.Children.Add(WindowButtons.Create(k, () => Invoke(k)));
         foreach (var k in right) RightButtons.Children.Add(WindowButtons.Create(k, () => Invoke(k)));
+        // Square buttons (Windows): flush to each other and to the window's edge,
+        // the close button's red filling the corner (the Surface clip rounds it),
+        // as Windows' own caption buttons do. Round ones (Linux) keep their gaps.
+        if (!OperatingSystem.IsLinux())
+        {
+            RightButtons.Spacing = 0;
+            RightButtons.Margin = new Thickness(0, 0, -12, 0);   // the top bar's 12 px side margin
+        }
 
         void Invoke(WindowButtons.Kind k)
         {

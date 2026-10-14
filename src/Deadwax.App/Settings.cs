@@ -16,6 +16,9 @@ public sealed class Settings
     /// itself and its position reads 0,0 (his ask on Windows, 2026-10-13).
     public int? WindowX { get; set; }
     public int? WindowY { get; set; }
+    /// The same for Preferences (his ask, 2026-10-13: "we forgot the prefs window").
+    public int? PrefsX { get; set; }
+    public int? PrefsY { get; set; }
     /// The drive speed cap, kept between runs: a vibrating disc is usually
     /// one of several. SlowSpin false = "Full speed"; 4x is what read Now
     /// and Zen (2026-10-05).

@@ -34,7 +34,19 @@ public partial class PrefsWindow : Window
         // after it, as AlbumWall's FitToTallestTab does: a fixed-size window
         // already on screen ignored the new height (0.2.8, the trace said
         // "620 -> 749" and the window stayed 620).
-        Opened += (_, _) => SizeToLongestTab();
+        // Then where it was last time, kept on a screen (WindowPlacement); a
+        // first run opens where it always has.
+        Opened += (_, _) =>
+        {
+            SizeToLongestTab();
+            WindowPlacement.Restore(this, _settings.PrefsX, _settings.PrefsY);
+        };
+        Closing += (_, _) =>
+        {
+            if (WindowPlacement.Current(this) is not { } p) return;
+            (_settings.PrefsX, _settings.PrefsY) = (p.X, p.Y);
+            _settings.Save();
+        };
     }
 
     /// His rule, as in the family's other apps (2026-10-08): the window is as

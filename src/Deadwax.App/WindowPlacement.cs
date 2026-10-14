@@ -1,0 +1,38 @@
+using Avalonia;
+using Avalonia.Controls;
+
+namespace Deadwax.App;
+
+/// Putting a window back where it was (Windows, X11, macOS; native Wayland
+/// does not let a window place itself, and its position reads 0,0 there).
+/// AlbumWall's rules: the screen is the one under the saved corner, with ITS
+/// scaling (RenderScaling is not settled at Opened); the window is shrunk to
+/// fit that screen's working area and then moved fully inside it, so a monitor
+/// unplugged or a resolution changed since cannot leave it off-screen.
+public static class WindowPlacement
+{
+    /// Moves the window to the saved corner, kept on a screen. False when there
+    /// was nothing to restore.
+    public static bool Restore(Window window, int? savedX, int? savedY)
+    {
+        if (Program.NativeWayland || savedX is not { } x || savedY is not { } y) return false;
+        var screen = window.Screens.ScreenFromPoint(new PixelPoint(x, y)) ?? window.Screens.Primary;
+        if (screen is null) return false;
+        var scale = screen.Scaling > 0 ? screen.Scaling : window.RenderScaling;
+        var area = screen.WorkingArea;
+        var w = (int)(window.Width * scale);
+        var h = (int)(window.Height * scale);
+        if (window.CanResize)
+        {
+            if (w > area.Width) { w = area.Width; window.Width = Math.Max(w / scale, window.MinWidth); }
+            if (h > area.Height) { h = area.Height; window.Height = Math.Max(h / scale, window.MinHeight); }
+        }
+        var cx = Math.Clamp(x, area.X, Math.Max(area.X, area.X + area.Width - w));
+        var cy = Math.Clamp(y, area.Y, Math.Max(area.Y, area.Y + area.Height - h));
+        window.Position = new PixelPoint(cx, cy);
+        return true;
+    }
+
+    /// The position worth saving, or null on native Wayland, where it is unknowable.
+    public static PixelPoint? Current(Window window) => Program.NativeWayland ? null : window.Position;
+}
