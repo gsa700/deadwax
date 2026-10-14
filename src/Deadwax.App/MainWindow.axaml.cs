@@ -43,6 +43,8 @@ public sealed partial class MainWindow : Window
         Width = Math.Max(_settings.Width, MinWidth);
         Height = Math.Max(_settings.Height, MinHeight);
         if (_settings.Maximized) WindowState = WindowState.Maximized;
+        PropertyChanged += (_, e) => { if (e.Property == WindowStateProperty) ApplyCorners(); };
+        ApplyCorners();
         DataContext = _vm;
         _vm.YearChanged += UpdateOutputPreview;
         _vm.DriveSpeed = _settings.SlowSpin
@@ -106,6 +108,12 @@ public sealed partial class MainWindow : Window
     }
 
     private const string NoDisc = "No disc";
+
+    /// 12 px corners on a normal window; square when maximized (or minimized,
+    /// full screen): the window is transparent, so a rounded corner on a
+    /// maximized window shows the desktop through it (AlbumWall, 2026-09-20).
+    private void ApplyCorners() =>
+        Surface.CornerRadius = new CornerRadius(WindowState == WindowState.Normal ? 12 : 0);
 
     /// Asks the drive (libcdio: open, TOC, count), off the UI thread. Until
     /// 0.2.16 this asked udev, which exists only on Linux.

@@ -6,7 +6,8 @@
         Title="Deadwax"
         Icon="/Assets/icon-256.png"
         Width="1444" Height="1080" MinWidth="1100" MinHeight="760"
-        Background="{StaticResource Ground}"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
         ExtendClientAreaToDecorationsHint="True"
         WindowDecorations="None">
 
@@ -33,6 +34,11 @@
         </Style>
     </Window.Styles>
 
+    <!-- Rounded corners, as AlbumWall: the window is transparent and this
+         border carries the ground colour, clipped to 12 px corners. A
+         CornerRadius on the Window itself rounds nothing. Square whenever the
+         window is not Normal (ApplyCorners), or the desktop shows through. -->
+    <Border x:Name="Surface" CornerRadius="12" ClipToBounds="True" Background="{StaticResource Ground}">
     <DockPanel>
         <!-- The title bar: drawn here, like AlbumWall's, to the desktop's own button layout. -->
         <Border x:Name="TopBar" DockPanel.Dock="Top" Height="48" Background="{StaticResource Bar}"
@@ -482,4 +488,5 @@
             </Grid>
         </Panel>
     </DockPanel>
+    </Border>
 </Window>
