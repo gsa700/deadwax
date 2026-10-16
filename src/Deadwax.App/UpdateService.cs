@@ -62,7 +62,11 @@ public static class UpdateService
     /// never offered an update.
     public static bool IsSingleFile => string.IsNullOrEmpty(typeof(UpdateService).Assembly.Location);
 
-    public static bool CanUpdate => IsSingleFile;
+    /// Not on macOS yet: there the program sits inside Deadwax.app, signed as a
+    /// whole (tools/make-macos-app.sh), and swapping the executable inside it
+    /// breaks the signature, which Apple silicon refuses to run. Updating a Mac
+    /// copy means replacing the bundle; until then it is rebuilt by hand.
+    public static bool CanUpdate => IsSingleFile && !OperatingSystem.IsMacOS();
 
     /// The version this copy reports, without the source-revision suffix.
     public static string CurrentVersion

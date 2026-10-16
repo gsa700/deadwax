@@ -214,7 +214,9 @@ public partial class PrefsWindow : Window
             ? $"Update to {info.LatestTag.TrimStart('v', 'V')} and restart"
             : "Check for updates";
         UpdateText.Text = _updateNote
-            ?? (!UpdateService.CanUpdate ? "This is a development build, so updates are not offered."
+            ?? (!UpdateService.CanUpdate ? (OperatingSystem.IsMacOS()
+                    ? $"This is version {have}. On a Mac, Deadwax does not update itself yet."
+                    : "This is a development build, so updates are not offered.")
               : _main.LastUpdateFailed ? $"The last update could not be put in place, so this is still {have}. Try it again."
               : info is null ? $"This is version {have}."
               : info.Error is { } error ? error
