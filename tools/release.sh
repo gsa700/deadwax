@@ -131,7 +131,7 @@ for rid in "${RIDS[@]}"; do
     esac
     [ -f "$out/$exe" ] || die "$rid: no $exe after publish"
     head -c 4 "$out/$exe" | od -An -tx1 | tr -d ' \n' | grep -qE "$magic" || die "$rid: $exe is not a $kind executable"
-    [ "$(stat -c %s "$out/$exe")" -gt 50000000 ] || die "$rid: $exe is too small to be the single-file build"
+    [ "$(wc -c < "$out/$exe")" -gt 50000000 ] || die "$rid: $exe is too small to be the single-file build"
     python3 - "$WORK/Deadwax-$rid.zip" "$out/$exe" <<'PY'
 import sys, zipfile, os
 out, exe = sys.argv[1:]
