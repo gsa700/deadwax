@@ -7,3 +7,4 @@ TestResults/
 dist/
 native/
 tools/build-natives/sources/
+.DS_Store

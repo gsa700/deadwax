@@ -117,7 +117,7 @@ public sealed unsafe class MacIoctlTransport : IMmcTransport
         if (rawSubchannel) return null;
         var buffer = new byte[count * (SectorBytes + QBytes)];
         var req = stackalloc byte[32];
-        *(ulong*)(req + 0) = (ulong)lsn * SectorBytes;
+        *(ulong*)(req + 0) = (ulong)lsn * (SectorBytes + QBytes);
         req[8] = AreaUser | AreaSubChannelQ;
         req[9] = TypeCdda;
         *(uint*)(req + 20) = (uint)buffer.Length;
@@ -167,6 +167,18 @@ public sealed unsafe class MacIoctlTransport : IMmcTransport
     }
 
     [DllImport("libc", SetLastError = true)] private static extern int open([MarshalAs(UnmanagedType.LPUTF8Str)] string path, int flags);
-    [DllImport("libc", SetLastError = true)] private static extern int ioctl(int fd, uint request, void* arg);
+    // ioctl is variadic, and on Apple silicon a variadic argument goes on the
+    // stack, not in a register; P/Invoke has no varargs, so a plain
+    // (fd, request, arg) import hands the kernel whatever is on the stack
+    // (EINVAL on the first Mac, 2026-10-15). Six dummies fill x2-x7, so the
+    // real argument is the first one on the stack, where ioctl reads it.
+    [DllImport("libc", EntryPoint = "ioctl", SetLastError = true)]
+    private static extern int ioctl_arm64(int fd, ulong request, nint x2, nint x3, nint x4, nint x5, nint x6, nint x7, void* arg);
+    [DllImport("libc", EntryPoint = "ioctl", SetLastError = true)]
+    private static extern int ioctl_x64(int fd, ulong request, void* arg);
+    private static int ioctl(int fd, uint request, void* arg) =>
+        RuntimeInformation.ProcessArchitecture == Architecture.Arm64
+            ? ioctl_arm64(fd, request, 0, 0, 0, 0, 0, 0, arg)
+            : ioctl_x64(fd, request, arg);
     [DllImport("libc")] private static extern int close(int fd);
 }

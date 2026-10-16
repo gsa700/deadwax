@@ -37,6 +37,8 @@ public static unsafe class MacDisc
     private static readonly object Gate = new();
     private static volatile bool _done;
     private static string? _dissent;
+    private static int _status;
+    private const int NotMounted = unchecked((int)0xF8DA0007);   // kDAReturnNotMounted
 
     /// "disk2" out of "/dev/disk2", "/dev/rdisk2" or "disk2s1".
     public static string? BsdName(string device)
@@ -71,15 +73,16 @@ public static unsafe class MacDisc
                 DASessionScheduleWithRunLoop(session, runLoop, mode);
                 disk = DADiskCreateFromBSDName(IntPtr.Zero, session, bsd);
                 if (disk == IntPtr.Zero) { reason = $"DiskArbitration knows no {bsd}."; return false; }
-                _done = false; _dissent = null;
+                _done = false; _dissent = null; _status = 0;
                 DADiskUnmount(disk, UnmountOptionWhole, &Unmounted, IntPtr.Zero);
                 var clock = Stopwatch.StartNew();
                 while (!_done && clock.Elapsed < TimeSpan.FromSeconds(30))
                     CFRunLoopRunInMode(mode, 0.5, true);
                 if (!_done) { reason = "the unmount did not finish in thirty seconds."; return false; }
                 reason = _dissent;
-                // "not mounted" is the outcome wanted; DiskArbitration reports it as a dissent.
-                return _dissent is null || _dissent.Contains("not mounted", StringComparison.OrdinalIgnoreCase);
+                // "not mounted" is the outcome wanted; DiskArbitration reports it as a dissent,
+                // kDAReturnNotMounted with no text (the first Mac, 2026-10-15).
+                return _dissent is null || _status == NotMounted;
             }
             finally
             {
@@ -99,6 +102,7 @@ public static unsafe class MacDisc
             var status = DADissenterGetStatus(dissenter);
             var text = DADissenterGetStatusString(dissenter);
             var s = text == IntPtr.Zero ? null : Marshal.PtrToStringUTF8(CFStringGetCStringPtr(text, StringEncodingUtf8));
+            _status = status;
             _dissent = s ?? $"DiskArbitration status 0x{status:X8}";
         }
         _done = true;
