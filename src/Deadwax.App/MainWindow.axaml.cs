@@ -58,6 +58,8 @@ public sealed partial class MainWindow : Window
         _vm.EjectChanged += () => { _settings.EjectAfterRip = _vm.EjectAfterRip; _settings.Save(); };
         _vm.SetChoiceChanged += UpdateOutputPreview;    // Rip disc enables once a set has its answer
         _vm.Log.CollectionChanged += (_, _) => Dispatcher.UIThread.Post(() => LogScroll.ScrollToEnd(), DispatcherPriority.Background);
+        UseMacTitleBar();
+        SetUpMacMenu();
         BuildWindowButtons();
         AddHandler(PointerPressedEvent, OnPointerPressedForResize, RoutingStrategies.Tunnel);
         AddHandler(PointerMovedEvent, OnPointerMovedForResize, RoutingStrategies.Tunnel);
@@ -132,7 +134,8 @@ public sealed partial class MainWindow : Window
     /// full screen): the window is transparent, so a rounded corner on a
     /// maximized window shows the desktop through it (AlbumWall, 2026-09-20).
     private void ApplyCorners() =>
-        Surface.CornerRadius = new CornerRadius(WindowState == WindowState.Normal ? 12 : 0);
+        Surface.CornerRadius = new CornerRadius(
+            WindowState == WindowState.Normal && !OperatingSystem.IsMacOS() ? 12 : 0);   // macOS rounds its own
 
     /// Asks the drive (libcdio: open, TOC, count), off the UI thread. Until
     /// 0.2.16 this asked udev, which exists only on Linux.
@@ -202,6 +205,7 @@ public sealed partial class MainWindow : Window
         {
             _prefs = new PrefsWindow(this, _vm, _settings);
             _prefs.Closed += (_, _) => _prefs = null;
+            if (OperatingSystem.IsMacOS()) NativeMenu.SetMenu(_prefs, MenuBar());
             _prefs.Show(this);
         }
         _prefs.Activate();
@@ -1007,6 +1011,14 @@ public sealed partial class MainWindow : Window
 
     private void BuildWindowButtons()
     {
+        // macOS draws its own traffic lights over the top bar (UseMacTitleBar), so
+        // nothing is drawn here: the left panel only keeps their place clear.
+        if (OperatingSystem.IsMacOS())
+        {
+            LeftButtons.Width = MacTrafficLightsWidth;
+            return;
+        }
+
         var (left, right) = WindowButtons.Layout();
         foreach (var k in left) LeftButtons.Children.Add(WindowButtons.Create(k, () => Invoke(k)));
         foreach (var k in right) RightButtons.Children.Add(WindowButtons.Create(k, () => Invoke(k)));
@@ -1039,9 +1051,37 @@ public sealed partial class MainWindow : Window
     private const double ResizeBand = 7;
     private StandardCursorType _cursor = StandardCursorType.Arrow;
 
+    /// How much of the top bar's left end the traffic lights take on macOS: the
+    /// three buttons and the gap the system leaves around them.
+    private const double MacTrafficLightsWidth = 70;
+
+    /// macOS: a REAL title bar, extended under the top bar, instead of none.
+    /// AlbumWall's UseMacTitleBar, for the same reasons: with no system
+    /// decorations the window is a borderless NSWindow, which has no traffic
+    /// lights and no edges to resize by (the first Mac, 2026-10-15: "I cannot
+    /// resize the deadwax window at all", "there are no stoplights"). With the
+    /// system's title bar macOS draws the lights and resizes at its own edges.
+    /// The green button zooms instead of entering full screen, as AlbumWall's
+    /// does (MacWindow).
+    private void UseMacTitleBar()
+    {
+        if (!OperatingSystem.IsMacOS()) return;
+        WindowDecorations = WindowDecorations.Full;
+        ExtendClientAreaToDecorationsHint = true;
+        // The traffic lights are centred in a title bar of this height, so they
+        // line up with the top bar instead of sitting at its top edge.
+        ExtendClientAreaTitleBarHeightHint = TopBar.Height;
+        Opened += (_, _) =>
+        {
+            var h = TryGetPlatformHandle();
+            MacWindow.ZoomInsteadOfFullScreen(h?.Handle ?? IntPtr.Zero, h?.HandleDescriptor);
+        };
+    }
+
     private WindowEdge? EdgeAt(Point p)
     {
         if (WindowState != WindowState.Normal) return null;
+        if (OperatingSystem.IsMacOS()) return null;           // the system's own edges do it
         double w = Bounds.Width, h = Bounds.Height;
         bool l = p.X <= ResizeBand, r = p.X >= w - ResizeBand, t = p.Y <= ResizeBand, b = p.Y >= h - ResizeBand;
         return (l, r, t, b) switch

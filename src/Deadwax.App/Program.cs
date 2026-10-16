@@ -18,7 +18,10 @@ internal static class Program
 
     public static AppBuilder BuildAvaloniaApp()
     {
-        var builder = AppBuilder.Configure<App>().UsePlatformDetect().WithInterFont();
+        var builder = AppBuilder.Configure<App>().UsePlatformDetect().WithInterFont()
+            // macOS: Avalonia's own application-menu items include "About
+            // Avalonia"; MainWindow.MacMenu.cs supplies the whole menu instead.
+            .With(new MacOSPlatformOptions { DisableDefaultApplicationMenuItems = true });
         if (!NativeWayland) return builder;
         // This window draws its own title bar (ExtendClientAreaToDecorationsHint), yet
         // Avalonia 12.1's Wayland backend still asks the compositor for a server-side one
