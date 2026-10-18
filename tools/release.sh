@@ -162,7 +162,7 @@ if [ -z "$NOTES" ]; then
     NOTES="$WORK/notes.md"
     prev=$(git describe --tags --abbrev=0 --match 'v[0-9]*' "$TAG^" 2>/dev/null || true)
     {
-        platforms=$(for rid in "${RIDS[@]}"; do case $rid in (linux-x64) echo "Linux x86-64";; (win-x64) echo "Windows x64";; (osx-arm64) echo "macOS (Apple silicon)";; (*) echo "$rid";; esac; done | paste -sd, | sed 's/,/, /g')
+        platforms=$(for rid in "${RIDS[@]}"; do case $rid in (linux-x64) echo "Linux x86-64";; (win-x64) echo "Windows x64";; (osx-arm64) echo "macOS (Apple silicon)";; (*) echo "$rid";; esac; done | paste -sd, - | sed 's/,/, /g')
         echo "Deadwax $VERSION, for $platforms.$([ $EDGE -eq 1 ] && echo " An Edge build: offered to copies set to Edge until it is promoted to Stable.")"
         echo
         echo "Unpack the zip and run Deadwax. Nothing else to install: libcdio, libcdio-paranoia and libFLAC are built in ($NATIVES; sources on that release)."
