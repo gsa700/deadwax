@@ -13,7 +13,7 @@ with Deadwax look the same. The window shows the disc, its MusicBrainz
 releases (with a barcode match against the disc's catalog number), the rip as
 it happens with a read map of the disc surface, and the post-rip filing steps.
 
-Linux today, with Windows and macOS builds on the way; the drive layer is
+Linux and Windows, with a macOS app built from source; the drive layer is
 libcdio-paranoia, and the disc's pregaps, ISRCs, catalog number and CD-Text
 are read by Deadwax itself through libcdio's MMC pass-through. The design
 is in a spec kept outside the repository, and the build went through its
@@ -22,10 +22,21 @@ already in the library.
 
 ## Download
 
-Each [release](https://github.com/gsa700/deadwax/releases) carries
-`Deadwax-linux-x64.zip`: one self-contained program, no .NET needed. Unpack it
-anywhere and run `Deadwax`. Since 0.3.1 it carries its own libcdio,
-libcdio-paranoia and libFLAC (built from pinned source by
+Each [release](https://github.com/gsa700/deadwax/releases) carries one zip per
+platform:
+
+| your machine | the file |
+|---|---|
+| Windows 10 or 11 (64-bit) | `Deadwax-win-x64.zip` |
+| a Linux PC | `Deadwax-linux-x64.zip` |
+
+Each is one self-contained program, no .NET needed. Unpack it and run `Deadwax`
+(`Deadwax.exe` on Windows); it offers to install itself (see [Install](#install)).
+Windows may say "Windows protected your PC" on the first run, because the
+program is not signed: More info, then Run anyway. There is no Mac download
+yet: build the app as described under [Install](#install).
+
+Since 0.3.1 the program carries its own libcdio, libcdio-paranoia and libFLAC (built from pinned source by
 `tools/build-natives`, published as a `natives-N` pre-release with the
 sources attached), so nothing needs installing. Releases before that needed
 `libcdio`, `libcdio-paranoia` and `flac-libs` from the distribution, and
@@ -139,9 +150,27 @@ rip was verified, and how Deadwax knows a disc is already in your library.
 
 ## Install
 
-`tools/install.sh` builds a self-contained Deadwax into `~/.local/share/deadwax/`
-and adds it to the app menu with its icon; rerun it after changes, and
-`tools/install.sh --remove` takes it out.
+Since 0.4.6 a release installs itself. Run it from wherever you unzipped it and
+it offers to install, per user and without administrator rights: into
+`%LocalAppData%\Programs\Deadwax` on Windows (listed in Installed apps, with a
+Start Menu shortcut), or `~/.local/share/deadwax` on Linux (in your
+applications menu); both add a desktop shortcut. `--install` and `--uninstall`
+do the same from a terminal; add `--quiet` for scripts. It can also be removed
+from Preferences > About. Uninstalling keeps the drive offsets, the discs
+described by hand and the set backups; your settings go only if you tick that
+box, the MusicBrainz cache goes with the program, and your music is never
+touched. An installed copy updates itself in place.
+
+To run it from a folder or a USB stick and register nothing with the system,
+put an empty file named `portable.txt` beside it.
+
+From source: `tools/install.sh` builds a self-contained Deadwax into
+`~/.local/share/deadwax/` and adds it to the app menu with its icon (the app
+then counts as installed); rerun it after changes, and `tools/install.sh
+--remove` takes it out.
+
+On a Mac, `tools/make-macos-app.sh --install` builds `Deadwax.app` into
+Applications. It does not update itself yet: rebuild it after pulling.
 
 ## Build and run
 
