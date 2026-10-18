@@ -13,7 +13,7 @@ icons="$HOME/.local/share/icons/hicolor"
 entry="$apps/deadwax.desktop"   # its name is the Wayland app_id (WaylandShell.AppId)
 
 if [[ "${1:-}" == "--remove" ]]; then
-    rm -rf "$dest" "$entry" "$icons/scalable/apps/deadwax.svg" "$icons/256x256/apps/deadwax.png"
+    rm -rf "$dest" "$entry" "$icons/scalable/apps/deadwax.svg" "$icons/256x256/apps/deadwax.png"  # svg: older runs wrote one
     command -v update-desktop-database >/dev/null && update-desktop-database -q "$apps" || true
     echo "Deadwax removed."
     exit 0
@@ -27,8 +27,8 @@ echo "Building Deadwax..."
     --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
     -o "$dest" -v q --nologo
 
-mkdir -p "$apps" "$icons/scalable/apps" "$icons/256x256/apps"
-cp "$repo/src/Deadwax.App/Assets/icon.svg" "$icons/scalable/apps/deadwax.svg"
+# The 256px PNG only, the icon the app itself writes and its uninstall removes.
+mkdir -p "$apps" "$icons/256x256/apps"
 cp "$repo/src/Deadwax.App/Assets/icon-256.png" "$icons/256x256/apps/deadwax.png"
 
 cat > "$entry" <<DESKTOP

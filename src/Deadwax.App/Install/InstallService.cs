@@ -708,6 +708,8 @@ public static class InstallService
         // nothing here may delete a directory it does not own.
         TryDelete(DesktopFilePath);
         TryDelete(IconFilePath);
+        // tools/install.sh used to put an SVG beside the PNG; a copy it installed leaves one.
+        TryDelete(Path.Combine(ProgramsDirectory, "icons", "hicolor", "scalable", "apps", "deadwax.svg"));
         Run("update-desktop-database", [Path.GetDirectoryName(DesktopFilePath)!]);
     }
 
