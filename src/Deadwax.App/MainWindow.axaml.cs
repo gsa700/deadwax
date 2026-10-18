@@ -128,6 +128,7 @@ public sealed partial class MainWindow : Window
     private void RestorePosition()
     {
         if (WindowPlacement.Restore(this, _settings.WindowX, _settings.WindowY)) _normalPosition = Position;
+        else WindowPlacement.FitNew(this);
     }
 
     /// 12 px corners on a normal window; square when maximized (or minimized,

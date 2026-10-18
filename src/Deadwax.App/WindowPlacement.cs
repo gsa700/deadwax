@@ -33,6 +33,27 @@ public static class WindowPlacement
         return true;
     }
 
+    /// First launch, nothing saved: the XAML size (1444 x 1080) is taller than a
+    /// 1080p screen's working area, so shrink to fit the screen it opens on and
+    /// centre it there (2026-10-17, Mobilenode at 1080p).
+    public static void FitNew(Window window)
+    {
+        var screen = window.Screens.ScreenFromWindow(window) ?? window.Screens.Primary;
+        if (screen is null) return;
+        var scale = screen.Scaling > 0 ? screen.Scaling : window.RenderScaling;
+        var area = screen.WorkingArea;
+        var w = (int)(window.Width * scale);
+        var h = (int)(window.Height * scale);
+        if (window.CanResize)
+        {
+            if (w > area.Width) { w = area.Width; window.Width = Math.Max(w / scale, window.MinWidth); }
+            if (h > area.Height) { h = area.Height; window.Height = Math.Max(h / scale, window.MinHeight); }
+        }
+        if (Program.NativeWayland) return;   // the compositor places it
+        window.Position = new PixelPoint(area.X + Math.Max(0, (area.Width - w) / 2),
+                                         area.Y + Math.Max(0, (area.Height - h) / 2));
+    }
+
     /// The position worth saving, or null on native Wayland, where it is unknowable.
     public static PixelPoint? Current(Window window) => Program.NativeWayland ? null : window.Position;
 }
