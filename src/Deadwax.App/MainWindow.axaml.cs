@@ -58,6 +58,7 @@ public sealed partial class MainWindow : Window
         _vm.EjectChanged += () => { _settings.EjectAfterRip = _vm.EjectAfterRip; _settings.Save(); };
         _vm.SetChoiceChanged += UpdateOutputPreview;    // Rip disc enables once a set has its answer
         _vm.Log.CollectionChanged += (_, _) => Dispatcher.UIThread.Post(() => LogScroll.ScrollToEnd(), DispatcherPriority.Background);
+        FollowTheCurrentTrack();
         UseMacTitleBar();
         SetUpMacMenu();
         BuildWindowButtons();
@@ -1048,6 +1049,67 @@ public sealed partial class MainWindow : Window
 
     private void ToggleMaximized() =>
         WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+
+    /// Tracks below the current one kept in view while ripping, room allowing:
+    /// "it would be nice if the window could autoscroll to keep the current
+    /// track in view", then "maybe even a few tracks below the current one"
+    /// (2026-10-18). The finished track above stays too when there is room; the
+    /// current one always does.
+    private const int TracksAhead = 3;
+
+    /// Scrolled by hand this recently, the list is left where it was put: it
+    /// does not snatch a table someone is reading.
+    private static readonly TimeSpan HandsOffAfterScrolling = TimeSpan.FromSeconds(15);
+    private long _trackListScrolledByHand;
+
+    /// The rip table follows the track being read when it has more tracks than
+    /// the window has room for.
+    private void FollowTheCurrentTrack()
+    {
+        TrackScroll.AddHandler(PointerWheelChangedEvent,
+            (_, _) => _trackListScrolledByHand = Environment.TickCount64,
+            RoutingStrategies.Tunnel, handledEventsToo: true);
+        // A drag on the scroll bar is a hand too.
+        TrackScroll.AddHandler(PointerPressedEvent,
+            (_, _) => _trackListScrolledByHand = Environment.TickCount64,
+            RoutingStrategies.Tunnel, handledEventsToo: true);
+
+        _vm.Tracks.CollectionChanged += (_, e) =>
+        {
+            if (e.NewItems is null) return;
+            foreach (TrackRow row in e.NewItems)
+                row.PropertyChanged += (_, p) =>
+                {
+                    if (p.PropertyName == nameof(TrackRow.Active) && row.Active)
+                        Dispatcher.UIThread.Post(() => ShowTrack(row), DispatcherPriority.Background);
+                };
+        };
+    }
+
+    private void ShowTrack(TrackRow row)
+    {
+        if (_trackListScrolledByHand != 0
+            && Environment.TickCount64 - _trackListScrolledByHand < HandsOffAfterScrolling.TotalMilliseconds) return;
+        var index = _vm.Tracks.IndexOf(row);
+        if (index < 0 || TrackList.ContainerFromIndex(index) is not Control container) return;
+        if (container.TranslatePoint(default, TrackList) is not { } at) return;
+
+        double h = container.Bounds.Height, top = at.Y, view = TrackScroll.Viewport.Height;
+        if (h <= 0 || view <= 0) return;
+        var offset = TrackScroll.Offset.Y;
+        var wantTop = Math.Max(0, top - h);                                  // the finished track above
+        var wantBottom = top + h * (1 + Math.Min(TracksAhead, _vm.Tracks.Count - 1 - index));
+        if (wantTop >= offset && wantBottom <= offset + view) return;       // already in view: no jump
+        // The view is [offset, offset + view]. Room for everything: move the
+        // least that shows the track above through the tracks ahead. Not
+        // enough room: the tracks ahead come before the one above, and the
+        // current track always shows.
+        offset = wantBottom - view <= wantTop
+            ? Math.Clamp(offset, wantBottom - view, wantTop)
+            : Math.Min(wantBottom - view, top);
+        var max = Math.Max(0, TrackScroll.Extent.Height - view);
+        TrackScroll.Offset = new Vector(TrackScroll.Offset.X, Math.Clamp(offset, 0, max));
+    }
 
     private const double ResizeBand = 7;
     private StandardCursorType _cursor = StandardCursorType.Arrow;
