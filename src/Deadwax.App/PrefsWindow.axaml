@@ -174,6 +174,19 @@
                 <CheckBox x:Name="EdgeBox" FontSize="13" Content="Edge builds: every release as it comes out" Click="OnEdgeToggled"/>
                 <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
                            Text="Off is Stable: only builds that have already run on Edge without trouble. Switching back to Stable keeps the build you have until Stable passes it."/>
+
+                <!-- HOW THIS COPY IS RUNNING, and the one thing that can be done
+                     about it, as in AlbumWall's About tab. The app installs and
+                     removes itself (Install/InstallService); this is where that is
+                     visible, rather than only in a prompt at startup that can be
+                     declined and then never found again. -->
+                <StackPanel x:Name="InstallSection" Spacing="6" Margin="0,8,0,0">
+                    <TextBlock x:Name="InstallStatus" Classes="dim" FontSize="13" LineHeight="20"
+                               TextWrapping="Wrap"/>
+                    <StackPanel Orientation="Horizontal" Spacing="9">
+                        <Button x:Name="InstallButton" Classes="panel" Click="OnInstallClicked"/>
+                    </StackPanel>
+                </StackPanel>
             </StackPanel>
         </TabItem>
     </TabControl>

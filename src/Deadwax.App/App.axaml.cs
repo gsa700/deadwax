@@ -6,6 +6,10 @@ namespace Deadwax.App;
 
 public sealed class App : Application
 {
+    /// The product's name wherever a person reads it: dialogs, the Start Menu
+    /// shortcut, the Installed-apps entry.
+    public const string DisplayName = "Deadwax";
+
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);

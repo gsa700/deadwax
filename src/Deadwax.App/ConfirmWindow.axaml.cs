@@ -1,0 +1,53 @@
+using Avalonia.Controls;
+
+namespace Deadwax.App;
+
+/// <summary>
+/// Minimal modal yes/no dialog, ported from the station tools. Use via
+/// <c>await new ConfirmWindow(...).ShowDialog&lt;bool&gt;(owner)</c>.
+/// </summary>
+public partial class ConfirmWindow : Window
+{
+    public ConfirmWindow() => InitializeComponent();
+
+    /// <param name="affirmative">
+    /// Label for the button that returns true. Name the action ("Install", "Remove") rather than
+    /// saying "OK" — the button text is what a person actually reads before committing to
+    /// something that changes their machine.
+    /// </param>
+    /// <param name="negative">
+    /// Label for the button that returns false, or null for a one-button message where there is
+    /// nothing to decline — the outcome has already happened and is only being reported.
+    /// </param>
+    /// <param name="detail">Secondary text spelling out the consequences. Hidden when null.</param>
+    /// <param name="option">A checkbox that rides along with the answer. Hidden when null.</param>
+    public ConfirmWindow(string title, string message,
+        string affirmative = "Continue", string? negative = "Cancel",
+        string? detail = null, string? option = null) : this()
+    {
+        Title = title;
+        MessageText.Text = message;
+        AffirmativeButton.Content = affirmative;
+
+        if (negative is null) NegativeButton.IsVisible = false;
+        else NegativeButton.Content = negative;
+
+        if (!string.IsNullOrWhiteSpace(detail))
+        {
+            DetailText.Text = detail;
+            DetailText.IsVisible = true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(option))
+        {
+            OptionBox.Content = option;
+            OptionBox.IsVisible = true;
+        }
+
+        AffirmativeButton.Click += (_, _) => Close(true);
+        NegativeButton.Click += (_, _) => Close(false);
+    }
+
+    /// <summary>Whether the optional checkbox was ticked when the dialog closed.</summary>
+    public bool OptionChecked => OptionBox.IsChecked == true;
+}

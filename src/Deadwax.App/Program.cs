@@ -4,8 +4,53 @@ namespace Deadwax.App;
 
 internal static class Program
 {
+    /// Set when this run exists only to uninstall: ask, act, and go (InstallFlow).
+    public static bool PendingUninstall { get; private set; }
+
     [STAThread]
-    public static void Main(string[] args) => BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+    public static int Main(string[] args)
+    {
+        // Who this program is to Windows, before any window exists (WindowsShell).
+        WindowsShell.ClaimIdentity();
+
+        // --install and --uninstall, the family's switches (AlbumWall's, from
+        // LP-100A). Handled here, before Avalonia: an install or a quiet
+        // uninstall never opens a window and never touches the drive. The quiet
+        // forms are for tools and scripts (winget runs the registered
+        // QuietUninstallString, `--uninstall --quiet`). The Uninstall button in
+        // Settings > Installed apps runs the plain UninstallString,
+        // `--uninstall`, which opens the window only to ask (read back out of
+        // the registry by AlbumWall on Hambench, 2026-09-20). Every other
+        // argument is ignored, as it always was: this binary has no command
+        // line of its own; the deadwax command is Deadwax.Cli.
+        var request = Install.InstallCommandLine.Parse(args);
+        try
+        {
+            switch (request.Action)
+            {
+                case Install.InstallAction.Install:
+                    var installed = Install.InstallService.Install();
+                    Console.WriteLine($"Installed to {installed.ExePath}");
+                    if (!request.Quiet) Install.InstallService.LaunchDetached(installed.ExePath);
+                    return installed.Registered ? 0 : 2;
+
+                case Install.InstallAction.Uninstall when request.Quiet:
+                    Install.InstallService.Uninstall(new Install.UninstallOptions(RemoveSettings: false));
+                    return 0;
+
+                case Install.InstallAction.Uninstall:
+                    PendingUninstall = true;
+                    break;
+            }
+        }
+        catch (Install.InstallBlockedException ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return 1;
+        }
+
+        return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+    }
 
     /// Native Wayland wherever a Wayland session exists, as AlbumWall does since
     /// 2026-09-21: Fedora 45's mutter stopped giving clicks to borderless X11

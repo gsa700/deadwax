@@ -78,6 +78,9 @@ public sealed partial class MainWindow : Window
             if (_settings.Maximized) WindowState = WindowState.Maximized;
             _placed = true;
             WaylandShell.ClaimIdentity(this);   // the dash's icon, on native Wayland
+            // Installing and uninstalling, BEFORE the drive is first touched
+            // (InstallFlow): true when this run ends here.
+            if (await InstallFlow.BeforeStartAsync(this)) return;
             _watch.Start();
             await WatchAsync();
             _ = CheckForUpdateAsync();

@@ -31,5 +31,19 @@
   <ItemGroup>
     <AvaloniaResource Include="Assets\icon-256.png" />
   </ItemGroup>
+
+  <!-- The installer's icons (2026-10-18), rendered from Assets/icon.svg by
+       tools/make-icon.cs and committed. app.ico is compiled into the exe: on
+       Windows that is the only icon Explorer, the taskbar, the Start Menu
+       shortcut and the Installed-apps entry ever see. app-icon.png is embedded
+       plainly for the Linux installer, which writes it into the hicolor theme;
+       the install switch runs before Avalonia, so it is read as a manifest
+       resource. -->
+  <PropertyGroup>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\app-icon.png" LogicalName="app-icon.png" />
+  </ItemGroup>
   <Import Project="..\..\native.targets" />
 </Project>

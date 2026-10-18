@@ -62,7 +62,7 @@ public sealed class Settings
         Enum.TryParse<Deadwax.Output.TrackStyle>(TrackStyle, out var track) ? track : default,
         EmbedCover ?? false, BackCover, WriteCue, WriteM3u, ReplayGain);
 
-    private static string FilePath => Path.Combine(
+    internal static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config", "deadwax", "settings.json");
 
     public static Settings Load()

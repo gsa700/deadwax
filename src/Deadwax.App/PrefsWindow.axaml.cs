@@ -29,6 +29,7 @@ public partial class PrefsWindow : Window
         AutoCheckBox.IsChecked = _settings.CheckForUpdates;
         EdgeBox.IsChecked = _settings.EdgeChannel;
         FillUpdate();
+        FillInstall();
 
         // One height for every tab: the longest one's. IN Opened, not posted
         // after it, as AlbumWall's FitToTallestTab does: a fixed-size window
@@ -295,5 +296,64 @@ public partial class PrefsWindow : Window
                 _ = TopLevel.GetTopLevel(this)?.Launcher.LaunchUriAsync(uri);
         }
         catch { }
+    }
+
+    // ---- install ------------------------------------------------------------
+
+    /// Says how this copy is running, in words, and offers the one action that
+    /// fits (AlbumWall's FillInstall). Four cases, because there are four:
+    /// installed; a release sitting loose wherever it was unzipped; one pinned
+    /// as portable; and a development build, which is many files and cannot be
+    /// installed by copying one. macOS has Deadwax.app and none of this.
+    private void FillInstall()
+    {
+        if (!Install.InstallService.CanInstall) { InstallSection.IsVisible = false; return; }
+        var dir = Install.InstallService.ExeDirectory;
+        switch (Install.InstallService.Mode)
+        {
+            case Install.InstallMode.Installed:
+                InstallStatus.Text = $"Installed in {dir}.";
+                InstallButton.Content = "Uninstall…";
+                InstallButton.IsVisible = true;
+                break;
+
+            case Install.InstallMode.Portable:
+                InstallStatus.Text = $"Portable: runs from {dir} and registers nothing with this computer "
+                                   + $"({Install.InstallLayout.PortableMarker} is beside the program).";
+                InstallButton.IsVisible = false;
+                break;
+
+            default:
+                if (Install.InstallService.IsSingleFile)
+                {
+                    InstallStatus.Text = $"Running from {dir}, not installed. Installing copies it to "
+                                       + $"{Install.InstallService.InstallDirectory} and adds it to your menus.";
+                    InstallButton.Content = "Install…";
+                    InstallButton.IsVisible = true;
+                }
+                else
+                {
+                    InstallStatus.Text = "A development build, running from its build folder. "
+                                       + "Only a published release can install itself.";
+                    InstallButton.IsVisible = false;
+                }
+                break;
+        }
+    }
+
+    /// Either answer closes the main window, so never in the middle of reading
+    /// a disc: a read cut off by a closing window is what the BDR-209D answers
+    /// with a USB reset.
+    private async void OnInstallClicked(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel { IsScanning: true } or MainViewModel { IsRipping: true })
+        {
+            InstallStatus.Text = "Deadwax is reading a disc. Let it finish, then try again.";
+            return;
+        }
+        if (Install.InstallService.Mode == Install.InstallMode.Installed)
+            await InstallFlow.RunUninstallAsync(_main, asked: true);
+        else
+            await InstallFlow.OfferInstallAsync(_main);
     }
 }
