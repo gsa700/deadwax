@@ -1069,14 +1069,48 @@ public sealed partial class MainWindow : Window
         if (!OperatingSystem.IsMacOS()) return;
         WindowDecorations = WindowDecorations.Full;
         ExtendClientAreaToDecorationsHint = true;
-        // The traffic lights are centred in a title bar of this height, so they
-        // line up with the top bar instead of sitting at its top edge.
+        // Meant to centre the traffic lights on the top bar. On the Mac it does
+        // not (MacWindow.CenterTrafficLights says how it was found), so
+        // CenterTrafficLights below does it, but the hint stays: it is what
+        // Avalonia's own layout reads as the title bar's height.
         ExtendClientAreaTitleBarHeightHint = TopBar.Height;
         Opened += (_, _) =>
         {
             var h = TryGetPlatformHandle();
             MacWindow.ZoomInsteadOfFullScreen(h?.Handle ?? IntPtr.Zero, h?.HandleDescriptor);
+
+            var center = CenterTrafficLights();
+            Console.WriteLine($"[window] traffic lights centred {center:0.#} pt from the top "
+                            + $"(the bar is {TopBar.Height} pt)");
+            // Read back, not set: whether AppKit has put them back on its own.
+            DispatcherTimer.RunOnce(() =>
+            {
+                var hh = TryGetPlatformHandle();
+                var now = MacWindow.TrafficLightCenter(hh?.Handle ?? IntPtr.Zero, hh?.HandleDescriptor);
+                Console.WriteLine($"[window] traffic lights 2 s later: {now:0.#} pt from the top");
+            }, TimeSpan.FromSeconds(2));
         };
+        // AppKit lays its title bar out again after each of these and puts the
+        // lights back where it keeps them, so they are moved again once it has.
+        SizeChanged += (_, _) => RecenterTrafficLights();
+        Activated += (_, _) => RecenterTrafficLights();
+        Deactivated += (_, _) => RecenterTrafficLights();
+        PropertyChanged += (_, e) => { if (e.Property == WindowStateProperty) RecenterTrafficLights(); };
+    }
+
+    private double? CenterTrafficLights()
+    {
+        var h = TryGetPlatformHandle();
+        return MacWindow.CenterTrafficLights(h?.Handle ?? IntPtr.Zero, h?.HandleDescriptor, TopBar.Height);
+    }
+
+    /// At once and again once AppKit is done: during a live resize it lays the
+    /// title bar out on every frame, and moved only afterwards the lights
+    /// jumped about until the drag stopped (AlbumWall, 2026-10-18).
+    private void RecenterTrafficLights()
+    {
+        CenterTrafficLights();
+        Dispatcher.UIThread.Post(() => CenterTrafficLights(), DispatcherPriority.Render);
     }
 
     private WindowEdge? EdgeAt(Point p)
