@@ -501,9 +501,9 @@ public static class InstallService
     /// for a build that unpacks nothing (a development build). The host names the folder for the
     /// bundle, so two different builds never share one - and two copies CAN be running at once: an
     /// installed one and a loose one, or his player and a test. The updater removes this folder and
-    /// no other. Its first draft removed the whole root, and was one test run away from deleting
-    /// libmpv - which loads only when something is first played - out from under the copy he was
-    /// listening to. The host publishes where it unpacked in NATIVE_DLL_SEARCH_DIRECTORIES.
+    /// no other. AlbumWall's first draft removed the whole root, and was one test run away from
+    /// deleting its audio library - which loads only when something is first played - out from
+    /// under the copy he was listening to. The host publishes where it unpacked in NATIVE_DLL_SEARCH_DIRECTORIES.
     /// </summary>
     internal static string? OwnExtractionDir
     {
@@ -537,8 +537,9 @@ public static class InstallService
     ///
     /// Only when this is the ONLY copy running. A folder is unsafe to touch while a copy runs
     /// from it, and the guard is deliberately blunter than asking which folder each copy uses:
-    /// libmpv is loaded on first play, so a copy that has not played yet has nothing of it mapped,
-    /// Windows would let it go, Linux always would, and that copy breaks the first time it plays.
+    /// the native libraries (libcdio, libcdio-paranoia, libFLAC) load on first use, so a copy
+    /// that has not read a disc yet may have none of them mapped, Windows would let them go, Linux
+    /// always would, and that copy breaks the first time it reads.
     /// A lone copy can only be running from its own folder; the next lone start sweeps what a
     /// second copy kept alive. Nothing for a development build, which unpacks nothing.
     /// </summary>

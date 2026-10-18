@@ -1,7 +1,9 @@
 namespace Deadwax.App.Install;
 
 /// <summary>
-/// Symlink helpers behind the installer's <c>~/.local/bin/albumwall</c> shortcut.
+/// Symlink helpers, ported with the installer from AlbumWall, where they guard its
+/// <c>~/.local/bin/albumwall</c> link. Deadwax makes no such link; it uses <see cref="ResolveTarget"/>
+/// to see a dangling link when deleting files on uninstall.
 ///
 /// <see cref="File.ResolveLinkTarget(string,bool)"/> is the obvious way to ask "is there a link here,
 /// and where does it point?", but it <em>throws</em> <see cref="FileNotFoundException"/> when nothing

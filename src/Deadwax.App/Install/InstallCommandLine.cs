@@ -27,9 +27,10 @@ public readonly record struct InstallRequest(InstallAction Action, bool Quiet);
 /// rules are testable without launching a UI.
 ///
 /// Ported from LP-100A Monitor, minus its <c>--keep-data</c> switch: that exists there to protect a
-/// transmission log, which is irreplaceable operating history. This app's data directory holds only
-/// <c>config.json</c>, which is recreated by reconfiguring, so one prompt covers it and the extra
-/// switch would be ceremony.
+/// transmission log, which is irreplaceable operating history. Deadwax's records that cannot be
+/// rebuilt (drives.json, the disc notes, the unbox backups) are never removed by an uninstall at
+/// all, and settings.json goes only when the person ticks the box, so one prompt covers it and the
+/// extra switch would be ceremony.
 /// </summary>
 public static class InstallCommandLine
 {

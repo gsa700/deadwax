@@ -42,7 +42,7 @@ public static class InstallLayout
 
     /// <summary>
     /// Folder name under the per-user programs directory, e.g.
-    /// <c>%LOCALAPPDATA%\Programs\AlbumWall</c>. Human-readable rather than RID-suffixed, matching
+    /// <c>%LOCALAPPDATA%\Programs\Deadwax</c>. Human-readable rather than RID-suffixed, matching
     /// the convention the other station tools use.
     /// </summary>
     public const string ProductFolder = "Deadwax";
@@ -58,8 +58,8 @@ public static class InstallLayout
     /// Directory names that earlier hand-installs left behind, relative to the per-user programs
     /// directory. Unzipping a release in Explorer creates a folder named after the zip, which is how
     /// the station tools' copies ended up in folders like <c>ShackPower-win-x64</c> before they had
-    /// installers. AlbumWall has had an installer since its first release, so these are here for
-    /// the person who unzips one straight into Programs by hand. These are treated as installed <em>in place</em> rather than as strays to
+    /// installers. Deadwax releases before 0.4.6 had no installer, so a copy may already sit in
+    /// one of these after being unzipped straight into Programs by hand. These are treated as installed <em>in place</em> rather than as strays to
     /// be re-installed elsewhere, so upgrading doesn't leave an orphaned second copy behind.
     /// </summary>
     public static readonly string[] LegacyFolders =
@@ -132,7 +132,7 @@ public static class InstallLayout
 
     /// <summary>
     /// The canonical install directory beneath a per-user programs directory, e.g. passing
-    /// <c>%LOCALAPPDATA%\Programs</c> yields <c>%LOCALAPPDATA%\Programs\AlbumWall</c>.
+    /// <c>%LOCALAPPDATA%\Programs</c> yields <c>%LOCALAPPDATA%\Programs\Deadwax</c>.
     /// </summary>
     public static string InstallDirectoryUnder(string programsDirectory) =>
         InstallDirectoryUnder(programsDirectory, OperatingSystem.IsWindows());

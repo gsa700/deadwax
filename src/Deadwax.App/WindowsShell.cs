@@ -41,7 +41,7 @@ public static class WindowsShell
         }
     }
 
-    /// %AppData%\Microsoft\Windows\Start Menu\Programs\AlbumWall.lnk — per user,
+    /// %AppData%\Microsoft\Windows\Start Menu\Programs\Deadwax.lnk — per user,
     /// no elevation, and where the Start Menu's own search looks.
     public static string ShortcutPath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.Programs), App.DisplayName + ".lnk");
