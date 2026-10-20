@@ -89,6 +89,9 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$WORK/pub/Deadwax" "$APP/Contents/MacOS/Deadwax"
 cp "$WORK/Deadwax.icns" "$APP/Contents/Resources/Deadwax.icns"
+# What the licenses ask to travel with the program, as in a release zip.
+cp "$ROOT/LICENSE" "$ROOT/THIRD-PARTY-NOTICES.md" "$APP/Contents/Resources/"
+cp -R "$ROOT/licenses" "$APP/Contents/Resources/licenses"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 cat > "$APP/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>

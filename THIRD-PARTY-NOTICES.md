@@ -109,3 +109,12 @@ Not part of the program, but what it relies on while it rips: **MusicBrainz**
 for the releases and tags (its data is CC0), **AccurateRip** for other
 people's checksums of the same pressing, and the **Cover Art Archive** for the
 covers. Deadwax only reads from them; it never submits anything.
+
+## The license texts
+
+Each license named above is in the `licenses/` folder, exactly as its project
+ships it: fetched from the project's own repository by
+`tools/fetch-licenses.py`, never typed or edited, and listed with its SHA-256
+in `licenses/README.md`. Every release zip carries that folder, this page and
+Deadwax's own `LICENSE` beside the program; the Mac app has them in
+`Deadwax.app/Contents/Resources`.

@@ -132,14 +132,22 @@ for rid in "${RIDS[@]}"; do
     [ -f "$out/$exe" ] || die "$rid: no $exe after publish"
     head -c 4 "$out/$exe" | od -An -tx1 | tr -d ' \n' | grep -qE "$magic" || die "$rid: $exe is not a $kind executable"
     [ "$(wc -c < "$out/$exe")" -gt 50000000 ] || die "$rid: $exe is too small to be the single-file build"
-    python3 - "$WORK/Deadwax-$rid.zip" "$out/$exe" <<'PY'
+    # The program, and beside it its license, the third-party notices and the
+    # license texts (tools/fetch-licenses.py): what the licenses ask to travel
+    # with it. UpdateService takes only the program out of the zip.
+    [ -f "$ROOT/licenses/README.md" ] || die "licenses/ is missing: run tools/fetch-licenses.py"
+    python3 - "$WORK/Deadwax-$rid.zip" "$out/$exe" "$ROOT" <<'PY'
 import sys, zipfile, os
-out, exe = sys.argv[1:]
+out, exe, root = sys.argv[1:]
 with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
     info = zipfile.ZipInfo.from_file(exe, os.path.basename(exe))
     info.external_attr = 0o755 << 16          # executable when unpacked
     info.compress_type = zipfile.ZIP_DEFLATED
     with open(exe, "rb") as f: z.writestr(info, f.read())
+    for name in ["LICENSE", "THIRD-PARTY-NOTICES.md"]:
+        z.write(os.path.join(root, name), name)
+    for name in sorted(os.listdir(os.path.join(root, "licenses"))):
+        z.write(os.path.join(root, "licenses", name), "licenses/" + name)
 PY
     echo "   Deadwax-$rid.zip  $(du -h "$WORK/Deadwax-$rid.zip" | cut -f1)"
 done
