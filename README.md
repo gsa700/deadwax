@@ -128,6 +128,20 @@ else needs to be installed for this.
     artist; a disc called "Bonus Tracks" or "Dawn to Dusk" stays with its set.
     The old tags and art are kept in `~/.local/state/deadwax/unbox-backup/`
     first, and an existing folder is never written over.
+
+    The Testament *Original Album Series* box shows how it ends up. Its five
+    discs all carry the box's name and cover, and MusicBrainz lists each one
+    as "Disc N of 5" of the 2013 set, so that is how each disc is found and
+    ripped (the Disc screen above). Once it has proven the rip, Deadwax files
+    each disc as the album it was: *The Legacy* (1987) through *The Ritual*
+    (1992), each in its own folder with its own front and back cover, year and
+    title. The rip log keeps the set's name, so every album can still be
+    traced to the pressing it came from. (Choose *Keep the set together*
+    instead and it stays one release, as sold: each disc filed as
+    "Original Album Series (Disc N of 5)" under the box's cover.) Filed as
+    albums, in AlbumWall the box is five albums:
+
+    ![The five Testament albums from the box set in AlbumWall, each under its own original cover: The Legacy, The New Order, Practice What You Preach, Souls of Black and The Ritual](docs/images/unboxed.png)
 - **Filed correctly.** The new album is checked against your Filing choices:
   every track tagged and agreeing on album, artist, year and disc, track
   numbers 1 to N, file names in the chosen style, the `.cue` and `.m3u`
