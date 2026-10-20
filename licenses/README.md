@@ -25,5 +25,4 @@ with it; the SHA-256 says exactly which text this is.
 | [microcom-LICENSE.txt](microcom-LICENSE.txt) | MicroCom (MIT) | https://github.com/kekekeks/MicroCom | `default branch` | `LICENSE` | `6ee769c9ac4dac9abb16b98b1341e9528ff9f4ab685481410d3376d14148f3a9` |
 | [nwayland-licence.md](nwayland-licence.md) | NWayland (MIT) | https://github.com/kekekeks/NWayland | `default branch` | `licence.md` | `0cecedf0e29de5fd9ec3fc17926e2de31385924742359253f1e4a28069ad79f6` |
 | [tmds-dbus-COPYING.txt](tmds-dbus-COPYING.txt) | Tmds.DBus.Protocol (MIT) | https://github.com/tmds/Tmds.DBus | `default branch` | `COPYING` | `aca3b49277abcc7886ccb2f115603a9f5b15fc3f96019a10c00f2974098b210c` |
-| [taglib-sharp-COPYING.txt](taglib-sharp-COPYING.txt) | TagLib# (LGPL v2.1), until it leaves | https://github.com/mono/taglib-sharp | `default branch` | `COPYING` | `6095e9ffa777dd22839f7801aa845b31c9ed07f3d6bf8a26dc5d2dec8ccc0ef3` |
 | [inter-LICENSE.txt](inter-LICENSE.txt) | Inter, the typeface (SIL OFL 1.1) | https://github.com/rsms/inter | `default branch` | `LICENSE.txt` | `262481e844521b326f5ecd053e59b98c8b2da78c8ee1bdbb6e8174305e54935a` |

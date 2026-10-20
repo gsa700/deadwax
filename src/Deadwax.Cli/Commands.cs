@@ -54,11 +54,6 @@ internal static class Commands
           deadwax check-audio [LIBRARY|LOG] [--limit N]
               Decode whipper's FLACs and check Deadwax's copy CRC and AccurateRip
               v1/v2 checksums of that audio equal the logged ones (G2/G3, no drive).
-          deadwax check-flac-metadata [LIBRARY] [--writes N]
-              Deadwax's own FLAC metadata against TagLib#'s: every FLAC read both
-              ways, then N copies (default 100, in a scratch folder) tagged, updated
-              and given a cover both ways; fields, pictures, STREAMINFO and audio
-              must match. Never writes to the library.
           deadwax check-tags [LIBRARY] [--limit N] [--verbose]
               Build each album's tags from MusicBrainz and the disc's .toc and
               compare them with the tags in the library (G4). Caches releases in
@@ -98,7 +93,6 @@ internal static class Commands
                 "check-audio" => await CheckAudioCommand.RunAsync(args[1..]),
                 "check-tags" => await CheckTagsCommand.RunAsync(args[1..]),
                 "check-sidecars" => await CheckSidecarsCommand.RunAsync(args[1..]),
-                "check-flac-metadata" => await CheckFlacMetadataCommand.RunAsync(args[1..]),
                 _ => Fail($"unknown command '{args[0]}'\n\n{Usage}"),
             };
         }

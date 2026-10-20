@@ -6,8 +6,8 @@ namespace Deadwax.Tests;
 
 /// Deadwax's own FLAC metadata (spec §11 step 1), on small files made here:
 /// what the library has none of (an ID3 tag in front, pictures, a blank first
-/// value) and the rules it must keep. `deadwax check-flac-metadata` is the
-/// comparison with TagLib# over the real library.
+/// value) and the rules it must keep, which are TagLib#'s (0.5.1 compared the
+/// two over the real library before TagLib# went).
 public class FlacMetadataTests : IDisposable
 {
     private readonly string _dir = Directory.CreateTempSubdirectory("deadwax-flacmeta-").FullName;
@@ -66,7 +66,7 @@ public class FlacMetadataTests : IDisposable
     public void Replace_writes_the_order_it_is_given_and_drops_blanks()
     {
         var path = Make(["OLD=1", "TITLE=x"], padding: 2000);
-        OwnFlac.Replace(path, [new("ALBUM", "A"), new("TITLE", "T"), new("PERFORMER", "p1"), new("COMMENT", " "), new("PERFORMER", "p2")]);
+        FlacTags.Replace(path, [new("ALBUM", "A"), new("TITLE", "T"), new("PERFORMER", "p1"), new("COMMENT", " "), new("PERFORMER", "p2")]);
         Assert.Equal(["ALBUM=A", "TITLE=T", "PERFORMER=p1", "PERFORMER=p2"], FlacMetadata.Read(path).Fields.Select(f => $"{f.Key}={f.Value}"));
         Assert.Equal(AudioFrames, Audio(path));
     }
@@ -77,7 +77,7 @@ public class FlacMetadataTests : IDisposable
         var path = Make(["TITLE=x"], padding: 1000);
         var before = new FileInfo(path).Length;
         var offset = FlacMetadata.Read(path).AudioOffset;
-        OwnFlac.Update(path, new Dictionary<string, string> { ["REPLAYGAIN_TRACK_GAIN"] = "-6.20 dB" }, []);
+        FlacTags.Update(path, new Dictionary<string, string> { ["REPLAYGAIN_TRACK_GAIN"] = "-6.20 dB" }, []);
         Assert.Equal(before, new FileInfo(path).Length);
         Assert.Equal(offset, FlacMetadata.Read(path).AudioOffset);
         Assert.Equal("-6.20 dB", FlacMetadata.Read(path).First("replaygain_track_gain"));
@@ -88,7 +88,7 @@ public class FlacMetadataTests : IDisposable
     public void A_change_that_does_not_fit_grows_the_file_with_4096_bytes_of_padding()
     {
         var path = Make(["TITLE=x"]);
-        OwnFlac.Update(path, new Dictionary<string, string> { ["LYRICS"] = new string('l', 300) }, []);
+        FlacTags.Update(path, new Dictionary<string, string> { ["LYRICS"] = new string('l', 300) }, []);
         var layout = FlacMetadata.Read(path).BlockLayout;
         Assert.Equal((1, 4096), layout[^1]);
         Assert.Equal(AudioFrames, Audio(path));
@@ -99,7 +99,7 @@ public class FlacMetadataTests : IDisposable
     public void Update_keeps_a_key_in_place_and_puts_a_new_one_last()
     {
         var path = Make(["A=1", "B=2", "C=3"], padding: 500);
-        OwnFlac.Update(path, new Dictionary<string, string> { ["B"] = "two", ["D"] = "4" }, ["C"]);
+        FlacTags.Update(path, new Dictionary<string, string> { ["B"] = "two", ["D"] = "4" }, ["C"]);
         // B was removed and set again, so it goes last too: the order it is given.
         Assert.Equal(["A=1", "B=two", "D=4"], FlacMetadata.Read(path).Fields.Select(f => $"{f.Key}={f.Value}"));
     }
@@ -112,7 +112,7 @@ public class FlacMetadataTests : IDisposable
         var flac = FlacMetadata.Read(path);
         flac.Pictures.Add(back);
         flac.Save(path);
-        OwnFlac.EmbedFront(path, [9, 9, 9, 9]);
+        CoverEmbed.Embed(path, [9, 9, 9, 9]);
 
         var pictures = FlacMetadata.Read(path).Pictures;
         Assert.Equal(2, pictures.Count);
@@ -134,10 +134,10 @@ public class FlacMetadataTests : IDisposable
         var path = Make(["TITLE=x"], padding: 200, id3: id3);
         Assert.Equal("x", FlacMetadata.Read(path).First("TITLE"));
 
-        OwnFlac.Update(path, new Dictionary<string, string> { ["TITLE"] = "y" }, []);
+        FlacTags.Update(path, new Dictionary<string, string> { ["TITLE"] = "y" }, []);
         Assert.Equal("ID3"u8.ToArray(), File.ReadAllBytes(path)[..3]);
 
-        OwnFlac.Replace(path, [new("TITLE", "z")]);
+        FlacTags.Replace(path, [new("TITLE", "z")]);
         Assert.Equal("fLaC"u8.ToArray(), File.ReadAllBytes(path)[..4]);
         Assert.Equal("z", FlacMetadata.Read(path).First("TITLE"));
         Assert.Equal(AudioFrames, Audio(path));

@@ -23,7 +23,7 @@ public sealed record FlacPicture(
 /// included), only that space is rewritten.
 ///
 /// It does what TagLib# 2.3.0 did, so that the library reads and writes the
-/// same with either (DEADWAX_TAGS=taglib chose TagLib# for one release):
+/// same as it did when TagLib# did it (up to 0.5.1):
 /// fields are kept per key, in the order each key first appears, keys
 /// upper-cased; a key's first value is dropped when blank (TagLib#'s SetField
 /// ignores blank text) and later ones kept; only the first non-empty Vorbis
@@ -33,7 +33,10 @@ public sealed record FlacPicture(
 /// blocks of the same sizes in the same places as TagLib#. One difference, on
 /// purpose: a key added after others were removed goes last, where TagLib#
 /// put it in the slot a removed key left, so Deadwax writes the order it is
-/// given (`deadwax check-flac-metadata` compares the two).
+/// given. 0.5.1's `deadwax check-flac-metadata` compared the two before TagLib#
+/// went: every FLAC in the author's library read the same, and copies and fresh
+/// libFLAC files written both ways came out with the same fields, pictures and
+/// layout (commit c3e51dd).
 public sealed class FlacMetadata
 {
     private const int HeaderSize = 4;

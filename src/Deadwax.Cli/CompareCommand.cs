@@ -111,7 +111,7 @@ internal static partial class CompareCommand
         }
     }
 
-    // In-process (TagLib), not metaflac: works where FLAC's tools aren't
+    // In-process (FlacMetadata), not metaflac: works where FLAC's tools aren't
     // installed (Windows, macOS), and multi-line values stay whole.
     private static Task<List<Tag>> TagsAsync(string flac) =>
         Task.Run(() => FlacTags.Read(flac).Select(kv => new Tag(kv.Key, kv.Value)).ToList());

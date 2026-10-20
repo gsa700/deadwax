@@ -5,7 +5,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="TagLibSharp" Version="2.3.0" />
     <!-- The version Avalonia ships, so the app carries one copy; the native
          library comes with the app (and the tests) by SkiaSharp.NativeAssets.Linux. -->
     <PackageReference Include="SkiaSharp" Version="3.119.4" />

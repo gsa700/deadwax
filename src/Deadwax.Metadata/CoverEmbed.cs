@@ -27,14 +27,18 @@ public static class CoverEmbed
         return count;
     }
 
-    /// One file: the front first, then the pictures it had that are not a front.
+    /// One file: the front first, then the pictures it had that are not a
+    /// front. The new front's size and depth are left 0, as TagLib# left them.
     public static void Embed(string flac, byte[] cover)
     {
-        if (FlacTags.UseTagLib) TagLibFlac.EmbedFront(flac, cover);
-        else OwnFlac.EmbedFront(flac, cover);
+        var file = FlacMetadata.Read(flac);
+        var others = file.Pictures.Where(p => p.Type != FlacPicture.FrontCover).ToList();
+        file.Pictures.Clear();
+        file.Pictures.Add(new FlacPicture(FlacPicture.FrontCover, "image/jpeg", "", 0, 0, 0, 0, cover));
+        file.Pictures.AddRange(others);
+        file.Save(flac);
     }
 
     /// Whether a FLAC carries a front-cover picture.
-    public static bool HasFront(string flac) =>
-        (FlacTags.UseTagLib ? TagLibFlac.Pictures(flac) : OwnFlac.Pictures(flac)).Any(p => p.Type == FlacPicture.FrontCover);
+    public static bool HasFront(string flac) => FlacMetadata.Read(flac).Pictures.Any(p => p.Type == FlacPicture.FrontCover);
 }

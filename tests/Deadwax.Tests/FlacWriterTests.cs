@@ -64,9 +64,7 @@ public class FlacWriterTests
             FlacWriter.WriteTags(path, tags);
             FlacWriter.WriteTags(path, tags); // writing twice replaces, never appends
 
-            using var file = TagLib.File.Create(path);
-            var xiph = (TagLib.Ogg.XiphComment)file.GetTag(TagLib.TagTypes.Xiph);
-            var readBack = xiph.SelectMany(key => xiph.GetField(key).Select(v => $"{key}={v}")).Order(StringComparer.Ordinal);
+            var readBack = FlacMetadata.Read(path).Fields.Select(f => $"{f.Key}={f.Value}").Order(StringComparer.Ordinal);
             Assert.Equal(tags.Select(t => $"{t.Key}={t.Value}").Order(StringComparer.Ordinal), readBack);
             Assert.Equal(AudioChecks.Md5(Audio()), FlacInfo.AudioMd5(path));   // tagging leaves the audio alone
         }

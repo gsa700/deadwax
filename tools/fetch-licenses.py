@@ -71,7 +71,6 @@ WANTED = [
     ("microcom-LICENSE.txt", "MicroCom (MIT)", GITHUB, "kekekeks/MicroCom", [None], ["LICENSE", "LICENSE.md", "LICENSE.txt", "licence.md"]),
     ("nwayland-licence.md", "NWayland (MIT)", GITHUB, "kekekeks/NWayland", [None], ["licence.md", "LICENSE", "LICENSE.md"]),
     ("tmds-dbus-COPYING.txt", "Tmds.DBus.Protocol (MIT)", GITHUB, "tmds/Tmds.DBus", [None], ["COPYING", "LICENSE"]),
-    ("taglib-sharp-COPYING.txt", "TagLib# (LGPL v2.1), until it leaves", GITHUB, "mono/taglib-sharp", [None], ["COPYING"]),
     ("inter-LICENSE.txt", "Inter, the typeface (SIL OFL 1.1)", GITHUB, "rsms/inter", [None], ["LICENSE.txt", "LICENSE"]),
 ]
 

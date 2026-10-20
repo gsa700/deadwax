@@ -91,14 +91,6 @@ Source: https://github.com/cdrdao/cdrdao
   License: MIT.
   Source: https://github.com/dotnet/runtime
 
-- **TagLib# 2.3.0**: read and wrote the tags and embedded cover art of FLAC
-  files up to Deadwax 0.5.0. Since 0.5.1 Deadwax does that itself, and TagLib#
-  is used only when `DEADWAX_TAGS=taglib` asks for it, or by
-  `deadwax check-flac-metadata` to compare the two. It leaves in the release
-  after 0.5.1.
-  License: GNU LGPL, version 2.1.
-  Source: https://github.com/mono/taglib-sharp
-
 - **Inter**: the typeface the whole interface is set in, by Rasmus Andersson.
   License: SIL Open Font License 1.1.
   Source: https://github.com/rsms/inter

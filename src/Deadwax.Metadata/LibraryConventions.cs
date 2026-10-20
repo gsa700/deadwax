@@ -79,11 +79,11 @@ public sealed class ArtistFolders
                 if (flac is null) continue;
                 // The spelling is the tag's, not the folder's: a folder name has
                 // had "/" replaced ("AC_DC" holds AC/DC).
-                // Read in-process (TagLib), not with metaflac: no external tool
+                // Read in-process (FlacMetadata), not with metaflac: no external tool
                 // to install, and no two processes per album on every rip.
                 IReadOnlyList<KeyValuePair<string, string>> tags;
                 try { tags = await Task.Run(() => FlacTags.Read(flac)); }
-                catch (Exception e) when (e is IOException or UnauthorizedAccessException or TagLib.CorruptFileException or TagLib.UnsupportedFormatException) { continue; }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException) { continue; }   // FlacFormatException is an IOException
                 var id = tags.FirstOrDefault(t => t.Key == "MUSICBRAINZ_ALBUMARTISTID").Value;
                 var name = tags.FirstOrDefault(t => t.Key == "ALBUMARTIST").Value;
                 if (id is not null && name is not null) folders._byId.TryAdd(id, name);
