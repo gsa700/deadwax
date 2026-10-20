@@ -32,6 +32,9 @@
          instance, no Close button because the title bar has one, settings
          written straight through, section headings at 14 semibold with a dim
          13 explanation under each, panel buttons, a path shown in a box.
+         Every tab scrolls: the window is as tall as the longest tab, but no
+         taller than the screen, and on a 1080-line screen the Drive tab is
+         taller than that (his report from Linux, 2026-10-20).
          The Disc screen keeps only what is about this disc; everything about
          the machine or the program lives here (his call, 2026-10-05). About is
          the last tab; new tabs go before it.
@@ -41,7 +44,8 @@
          not have, except where it only appears when that program is present. -->
     <TabControl x:Name="Tabs" Margin="12">
         <TabItem Header="Library">
-            <StackPanel Spacing="12">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="12" Margin="0,0,8,0">
                 <TextBlock Text="Where the music goes" FontSize="14" FontWeight="SemiBold"/>
                 <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
                            Text="Each disc becomes a folder, laid out as chosen on the Filing tab, with the FLAC files, the cover and the rip log inside. If an artist is already in the library, their name is spelled the way it is there."/>
@@ -62,6 +66,7 @@
                                Text="A disc from a set, when you chose to file it as the album it originally was, is retagged with that album's own title, year and front cover, and its folder renamed. Then, if chosen on the Filing tab, the back cover is fetched from the Cover Art Archive as back.jpg: this pressing's when it has one, otherwise another edition's of the same album. Runs only after a rip where every track was proven: by AccurateRip, or by two reads that agree."/>
                 </StackPanel>
             </StackPanel>
+            </ScrollViewer>
         </TabItem>
 
         <!-- Filing (2026-10-08): his conventions are the defaults; anyone can
@@ -111,7 +116,8 @@
         </TabItem>
 
         <TabItem Header="Drive">
-            <StackPanel Spacing="12">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="12" Margin="0,0,8,0">
                 <TextBlock Text="This drive" FontSize="14" FontWeight="SemiBold"/>
                 <Border CornerRadius="4" Padding="13,11" Background="{DynamicResource Bar}">
                     <StackPanel Spacing="4">
@@ -155,10 +161,12 @@
                 <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
                            Text="Either way, the rip log says how each track was proven."/>
             </StackPanel>
+            </ScrollViewer>
         </TabItem>
 
         <TabItem Header="About">
-            <StackPanel Spacing="12">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="12" Margin="0,0,8,0">
                 <!-- The icon beside the name, as a program's About page has. -->
                 <StackPanel Orientation="Horizontal" Spacing="18" Margin="0,4,0,6">
                     <Image Source="/Assets/icon-256.png" Width="96" Height="96" VerticalAlignment="Center"/>
@@ -203,6 +211,7 @@
                     </StackPanel>
                 </StackPanel>
             </StackPanel>
+            </ScrollViewer>
         </TabItem>
     </TabControl>
 </Window>
