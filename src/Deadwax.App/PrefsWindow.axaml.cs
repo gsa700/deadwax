@@ -176,19 +176,25 @@ public partial class PrefsWindow : Window
 
     private void ShowDrive()
     {
-        var device = CdDrive.DefaultDevice;
-        DeviceText.Text = device;
+        // Only a device the system reports: the fallback guess named a disk
+        // that was not the drive (/dev/disk2 on the Mac, 2026-10-20).
+        var device = CdDrive.FoundDevice;
+        DeviceText.Text = device ?? "";
         // The scanned disc's drive, or with no disc in, the kernel's record of it.
-        var drive = _main.CurrentDrive ?? DriveIdentity.FromSysfs(device);
+        var drive = _main.CurrentDrive ?? (device is null ? null : DriveIdentity.FromSysfs(device));
         var saved = DriveOffsets.All();
         var key = drive is null ? null : DriveOffsets.Key(drive.Vendor, drive.Model, drive.Revision);
-        DriveNameText.Text = key ?? "No drive found.";
+        // Linux knows a drive without a disc (sysfs), so nothing there means
+        // no drive. A Mac or Windows names one only while a disc is in it.
+        DriveNameText.Text = key
+            ?? (OperatingSystem.IsLinux() ? "No drive found."
+                : "No disc in the drive. The drive is named, with its read offset, once a disc is in it.");
         OffsetValueText.Text = key is null ? "—"
             : saved.TryGetValue(key, out var o) ? $"{o:+0;-0;0} samples"
             : "Not measured yet. Deadwax measures it once for this drive: put in a well-known commercial CD and Measure.";
         var others = saved.Where(kv => kv.Key != key).Select(kv => $"{kv.Key}   {kv.Value:+0;-0;0}").ToList();
         SavedDrivesText.IsVisible = others.Count > 0;
-        SavedDrivesText.Text = "Also remembered:\n" + string.Join("\n", others);
+        SavedDrivesText.Text = (key is null ? "Remembered:\n" : "Also remembered:\n") + string.Join("\n", others);
     }
 
     private async void OnMeasure(object? sender, RoutedEventArgs e)

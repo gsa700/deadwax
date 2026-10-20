@@ -34,29 +34,33 @@ public sealed class CdDrive : IDisposable
     /// open, the BDR-209D came back as sr1 and no /dev/cdrom link existed
     /// (2026-09-24). Elsewhere libcdio's own list of drives (a drive letter on
     /// Windows, /dev/diskN on macOS), or its default when the list is empty.
-    public static string DefaultDevice
+    public static string DefaultDevice =>
+        FoundDevice ?? (OperatingSystem.IsLinux() ? "/dev/sr0" : OperatingSystem.IsWindows() ? "D:" : "/dev/disk2");
+
+    /// The drive the system reports, or null when it reports none and
+    /// DefaultDevice is only a guess. On a Mac, libcdio lists a drive only
+    /// while a disc is in it, so an empty or open drive is null here too.
+    public static string? FoundDevice
     {
         get
         {
             if (OperatingSystem.IsLinux())
             {
                 if (File.Exists("/dev/cdrom")) return "/dev/cdrom";
-                var sr = Directory.Exists("/dev")
+                return Directory.Exists("/dev")
                     ? Directory.EnumerateFiles("/dev", "sr*")
                         .Where(p => int.TryParse(Path.GetFileName(p)[2..], out _))
                         .OrderBy(p => int.Parse(Path.GetFileName(p)[2..]))
                         .FirstOrDefault()
                     : null;
-                return sr ?? "/dev/sr0";
             }
             try
             {
-                return LibCdio.Devices().FirstOrDefault() ?? LibCdio.DefaultDevice()
-                    ?? (OperatingSystem.IsWindows() ? "D:" : "/dev/disk2");
+                return LibCdio.Devices().FirstOrDefault() ?? LibCdio.DefaultDevice();
             }
             catch (DllNotFoundException)
             {
-                return OperatingSystem.IsWindows() ? "D:" : "/dev/disk2";
+                return null;
             }
         }
     }
