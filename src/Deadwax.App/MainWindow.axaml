@@ -127,6 +127,9 @@
                             <ComboBox ItemsSource="{Binding Speeds}" SelectedItem="{Binding DriveSpeed}" MinWidth="160" FontSize="13"/>
                             <TextBlock Classes="soft" FontSize="13" TextWrapping="Wrap"
                                        Text="If the disc shakes, cap the speed here and the rip reads it that slowly; try 4x first, then lower. The first scan always runs at the drive's own speed: that is how you hear that a disc needs it."/>
+                            <!-- The reading choice stays in Preferences (a standing choice, not a
+                                 cure for the disc at hand); this line says which one the rip will use. -->
+                            <TextBlock Classes="soft" FontSize="13" TextWrapping="Wrap" Text="{Binding ReadingText}"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>

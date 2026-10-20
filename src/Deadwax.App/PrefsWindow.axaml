@@ -139,6 +139,21 @@
                     <ComboBox ItemsSource="{Binding Speeds}" SelectedItem="{Binding DriveSpeed}" MinWidth="150" FontSize="13"/>
                     <CheckBox IsChecked="{Binding EjectAfterRip}" FontSize="13" Content="Open the tray when a rip is done" VerticalAlignment="Center"/>
                 </StackPanel>
+
+                <Border Height="1" Background="{DynamicResource Rule}" Margin="0,6,0,0"/>
+                <TextBlock Text="Reading" FontSize="14" FontWeight="SemiBold"/>
+                <StackPanel Spacing="2">
+                    <RadioButton GroupName="reading" IsChecked="{Binding ReadOnceWhenConfirmed}" FontSize="13"
+                                 Content="Once, when AccurateRip confirms it (faster)"/>
+                    <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap" Margin="28,0,0,6"
+                               Text="A track whose first read matches at least two other people's rips of the same pressing in AccurateRip is proven, and is not read again. The first and last few sectors of the disc, which AccurateRip leaves out, are read a second time and must match. A track AccurateRip cannot confirm is read twice, as below."/>
+                    <RadioButton GroupName="reading" IsChecked="{Binding AlwaysTwoPasses}" FontSize="13"
+                                 Content="Always twice"/>
+                    <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap" Margin="28,0,0,0"
+                               Text="Every track is read twice and kept only when both reads agree. Slower; it does not depend on AccurateRip. Every track is still checked against AccurateRip and the result is in the log, as with the first choice."/>
+                </StackPanel>
+                <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
+                           Text="Either way, the rip log says how each track was proven."/>
             </StackPanel>
         </TabItem>
 

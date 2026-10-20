@@ -27,6 +27,9 @@ public sealed class Settings
     public const int DefaultSlowSpinSpeed = 4;
     /// Open the tray when the rip and post-rip steps are done, as whipper did.
     public bool EjectAfterRip { get; set; }
+    /// Read every track twice, even one whose first read matches AccurateRip
+    /// (spec §11 step 0). Off: such a track is read once.
+    public bool AlwaysTwoPasses { get; set; }
     /// Where albums go, and whose artist spellings are followed. Null = ~/Music.
     public string? Library { get; set; }
     /// Look for a newer release a few seconds after launch (About tab).

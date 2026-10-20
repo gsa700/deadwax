@@ -274,6 +274,15 @@ public sealed class MainViewModel : Observable
     public bool EjectAfterRip { get => _ejectAfterRip; set { if (Set(ref _ejectAfterRip, value)) EjectChanged?.Invoke(); } }
     public event Action? EjectChanged;
 
+    private bool _alwaysTwoPasses;
+    public bool AlwaysTwoPasses { get => _alwaysTwoPasses; set { if (Set(ref _alwaysTwoPasses, value)) { Raise(nameof(ReadOnceWhenConfirmed), nameof(ReadingText)); TwoPassesChanged?.Invoke(); } } }
+    public bool ReadOnceWhenConfirmed { get => !_alwaysTwoPasses; set => AlwaysTwoPasses = !value; }
+    /// The Disc screen's reminder of the choice in Preferences > Drive.
+    public string ReadingText => _alwaysTwoPasses
+        ? "Reading: every track twice (Preferences)"
+        : "Reading: once when AccurateRip confirms it, else twice (Preferences)";
+    public event Action? TwoPassesChanged;
+
     /// A newer release on GitHub: the title-bar button, and its state while
     /// the download runs.
 

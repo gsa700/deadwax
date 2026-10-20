@@ -7,10 +7,14 @@ namespace Deadwax.Output;
 
 public sealed record LogAccurateRip(bool InDatabase, uint LocalCrc, int Confidence, uint? RemoteCrc);
 
+/// CopyCrc is null for a track read once (proven by AccurateRip, spec §11 step 0):
+/// no copy was read, so the log does not claim one. Reads says how the track
+/// was proven, e.g. "1 (AccurateRip v2, confidence 61)" or "2 (test and copy
+/// CRCs match)"; null leaves the line out, as every log before 0.4.7.
 public sealed record LogTrack(
     int Number, string FileName, double Peak, bool PreEmphasis, double Speed,
-    uint TestCrc, uint CopyCrc, int Repairs, int SkippedSectors,
-    LogAccurateRip V1, LogAccurateRip V2, string Status);
+    uint TestCrc, uint? CopyCrc, int Repairs, int SkippedSectors,
+    LogAccurateRip V1, LogAccurateRip V2, string Status, string? Reads = null, bool ReadOnce = false);
 
 public sealed record LogDisc(
     string Drive, string Engine, int ReadOffset, string GapDetection, bool IsCdr,
@@ -19,7 +23,9 @@ public sealed record LogDisc(
 
 /// The rip log: a record of what the drive returned, written only by the rip it
 /// describes. It is never regenerated and never written for audio that was not
-/// read (spec §6), so a "Copy OK" in any log means a real test and copy agreed.
+/// read (spec §6), so a "Copy OK" in any log means the audio was proven: a real
+/// test and copy agreed, or (from 0.4.7, with "Reads: 1" and no Copy CRC) one
+/// read matched AccurateRip.
 ///
 /// The layout and key names follow whipper's where the meaning is the same, so
 /// the same reader handles both, and so every log in the library looks alike.
@@ -80,7 +86,7 @@ public static class RipLog
             L($"    Repairs: {t.Repairs}");
             L($"    Skipped sectors: {t.SkippedSectors}");
             L($"    Test CRC: {Hex(t.TestCrc)}");
-            L($"    Copy CRC: {Hex(t.CopyCrc)}");
+            if (t.CopyCrc is { } copy) L($"    Copy CRC: {Hex(copy)}");
             foreach (var (label, ar) in new[] { ("v1", t.V1), ("v2", t.V2) })
             {
                 L($"    AccurateRip {label}:");
@@ -90,6 +96,7 @@ public static class RipLog
                 L($"      Local CRC: {Hex(ar.LocalCrc)}");
                 if (ar.RemoteCrc is { } r) L($"      Remote CRC: {Hex(r)}");
             }
+            if (t.Reads is not null) L($"    Reads: {t.Reads}");
             L($"    Status: {t.Status}");
             L();
         }
@@ -103,6 +110,11 @@ public static class RipLog
             : inDatabase == 0 ? "None of the tracks are present in the AccurateRip database"
             : $"{accurate} of {tracks.Count} tracks accurately ripped"));
         L("  Health status: " + (healthy ? "No errors occurred" : "There were errors"));
+        if (tracks.Any(t => t.Reads is not null))
+        {
+            var once = tracks.Count(t => t.ReadOnce);
+            L($"  Reads: {once} of {tracks.Count} tracks read once, proven by AccurateRip; {tracks.Count - once} read twice or more");
+        }
         L("  EOF: End of status report");
 
         var body = sb.ToString();

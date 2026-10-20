@@ -67,7 +67,7 @@ internal static partial class CompareCommand
             foreach (var t in la.Tracks)
             {
                 var o = lb.Tracks.FirstOrDefault(x => x.Number == t.Number);
-                Report(o?.CopyCrc == t.CopyCrc, $"log track {t.Number} copy CRC");
+                Report(o?.AudioCrc == t.AudioCrc, $"log track {t.Number} audio CRC");
                 if (o?.V2?.LocalCrc is { } v2) Report(t.V2?.LocalCrc == v2, $"log track {t.Number} AccurateRip v2");
                 if (o?.V1?.LocalCrc is { } v1) Report(t.V1?.LocalCrc == v1, $"log track {t.Number} AccurateRip v1");
             }

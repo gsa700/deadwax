@@ -9,12 +9,14 @@ internal static class Commands
     private const string Usage = """
         usage:
           deadwax rip [--library DIR] [--release ID] [--year YYYY] [--device DEV] [--offset N] [--speed N]
-                      [--conventions LIBRARY] [--offline] [--keep-note] [--post-rip [--unbox]]
+                      [--conventions LIBRARY] [--offline] [--two-passes] [--keep-note] [--post-rip [--unbox]]
               Rip the disc into DIR/Artist/YEAR - Album/ (DIR defaults to ~/Music): FLACs, .toc, .cue, .m3u,
               .log. Artist spellings follow LIBRARY (default ~/Music). The year
               defaults to the album's original year. Never writes over a folder.
               --keep-note keeps MusicBrainz's disambiguation note in the folder
               name, as whipper did.
+              A track whose first read matches AccurateRip (2 or more rips) is
+              read once; --two-passes reads every track twice anyway.
               --post-rip then files a set's disc as its own album (planned
               only, unless --unbox), fetches back.jpg, and checks the album
               is filed as Preferences > Filing says.

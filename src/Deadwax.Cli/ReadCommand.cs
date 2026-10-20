@@ -113,7 +113,7 @@ internal static partial class ReadCommand
             if (log is not null)
             {
                 var logged = log.Tracks.FirstOrDefault(t => t.Number == n);
-                var crcSame = logged?.CopyCrc == copyCrc;
+                var crcSame = logged?.AudioCrc == copyCrc;
                 string md5Col;
                 if (flacs.TryGetValue(n, out var flac) && FlacInfo.AudioMd5(flac) is { } md5)
                 {
@@ -123,7 +123,7 @@ internal static partial class ReadCommand
                 }
                 else md5Col = "(no FLAC)";
                 if (!crcSame) failures++;
-                line += $"   {(crcSame ? "same" : "DIFF " + (logged?.CopyCrc is { } c ? Hex(c) : "none")),-11}  {md5Col,-8}";
+                line += $"   {(crcSame ? "same" : "DIFF " + (logged?.AudioCrc is { } c ? Hex(c) : "none")),-11}  {md5Col,-8}";
 
                 // G3: whipper logged its own local checksums; ours must equal them.
                 var arChecks = new List<bool>();

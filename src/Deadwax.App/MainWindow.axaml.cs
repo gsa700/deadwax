@@ -56,6 +56,8 @@ public sealed partial class MainWindow : Window
         _vm.SpeedChanged += OnSpeedChanged;
         _vm.EjectAfterRip = _settings.EjectAfterRip;
         _vm.EjectChanged += () => { _settings.EjectAfterRip = _vm.EjectAfterRip; _settings.Save(); };
+        _vm.AlwaysTwoPasses = _settings.AlwaysTwoPasses;
+        _vm.TwoPassesChanged += () => { _settings.AlwaysTwoPasses = _vm.AlwaysTwoPasses; _settings.Save(); };
         _vm.SetChoiceChanged += UpdateOutputPreview;    // Rip disc enables once a set has its answer
         _vm.Log.CollectionChanged += (_, _) => Dispatcher.UIThread.Post(() => LogScroll.ScrollToEnd(), DispatcherPriority.Background);
         FollowTheCurrentTrack();
@@ -717,14 +719,19 @@ public sealed partial class MainWindow : Window
         var observer = new Observer(_vm, disc);
         try
         {
-            var result = await Task.Run(() => RipSession.RipAsync(disc, plan, year, Library, observer, cover: cover, ct: ct), ct);
+            var result = await Task.Run(() => RipSession.RipAsync(disc, plan, year, Library, observer,
+                oneReadConfidence: _settings.AlwaysTwoPasses ? null : OneRead.DefaultConfidence, cover: cover, ct: ct), ct);
             observer.Finish();
             var steps = new List<StepRow>();
             var ok = result.Tracks.Count(t => t.CopyOk);
+            var once = result.Tracks.Count(t => t.Passes == 1);
             steps.Add(new StepRow
             {
                 Name = "Read", Ok = result.AllOk,
-                Detail = result.AllOk ? $"{ok} tracks, every one read twice alike" : $"{result.Tracks.Count - ok} track(s) never read the same twice",
+                Detail = !result.AllOk ? $"{result.Tracks.Count - ok} track(s) never read the same twice"
+                    : once == ok ? $"{ok} tracks, each proven by AccurateRip on one read"
+                    : once == 0 ? $"{ok} tracks, every one read twice alike"
+                    : $"{once} proven by AccurateRip on one read, {ok - once} read twice alike",
             });
             var accurate = result.Tracks.Where(t => t.AccurateRip.IsAccurate).ToList();
             steps.Add(new StepRow
@@ -763,7 +770,9 @@ public sealed partial class MainWindow : Window
                 ? accurate.Count == result.Tracks.Count ? $"All {result.Tracks.Count} tracks accurately ripped" : $"All {result.Tracks.Count} tracks ripped"
                 : "Ripped, with problems";
             _vm.VerdictDetail = result.AllOk
-                ? "Every track read twice with the same result."
+                ? once == 0 ? "Every track read twice with the same result."
+                    : once == result.Tracks.Count ? "Every track's one read matched other people's rips in AccurateRip."
+                    : "Every track proven: its one read matched AccurateRip, or two reads agreed."
                 : "Some tracks never read the same way twice. Clean the disc and rip it again.";
             _vm.Steps.Clear();
             foreach (var s in steps) _vm.Steps.Add(s);
@@ -985,7 +994,18 @@ public sealed partial class MainWindow : Window
             }
         }
 
-        public void TrackFinished(RippedTrack result) => Dispatcher.UIThread.Post(() =>
+        public void TrackFinished(RippedTrack result)
+        {
+            // Read once: the copy pass the progress bar counted on never ran.
+            if (result.Passes == 1 && result.CopyOk)
+            {
+                var t1 = disc.Toc.Track(result.Number);
+                _workDone += disc.Toc.EndLsn(t1) - t1.StartLsn;
+            }
+            Dispatcher.UIThread.Post(() => ShowFinished(result));
+        }
+
+        private void ShowFinished(RippedTrack result)
         {
             var t = disc.Toc.Track(result.Number);
             lock (_worst)
@@ -997,12 +1017,13 @@ public sealed partial class MainWindow : Window
             row.Active = false;
             row.Background = Avalonia.Media.Brushes.Transparent;
             row.TestCrc = result.Crc.ToString("X8");
-            row.CopyCrc = result.Crc.ToString("X8");
+            row.CopyCrc = result.Passes == 1 && result.CopyOk ? "—" : result.Crc.ToString("X8");   // read once: no copy
             if (!result.CopyOk) { row.Status = "Never read alike"; row.StatusBrush = Tone.Bad; row.Detail = $"{result.Passes} passes"; return; }
             if (result.AccurateRip.IsAccurate) { row.Status = "✓ Accurate"; row.StatusBrush = Tone.Good; row.Detail = $"{result.AccurateRip.Confidence} matching rips"; }
             else { row.Status = "Copy OK"; row.StatusBrush = Tone.Good; row.Detail = "no AccurateRip match"; }
+            if (result.Passes == 1) row.Detail += " · one read";
             if (result.Passes > 2) row.Detail += $" · {result.Passes} passes";
-        });
+        }
 
         public void Finish() => Dispatcher.UIThread.Post(() =>
         {

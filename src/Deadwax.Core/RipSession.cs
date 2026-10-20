@@ -24,6 +24,9 @@ public sealed record RipOptions
     /// Reads of a track, in all, while looking for two that agree.
     public int MaxPasses { get; init; } = 5;
     public bool AccurateRip { get; init; } = true;
+    /// A track whose first read matches AccurateRip with at least this many
+    /// rips is read once (spec §11 step 0). Null = read every track twice.
+    public int? OneReadConfidence { get; init; } = OneRead.DefaultConfidence;
     /// Put MusicBrainz's disambiguation note in the folder name, as whipper did.
     public bool KeepDisambiguation { get; init; }
     /// Cap the drive at this many times 1x, for a disc that vibrates (spec §8).
@@ -156,9 +159,10 @@ public interface IRipObserver
 /// One rip, in three steps the window can pause between (spec §4):
 ///   Prepare: TOC, cdrdao, the releases the disc is on;
 ///   Plan: one release, with names, years and tags;
-///   Rip: every track read until two passes agree, AccurateRip, FLAC, .toc,
-///   .cue, .m3u, .log and cover.jpg. It refuses to write into a folder that
-///   exists. The command line runs all three in a row (RunAsync).
+///   Rip: every track read once and checked with AccurateRip, and read again
+///   until two passes agree unless AccurateRip proved the first (OneRead);
+///   FLAC, .toc, .cue, .m3u, .log and cover.jpg. It refuses to write into a
+///   folder that exists. The command line runs all three in a row (RunAsync).
 public sealed class RipSession
 {
     /// What the .log's first line says made it. The program's own version,
@@ -287,7 +291,7 @@ public sealed class RipSession
     public static async Task<RipResult> RipAsync(
         PreparedDisc disc, ReleasePlan plan, string year, string library, IRipObserver observer,
         int maxRetries = SecureReader.DefaultMaxRetries, int maxPasses = 5, bool accurateRip = true,
-        byte[]? cover = null, CancellationToken ct = default)
+        int? oneReadConfidence = OneRead.DefaultConfidence, byte[]? cover = null, CancellationToken ct = default)
     {
         var cdrdao = disc.Cdrdao ?? throw new RipException("The disc's subchannel has not been read yet.");
         // The filing choices as they are when the rip starts: a change in
@@ -357,38 +361,70 @@ public sealed class RipSession
                 var cdTrack = cdrdao.Toc.Tracks.First(t => t.Number == n);
                 observer.TrackStarted(n);
 
-                // Read until two passes agree: the first is the test, each later
-                // one a copy compared with the pass before it.
+                // The first read is checked with AccurateRip at once: a match
+                // proves it, and the track is done (OneRead, spec §11 step 0).
+                // Otherwise, or when every track is to be read twice, read until
+                // two passes agree: the first is the test, each later one a copy
+                // compared with the pass before it.
                 var (audio, report) = reader.ReadTrack(toc, n, disc.Offset, maxRetries, (d, t) => observer.Progress(n, "test", d, t), ct,
                     (s, state) => observer.SectorDamaged(n, "test", s, state));
                 observer.PassFinished(n, "test", report);
                 var testCrc = AudioChecks.Crc32(audio);
                 var previousCrc = testCrc;
-                uint copyCrc = 0;
+                uint? copyCrc = null;
                 var passes = 1;
                 var agreed = false;
                 var repairs = report.Repairs;
                 var skips = report.Skips;
                 var elapsed = report.Elapsed;
-                while (passes < maxPasses)
-                {
-                    (audio, report) = reader.ReadTrack(toc, n, disc.Offset, maxRetries, (d, t) => observer.Progress(n, "copy", d, t), ct,
-                        (s, state) => observer.SectorDamaged(n, "copy", s, state));
-                    observer.PassFinished(n, "copy", report);
-                    passes++;
-                    copyCrc = AudioChecks.Crc32(audio);
-                    repairs += report.Repairs;
-                    skips += report.Skips;
-                    elapsed = report.Elapsed;
-                    if (copyCrc == previousCrc && report.Skips == 0) { agreed = true; break; }
-                    observer.Say($"Track {n}: pass {passes} differs from pass {passes - 1}; reading again.");
-                    previousCrc = copyCrc;
-                }
-                if (agreed) testCrc = copyCrc;   // the pass it agreed with
 
                 var index = audioTracks.IndexOf(track);
-                var (v1, v2) = AccurateRipChecksum.Compute(audio, n == audioTracks[0].Number, n == audioTracks[^1].Number);
+                var isFirst = n == audioTracks[0].Number;
+                var isLast = n == audioTracks[^1].Number;
+                var (v1, v2) = AccurateRipChecksum.Compute(audio, isFirst, isLast);
                 var verdict = AccurateRipMatch.For(arBlocks, index, n, v1, v2);
+                var readOnce = oneReadConfidence is { } min && arBlocks is not null && OneRead.Accepts(verdict, report.Skips, min);
+                string? edgesReadTwice = null;
+                if (readOnce && (isFirst || isLast))
+                {
+                    // The sectors AccurateRip leaves out, read again on their
+                    // own: they must come back the same, byte for byte.
+                    var edge = Math.Min(OneRead.EdgeBytes, audio.Length);
+                    var edges = new List<(int From, int To, string Name)>();
+                    if (isFirst) edges.Add((0, edge, "first"));
+                    if (isLast) edges.Add((audio.Length - edge, audio.Length, "last"));
+                    foreach (var (from, to, name) in edges)
+                    {
+                        var (again, edgeReport) = reader.ReadTrackPart(toc, n, disc.Offset, from, to, maxRetries, ct);
+                        if (edgeReport.Skips == 0 && again.AsSpan().SequenceEqual(audio.AsSpan(from, to - from))) continue;
+                        readOnce = false;
+                        observer.Say($"Track {n}: its {name} 5 sectors, which AccurateRip leaves out, read differently the second time; reading the whole track again.");
+                        break;
+                    }
+                    if (readOnce) edgesReadTwice = string.Join(" and ", edges.Select(e => e.Name)) + " 5 sectors";
+                }
+
+                if (readOnce) agreed = true;
+                else
+                {
+                    while (passes < maxPasses)
+                    {
+                        (audio, report) = reader.ReadTrack(toc, n, disc.Offset, maxRetries, (d, t) => observer.Progress(n, "copy", d, t), ct,
+                            (s, state) => observer.SectorDamaged(n, "copy", s, state));
+                        observer.PassFinished(n, "copy", report);
+                        passes++;
+                        copyCrc = AudioChecks.Crc32(audio);
+                        repairs += report.Repairs;
+                        skips += report.Skips;
+                        elapsed = report.Elapsed;
+                        if (copyCrc == previousCrc && report.Skips == 0) { agreed = true; break; }
+                        observer.Say($"Track {n}: pass {passes} differs from pass {passes - 1}; reading again.");
+                        previousCrc = copyCrc.Value;
+                    }
+                    if (agreed) testCrc = copyCrc!.Value;   // the pass it agreed with
+                    (v1, v2) = AccurateRipChecksum.Compute(audio, isFirst, isLast);
+                    verdict = AccurateRipMatch.For(arBlocks, index, n, v1, v2);
+                }
 
                 var tags = LibraryConventions.Apply(
                     ReleaseTags.ForTrack(root, plan.Medium, n, disc.DiscId, cdTrack.Isrc ?? cdTrack.Text?.Isrc), year, plan.FolderArtist);
@@ -409,17 +445,21 @@ public sealed class RipSession
                 }
 
                 var status = agreed ? "Copy OK" : "Copy NOT OK";
+                var reads = readOnce
+                    ? $"1 ({OneRead.Proof(verdict)}{(edgesReadTwice is null ? "" : $"; the {edgesReadTwice} read twice alike")})"
+                    : !agreed ? $"{passes} (no two reads alike)"
+                    : passes == 2 ? "2 (test and copy CRCs match)" : $"{passes} (the last two reads match)";
                 var seconds = sectors / (double)Toc.SectorsPerSecond;
                 logTracks.Add(new LogTrack(
                     n, Path.GetRelativePath(library, path), Peak(audio), cdTrack.PreEmphasis,
                     seconds / Math.Max(elapsed.TotalSeconds, 0.001), testCrc, copyCrc, repairs, skips,
                     Ar(arBlocks, index, v1, verdict.V1Confidence), Ar(arBlocks, index, v2, verdict.V2Confidence),
-                    status));
+                    status, reads, readOnce));
                 sidecarTracks.Add(new SidecarTrack(n, fileName, title, artist, sectors));
-                var result = new RippedTrack(n, path, agreed, passes, copyCrc, verdict);
+                var result = new RippedTrack(n, path, agreed, passes, copyCrc ?? testCrc, verdict);
                 ripped.Add(result);
                 observer.TrackFinished(result);
-                observer.Say($"Track {n}: {status}, {passes} pass(es), {(verdict.IsAccurate ? $"accurate ({verdict.Confidence} rips)" : arBlocks is null ? "not in AccurateRip" : "no AccurateRip match")}");
+                observer.Say($"Track {n}: {status}, {(readOnce ? "one read" : $"{passes} pass(es)")}, {(verdict.IsAccurate ? $"accurate ({verdict.Confidence} rips)" : arBlocks is null ? "not in AccurateRip" : "no AccurateRip match")}");
             }
         }
 
@@ -492,7 +532,7 @@ public sealed class RipSession
         using var plan = await PlanAsync(disc, releaseId, options.ConventionsLibrary, ct);
         plan.KeepDisambiguation = options.KeepDisambiguation;
         return await RipAsync(disc, plan, options.Year ?? plan.DefaultYear, options.Library, observer,
-            options.MaxRetries, options.MaxPasses, options.AccurateRip, ct: ct);
+            options.MaxRetries, options.MaxPasses, options.AccurateRip, options.OneReadConfidence, ct: ct);
     }
 
     private static HttpClient Http(int seconds) => NewHttp(seconds);

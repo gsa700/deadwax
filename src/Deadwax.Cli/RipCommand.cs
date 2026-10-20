@@ -1,5 +1,6 @@
 using Deadwax.Core;
 using Deadwax.Output;
+using Deadwax.Verify;
 using static Deadwax.Cli.Commands;
 
 namespace Deadwax.Cli;
@@ -9,6 +10,15 @@ namespace Deadwax.Cli;
 /// wizard's post-rip hook did, and only after a rip where every track agreed.
 internal static class RipCommand
 {
+    /// How the tracks were proven, for the last line.
+    internal static string ReadSummary(RipResult result)
+    {
+        var once = result.Tracks.Count(t => t.Passes == 1);
+        return once == result.Tracks.Count ? "every one proven by AccurateRip on one read"
+            : once == 0 ? "every one read twice alike"
+            : $"{once} proven by AccurateRip on one read, {result.Tracks.Count - once} read twice alike";
+    }
+
     public static async Task<int> RunAsync(string[] args)
     {
         var options = new Options(args);
@@ -23,6 +33,7 @@ internal static class RipCommand
         var postRip = options.Flag("--post-rip");
         var unbox = options.Flag("--unbox");
         var keepNote = options.Flag("--keep-note");
+        var twoPasses = options.Flag("--two-passes");   // no track read once, AccurateRip or not
         options.Rest();
 
         var ripOptions = new RipOptions
@@ -36,6 +47,7 @@ internal static class RipCommand
             AccurateRip = !offline,
             KeepDisambiguation = keepNote,
             SpeedLimit = speed is null ? null : int.Parse(speed),
+            OneReadConfidence = twoPasses ? null : OneRead.DefaultConfidence,
         };
 
         try
@@ -44,7 +56,7 @@ internal static class RipCommand
             if (!Console.IsErrorRedirected) Console.Error.Write("\r\x1b[K");
             Console.WriteLine();
             Console.WriteLine(result.AllOk
-                ? $"Done: {result.Tracks.Count} tracks, every one read twice alike. {result.AlbumDirectory}"
+                ? $"Done: {result.Tracks.Count} tracks, {ReadSummary(result)}. {result.AlbumDirectory}"
                 : $"Done with problems: {result.Tracks.Count(t => !t.CopyOk)} track(s) never read the same twice. {result.AlbumDirectory}");
             if (!result.AllOk) return 1;
             if (!postRip) return 0;

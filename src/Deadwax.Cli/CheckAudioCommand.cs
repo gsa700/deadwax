@@ -50,7 +50,7 @@ internal static partial class CheckAudioCommand
                 tracks++;
 
                 var crc = AudioChecks.Crc32(audio);
-                if (t.CopyCrc is { } logged && logged != crc) problems.Add($"track {t.Number} CRC {Hex(crc)} != {Hex(logged)}");
+                if (t.AudioCrc is { } logged && logged != crc) problems.Add($"track {t.Number} CRC {Hex(crc)} != {Hex(logged)}");
 
                 var (v1, v2) = AccurateRipChecksum.Compute(audio, t.Number == toc.FirstTrack, t.Number == toc.LastTrack);
                 if (t.V1?.LocalCrc is { } l1)

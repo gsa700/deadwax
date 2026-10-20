@@ -98,6 +98,20 @@ public readonly record struct ReadWindow(
         return new ReadWindow(firstSector, endSector, readableStart, Math.Max(readableEnd, readableStart),
             (int)(firstByte - (long)firstSector * SectorBytes), (int)(endByte - firstByte));
     }
+
+    /// The sectors that hold bytes [fromByte, toByte) of the track, and where
+    /// those bytes start inside them: a re-read of part of a track (the edges
+    /// AccurateRip leaves out, spec §11 step 0) cut the same way as a whole one.
+    public ReadWindow Part(int fromByte, int toByte)
+    {
+        if (fromByte < 0 || toByte > TrackBytes || fromByte >= toByte) throw new ArgumentOutOfRangeException(nameof(fromByte));
+        var first = FirstSector + (TrackStartInWindow + fromByte) / SectorBytes;
+        var end = FirstSector + (TrackStartInWindow + toByte + SectorBytes - 1) / SectorBytes;
+        var readableStart = Math.Clamp(first, ReadableStart, ReadableEnd);
+        var readableEnd = Math.Clamp(end, readableStart, ReadableEnd);
+        return new ReadWindow(first, end, readableStart, readableEnd,
+            TrackStartInWindow + fromByte - (first - FirstSector) * SectorBytes, toByte - fromByte);
+    }
 }
 
 /// Reads tracks through paranoia, with the drive's read offset corrected
@@ -150,6 +164,20 @@ public sealed class SecureReader : IDisposable
         var w = ReadWindow.For(toc, track, offsetSamples);
         var (window, report) = ReadSectors(w.FirstSector, w.EndSector, w.ReadableStart, w.ReadableEnd, maxRetries, progress, ct, damaged);
         return (window.AsSpan(w.TrackStartInWindow, w.TrackBytes).ToArray(), report);
+    }
+
+    /// Bytes [fromByte, toByte) of one track, read again on their own (a new
+    /// paranoia instance, as every pass gets).
+    public (byte[] Audio, ReadReport Report) ReadTrackPart(
+        Toc toc, int trackNumber, int offsetSamples, int fromByte, int toByte,
+        int maxRetries = DefaultMaxRetries, CancellationToken ct = default)
+    {
+        var track = toc.Track(trackNumber);
+        if (!track.IsAudio) throw new ArgumentException($"Track {trackNumber} is data, not audio.");
+
+        var p = ReadWindow.For(toc, track, offsetSamples).Part(fromByte, toByte);
+        var (window, report) = ReadSectors(p.FirstSector, p.EndSector, p.ReadableStart, p.ReadableEnd, maxRetries, ct: ct);
+        return (window.AsSpan(p.TrackStartInWindow, p.TrackBytes).ToArray(), report);
     }
 
     /// One pass over a run of sectors, through paranoia: [firstSector, endSector)

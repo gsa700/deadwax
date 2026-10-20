@@ -8,7 +8,12 @@ public sealed record WhipperArResult(string? Result, int? Confidence, uint? Loca
     public bool IsMatch => Result is not null && Result.StartsWith("Found, exact match", StringComparison.Ordinal);
 }
 
-public sealed record WhipperLogTrack(int Number, uint? TestCrc, uint? CopyCrc, WhipperArResult? V1, WhipperArResult? V2, string? Status);
+public sealed record WhipperLogTrack(int Number, uint? TestCrc, uint? CopyCrc, WhipperArResult? V1, WhipperArResult? V2, string? Status)
+{
+    /// The CRC of the audio in the file: the copy's, or the one read's for a
+    /// track Deadwax read once (no Copy CRC; spec §11 step 0).
+    public uint? AudioCrc => CopyCrc ?? TestCrc;
+}
 
 /// A whipper 0.10.0 rip log, read for the numbers Deadwax is checked against.
 ///
