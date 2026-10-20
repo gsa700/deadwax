@@ -6,7 +6,8 @@ through libcdio-paranoia, verifies every rip against AccurateRip, and files the
 album into the library the way the library wants it.
 
 It is in daily use on the author's library since 2026-09-24: every disc
-is read twice until two passes agree, checked against AccurateRip, encoded with
+is checked against AccurateRip as it is read, and read again until two passes
+agree unless AccurateRip has already confirmed it (since 0.4.7), encoded with
 libFLAC, tagged from MusicBrainz and written with `.cue`, `.m3u`, `.toc` and a
 rip log in whipper's layout, so a library ripped with whipper and one ripped
 with Deadwax look the same. The window shows the disc, its MusicBrainz
@@ -67,7 +68,7 @@ is remembered for the next disc, and is recorded in the log.
 
 ## After the rip
 
-When every track read the same twice, Deadwax finishes the album for the
+When every track was proven (by AccurateRip, or by two reads alike), Deadwax finishes the album for the
 library (Preferences, Library tab, **After a rip**; on by default). Nothing
 else needs to be installed for this.
 

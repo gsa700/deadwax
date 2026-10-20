@@ -376,12 +376,15 @@
                     </ItemsControl>
                     <StackPanel Orientation="Horizontal" Spacing="20">
                         <StackPanel.Styles><Style Selector="TextBlock"><Setter Property="FontSize" Value="12"/><Setter Property="Foreground" Value="{StaticResource Dim}"/></Style></StackPanel.Styles>
-                        <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="10" Height="10" CornerRadius="2" Background="#2D8F46"/><TextBlock Text="Read cleanly"/></StackPanel>
+                        <!-- In the order a cell goes through them, then trouble (2026-10-20:
+                             the finished colors say how the track was proven). -->
+                        <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="10" Height="10" CornerRadius="2" Background="{StaticResource Rule}"/><TextBlock Text="Not read yet"/></StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="10" Height="10" CornerRadius="2" Background="#8A6A1E"/><TextBlock Text="Reading"/></StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="10" Height="10" CornerRadius="2" Background="#4F6B2A"/><TextBlock Text="Reading again"/></StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="10" Height="10" CornerRadius="2" Background="#2D8F46"/><TextBlock Text="Confirmed by AccurateRip"/></StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="10" Height="10" CornerRadius="2" Background="#2B7F8C"/><TextBlock Text="Read twice alike"/></StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="10" Height="10" CornerRadius="2" Background="{StaticResource AmberSoft}"/><TextBlock Text="Re-read, recovered"/></StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="10" Height="10" CornerRadius="2" Background="{StaticResource Bad}"/><TextBlock Text="Could not read"/></StackPanel>
-                        <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="10" Height="10" CornerRadius="2" Background="#8A6A1E"/><TextBlock Text="Reading"/></StackPanel>
-                        <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="10" Height="10" CornerRadius="2" Background="#4F6B2A"/><TextBlock Text="Read twice, checking"/></StackPanel>
-                        <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="10" Height="10" CornerRadius="2" Background="{StaticResource Rule}"/><TextBlock Text="Not read yet"/></StackPanel>
                     </StackPanel>
                 </StackPanel>
 

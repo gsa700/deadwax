@@ -41,9 +41,13 @@ public static class Tone
     /// green was a loud block in the neutral frame (2026-09-24), and "reading"
     /// needed to stand out from "not read yet".
     public static readonly IBrush Reading = Brush.Parse("#8A6A1E");
+    /// A track proven by AccurateRip (one read or two).
     public static readonly IBrush MapGood = Brush.Parse("#2D8F46");
-    /// Read a second time, waiting on the track's verdict: between "reading"
-    /// and "read cleanly", so the copy pass is seen sweeping (2026-10-08).
+    /// A track proven by two reads alike that AccurateRip did not confirm (a
+    /// disc it lacks, or no match): good, and told apart at a glance (2026-10-20).
+    public static readonly IBrush MapTwice = Brush.Parse("#2B7F8C");
+    /// Being read again, waiting on the track's verdict: between "reading"
+    /// and the finished colors, so the second pass is seen sweeping (2026-10-08).
     public static readonly IBrush Copied = Brush.Parse("#4F6B2A");
     public static readonly IBrush ActiveRow = Brush.Parse("#26262C");
     public static readonly IBrush Selected = Brush.Parse("#2C2C30");

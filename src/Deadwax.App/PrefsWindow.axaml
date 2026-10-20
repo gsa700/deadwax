@@ -59,7 +59,7 @@
                     <TextBlock Text="After a rip" FontSize="14" FontWeight="SemiBold"/>
                     <CheckBox x:Name="PostRipBox" FontSize="13" Content="Finish the new album for the library" Click="OnPostRipToggled"/>
                     <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
-                               Text="A disc from a set, when you chose to file it as the album it originally was, is retagged with that album's own title, year and front cover, and its folder renamed. Then, if chosen on the Filing tab, the back cover is fetched from the Cover Art Archive as back.jpg: this pressing's when it has one, otherwise another edition's of the same album. Runs only after a rip where every track read the same twice."/>
+                               Text="A disc from a set, when you chose to file it as the album it originally was, is retagged with that album's own title, year and front cover, and its folder renamed. Then, if chosen on the Filing tab, the back cover is fetched from the Cover Art Archive as back.jpg: this pressing's when it has one, otherwise another edition's of the same album. Runs only after a rip where every track was proven: by AccurateRip, or by two reads that agree."/>
                 </StackPanel>
             </StackPanel>
         </TabItem>
@@ -169,7 +169,7 @@
                     </StackPanel>
                 </StackPanel>
                 <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
-                           Text="Rips CDs into a FLAC library you own. Every track is read twice until two readings agree, then checked against AccurateRip, the database of what thousands of other drives read from the same disc. Tags come from MusicBrainz. Free software, GPLv3."/>
+                           Text="Rips CDs into a FLAC library you own. Every track is checked against AccurateRip, the database of what thousands of other drives read from the same disc; a track it cannot confirm is read twice until two readings agree. Tags come from MusicBrainz. Free software, GPLv3."/>
                 <StackPanel Orientation="Horizontal" Spacing="9">
                     <Button x:Name="UpdateButton" Classes="panel" Content="Check for updates" Click="OnCheckUpdates"/>
                     <Button Classes="panel" Content="Deadwax on GitHub" Click="OnOpenRepo"/>

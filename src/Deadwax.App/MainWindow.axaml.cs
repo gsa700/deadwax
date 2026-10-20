@@ -716,7 +716,7 @@ public sealed partial class MainWindow : Window
         _work?.Cancel();
         _work = new CancellationTokenSource();
         var ct = _work.Token;
-        var observer = new Observer(_vm, disc);
+        var observer = new Observer(_vm, disc, _settings.AlwaysTwoPasses);
         try
         {
             var result = await Task.Run(() => RipSession.RipAsync(disc, plan, year, Library, observer,
@@ -896,8 +896,15 @@ public sealed partial class MainWindow : Window
 
     /// The rip's reports, carried to the window. Progress arrives per sector, so
     /// it is thinned to whole percent before it crosses to the UI thread.
-    private sealed class Observer(MainViewModel vm, PreparedDisc disc) : IRipObserver
+    private sealed class Observer(MainViewModel vm, PreparedDisc disc, bool alwaysTwice) : IRipObserver
     {
+        /// The rip's passes, as the window names them: the first read, then
+        /// any later one (RipSession's "test" and "copy"). With one read the
+        /// norm, a first read is not a "test" (2026-10-20).
+        private static string Label(string pass) => pass == "test" ? "reading" : "reading again";
+        private string Now(string pass) => pass == "test" ? "reading"
+            : alwaysTwice ? "reading again" : "reading again, to confirm it";
+
         public const int SectorsPerCell = 150;   // two seconds
 
         private readonly Stopwatch _clock = Stopwatch.StartNew();
@@ -921,7 +928,7 @@ public sealed partial class MainWindow : Window
             row.Background = Tone.ActiveRow;
             row.Foreground = Tone.Text;
             row.Status = "";
-            row.Detail = "test";
+            row.Detail = Label("test");
         });
 
         public void Progress(int track, string pass, int done, int total)
@@ -938,13 +945,13 @@ public sealed partial class MainWindow : Window
             Dispatcher.UIThread.Post(() =>
             {
                 var row = vm.Tracks.FirstOrDefault(r => r.Number == track);
-                if (row is not null) { row.Progress = pct; row.Detail = pass; if (speed > 0) row.Speed = $"{speed:0.0}×"; }
+                if (row is not null) { row.Progress = pct; row.Detail = Label(pass); if (speed > 0) row.Speed = $"{speed:0.0}×"; }
                 vm.Overall = 100.0 * workNow / _totalWork;
-                vm.NowText = $"Track {track} of {vm.Tracks.Count} · {pass} pass";
+                vm.NowText = $"Track {track} of {vm.Tracks.Count} · {Now(pass)}";
                 if (speed > 0) vm.SpeedText = $"{speed:0.0}×";
                 vm.ElapsedText = _clock.Elapsed.ToString(@"m\:ss");
-                // Both passes sweep: the test turns cells "reading", each copy
-                // "read twice"; damage already painted stays.
+                // Both passes sweep: the first read turns cells "reading", a
+                // later one "reading again"; damage already painted stays.
                 var (from, to) = pass == "test" ? (Tone.Unread, Tone.Reading) : (Tone.Reading, Tone.Copied);
                 var last = (t.StartLsn + done) / SectorsPerCell;
                 for (var c = t.StartLsn / SectorsPerCell; c <= last && c < vm.Map.Count; c++)
@@ -1010,7 +1017,8 @@ public sealed partial class MainWindow : Window
             var t = disc.Toc.Track(result.Number);
             lock (_worst)
                 for (var c = t.StartLsn / SectorsPerCell; c <= (disc.Toc.EndLsn(t) - 1) / SectorsPerCell && c < vm.Map.Count; c++)
-                    vm.Map[c].Fill = _worst.TryGetValue(c, out var b) ? b : result.CopyOk ? Tone.MapGood : Tone.Bad;
+                    vm.Map[c].Fill = _worst.TryGetValue(c, out var b) ? b
+                        : !result.CopyOk ? Tone.Bad : result.AccurateRip.IsAccurate ? Tone.MapGood : Tone.MapTwice;
 
             var row = vm.Tracks.FirstOrDefault(r => r.Number == result.Number);
             if (row is null) return;
