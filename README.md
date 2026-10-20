@@ -271,4 +271,5 @@ tests/Deadwax.Tests    golden files from real rips
 
 ## Licence
 
-GPLv3. libcdio and libcdio-paranoia are GPLv3 themselves.
+GPLv3. libcdio and libcdio-paranoia are GPLv3 themselves. What else a release
+carries, under which licenses, and what is patched: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
