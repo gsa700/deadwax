@@ -10,7 +10,7 @@ public sealed class OutputException(string message) : Exception(message);
 /// libFLAC encodes with its verify mode on (it decodes every frame as it goes
 /// and fails on any mismatch) and stores the audio's MD5 in STREAMINFO, which
 /// FlacInfo can read back and compare with the MD5 of what was ripped. Tags go
-/// on afterwards through TagLibSharp, the library AlbumWall already uses.
+/// on afterwards through FlacTags (Deadwax's own FlacMetadata since 0.5.1).
 /// Pictures are never embedded: art lives in cover.jpg beside the files.
 public static class FlacWriter
 {
@@ -71,14 +71,5 @@ public static class FlacWriter
 
     /// Replaces every Vorbis comment with these. Repeated keys become one field
     /// with several values, which is how FLAC stores them anyway (one line each).
-    public static void WriteTags(string path, IReadOnlyList<Tag> tags)
-    {
-        using var file = TagLib.File.Create(path, "audio/flac", TagLib.ReadStyle.None);
-        var xiph = (TagLib.Ogg.XiphComment)file.GetTag(TagLib.TagTypes.Xiph, create: true);
-        foreach (var key in xiph.ToList()) xiph.RemoveField(key);
-        foreach (var group in tags.GroupBy(t => t.Key))
-            xiph.SetField(group.Key, group.Select(t => t.Value).ToArray());
-        file.RemoveTags(TagLib.TagTypes.Id3v2 | TagLib.TagTypes.Id3v1 | TagLib.TagTypes.Ape);
-        file.Save();
-    }
+    public static void WriteTags(string path, IReadOnlyList<Tag> tags) => FlacTags.Replace(path, tags);
 }

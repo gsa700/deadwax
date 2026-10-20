@@ -17,29 +17,24 @@ public static class CoverEmbed
     {
         var coverPath = Path.Combine(albumDir, "cover.jpg");
         if (!File.Exists(coverPath)) return 0;
-        var bytes = new TagLib.ByteVector(File.ReadAllBytes(coverPath));
+        var bytes = File.ReadAllBytes(coverPath);
         var count = 0;
         foreach (var flac in Directory.EnumerateFiles(albumDir, "*.flac").Order(StringComparer.Ordinal))
         {
-            using var file = TagLib.File.Create(flac, "audio/flac", TagLib.ReadStyle.None);
-            var pictures = file.Tag.Pictures.Where(p => p.Type != TagLib.PictureType.FrontCover).ToList();
-            pictures.Insert(0, new TagLib.Picture(bytes)
-            {
-                Type = TagLib.PictureType.FrontCover,
-                MimeType = "image/jpeg",
-                Description = "",
-            });
-            file.Tag.Pictures = [.. pictures];
-            file.Save();
+            Embed(flac, bytes);
             count++;
         }
         return count;
     }
 
-    /// Whether a FLAC carries a front-cover picture.
-    public static bool HasFront(string flac)
+    /// One file: the front first, then the pictures it had that are not a front.
+    public static void Embed(string flac, byte[] cover)
     {
-        using var file = TagLib.File.Create(flac, "audio/flac", TagLib.ReadStyle.None);
-        return file.Tag.Pictures.Any(p => p.Type == TagLib.PictureType.FrontCover);
+        if (FlacTags.UseTagLib) TagLibFlac.EmbedFront(flac, cover);
+        else OwnFlac.EmbedFront(flac, cover);
     }
+
+    /// Whether a FLAC carries a front-cover picture.
+    public static bool HasFront(string flac) =>
+        (FlacTags.UseTagLib ? TagLibFlac.Pictures(flac) : OwnFlac.Pictures(flac)).Any(p => p.Type == FlacPicture.FrontCover);
 }
