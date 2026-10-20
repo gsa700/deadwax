@@ -136,6 +136,50 @@ internal static class CheckFlacMetadataCommand
         Console.WriteLine($"Writes: {tried} copies, each step done both ways:");
         foreach (var s in steps)
             Console.WriteLine($"  {s,-12} same content {sameContent[s]}/{tried}, same layout {sameLayout[s]}/{tried}");
+        // ---- fresh files, as a rip makes them: libFLAC's output (no padding),
+        // then the rip's own sequence: every tag, ReplayGain, the cover.
+        var freshOk = 0;
+        var freshDir = Path.Combine(Path.GetTempPath(), $"deadwax-check-fresh-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(freshDir);
+        try
+        {
+            var sources = flacs.Count == 0 ? [] : Enumerable.Range(0, 10).Select(i => flacs[i * flacs.Count / 10]).ToList();
+            for (var i = 0; i < sources.Count; i++)
+            {
+                var seconds = 5 + i * 7;
+                var pcm = new byte[seconds * 44100 * 4];
+                var rng = new Random(i);
+                for (var k = 0; k < pcm.Length; k += 2) { var v = (short)(Math.Sin(k * 0.0007 * (i + 1)) * 12000 + rng.Next(-800, 800)); pcm[k] = (byte)v; pcm[k + 1] = (byte)(v >> 8); }
+                var a = Path.Combine(freshDir, "taglib.flac");
+                var b = Path.Combine(freshDir, "deadwax.flac");
+                Deadwax.Output.FlacWriter.Encode(a, pcm);
+                File.Copy(a, b, true);
+                var tags = TagLibFlac.Read(sources[i]).Select(kv => new Tag(kv.Key, kv.Value)).ToList();
+                var gain = new Dictionary<string, string> { ["REPLAYGAIN_TRACK_GAIN"] = "-4.10 dB", ["REPLAYGAIN_TRACK_PEAK"] = "0.912345", ["REPLAYGAIN_ALBUM_GAIN"] = "-3.90 dB", ["REPLAYGAIN_ALBUM_PEAK"] = "0.988000", ["REPLAYGAIN_REFERENCE_LOUDNESS"] = "89.0 dB" };
+                var cover = Path.Combine(Path.GetDirectoryName(sources[i])!, "cover.jpg") is var c && File.Exists(c) ? await File.ReadAllBytesAsync(c) : [1, 2, 3];
+                var original = FlacMetadata.Read(a);
+                var audio = await AudioBytesAsync(a, original.AudioOffset);
+                TagLibFlac.Replace(a, tags); OwnFlac.Replace(b, tags);
+                TagLibFlac.Update(a, gain, []); OwnFlac.Update(b, gain, []);
+                TagLibFlac.EmbedFront(a, cover); OwnFlac.EmbedFront(b, cover);
+                var ma = FlacMetadata.Read(a);
+                var mb = FlacMetadata.Read(b);
+                var ok = PerKey(TagLibFlac.Read(a)).SequenceEqual(PerKey(TagLibFlac.Read(b)))
+                         && SamePictures(OwnFlac.Pictures(b), TagLibFlac.Pictures(a))
+                         && Same(mb.StreamInfoBlock, original.StreamInfoBlock)
+                         && Same(await AudioBytesAsync(b, mb.AudioOffset), audio)
+                         && Layout(a) == Layout(b)
+                         && Deadwax.Verify.FlacInfo.AudioMd5(b) == Deadwax.Verify.AudioChecks.Md5(pcm);
+                if (ok) freshOk++;
+                else { failures++; Console.WriteLine($"FAIL  fresh file {i + 1} ({seconds} s, tags from {Rel(sources[i])}): differs\n      ours:   {Layout(b)}\n      TagLib: {Layout(a)}"); }
+            }
+            Console.WriteLine($"Fresh files: {freshOk}/{sources.Count} encoded by libFLAC and taken through tags, ReplayGain and the cover both ways: same content, layout and audio.");
+        }
+        finally
+        {
+            Directory.Delete(freshDir, true);
+        }
+
         Console.WriteLine(failures == 0 ? "PASS: Deadwax's FLAC metadata reads and writes as TagLib# does." : $"FAIL: {failures} problem(s) above.");
         return failures == 0 ? 0 : 1;
     }
