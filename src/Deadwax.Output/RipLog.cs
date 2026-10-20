@@ -10,7 +10,7 @@ public sealed record LogAccurateRip(bool InDatabase, uint LocalCrc, int Confiden
 /// CopyCrc is null for a track read once (proven by AccurateRip, spec §11 step 0):
 /// no copy was read, so the log does not claim one. Reads says how the track
 /// was proven, e.g. "1 (AccurateRip v2, confidence 61)" or "2 (test and copy
-/// CRCs match)"; null leaves the line out, as every log before 0.4.7.
+/// CRCs match)"; null leaves the line out, as every log before 0.5.0.
 public sealed record LogTrack(
     int Number, string FileName, double Peak, bool PreEmphasis, double Speed,
     uint TestCrc, uint? CopyCrc, int Repairs, int SkippedSectors,
@@ -24,7 +24,7 @@ public sealed record LogDisc(
 /// The rip log: a record of what the drive returned, written only by the rip it
 /// describes. It is never regenerated and never written for audio that was not
 /// read (spec §6), so a "Copy OK" in any log means the audio was proven: a real
-/// test and copy agreed, or (from 0.4.7, with "Reads: 1" and no Copy CRC) one
+/// test and copy agreed, or (from 0.5.0, with "Reads: 1" and no Copy CRC) one
 /// read matched AccurateRip.
 ///
 /// The layout and key names follow whipper's where the meaning is the same, so

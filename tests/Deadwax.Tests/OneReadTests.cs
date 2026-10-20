@@ -92,7 +92,7 @@ public class OneReadTests
             t.Number == 5 ? "2 (test and copy CRCs match)" : $"1 (AccurateRip v2, confidence {t.V2.Confidence})",
             ReadOnce: t.Number != 5)).ToList();
 
-        var text = RipLog.Write(disc, tracks, "0.4.7", DateTimeOffset.Parse("2026-10-20T12:00:00Z"));
+        var text = RipLog.Write(disc, tracks, "0.5.0", DateTimeOffset.Parse("2026-10-20T12:00:00Z"));
         Assert.True(RipLog.Verify(text));
         Assert.Equal(1, text.Split("Copy CRC:").Length - 1);              // only track 5 had a copy
         Assert.Contains("    Reads: 2 (test and copy CRCs match)\n    Status: Copy OK", text);

@@ -7,12 +7,14 @@ album into the library the way the library wants it.
 
 It is in daily use on the author's library since 2026-09-24: every disc
 is checked against AccurateRip as it is read, and read again until two passes
-agree unless AccurateRip has already confirmed it (since 0.4.7), encoded with
+agree unless AccurateRip has already confirmed it (since 0.5.0), encoded with
 libFLAC, tagged from MusicBrainz and written with `.cue`, `.m3u`, `.toc` and a
 rip log in whipper's layout, so a library ripped with whipper and one ripped
 with Deadwax look the same. The window shows the disc, its MusicBrainz
 releases (with a barcode match against the disc's catalog number), the rip as
 it happens with a read map of the disc surface, and the post-rip filing steps.
+
+![The Disc screen: a disc from a five-album box set, the three MusicBrainz releases that carry its disc ID, and the choice to file it as the album it originally was](docs/images/disc.png)
 
 Linux and Windows, with a macOS app built from source; the drive layer is
 libcdio-paranoia, and the disc's pregaps, ISRCs, catalog number and CD-Text
@@ -66,11 +68,40 @@ For a disc that vibrates in the drive, choose a **Drive speed** on the Disc
 screen (16x down to 1x; try 4x first). The cap holds for the scan and the rip,
 is remembered for the next disc, and is recorded in the log.
 
+## Reading: once, when AccurateRip confirms it
+
+Since 0.5.0 each track is checked against AccurateRip the moment it has been
+read. When at least two other people's rips of the same pressing match, the
+read is proven and the track is done. Otherwise it is read again, and kept only
+when two reads agree, as every track was before. AccurateRip's checksums leave
+out the first and last five sectors of the disc, so on the first and last
+track those sectors are read a second time and must match byte for byte.
+
+On a disc AccurateRip knows, that is about half the reading time: a 46-minute
+album read in about five minutes on the author's drive, where two passes took
+nine for a 39-minute one. Before it was switched on, all 361 two-pass rips in
+the author's library were checked against it: the 3,992 tracks it would have
+read once all had equal test and copy CRCs.
+
+![Ripping: each finished track confirmed by AccurateRip on one read, the next one reading, and the disc surface turning green as it goes](docs/images/rip.png)
+
+The read map shows how each track was proven: green when AccurateRip confirmed
+it, teal when two reads agreed without it. The rip log says the same per track
+(`Reads: 1 (AccurateRip v2, confidence 64)` or `Reads: 2 (test and copy CRCs
+match)`); a track read once has no `Copy CRC` line, because no copy was read.
+For every track read twice regardless, choose **Always twice** in Preferences >
+Drive > Reading; AccurateRip is still checked and logged. On the command line it
+is `deadwax rip --two-passes`.
+
+<img src="docs/images/prefs-drive.png" width="420" alt="Preferences, Drive tab: the drive and its read offset, the speed cap, and the Reading choice between once when AccurateRip confirms it and always twice">
+
 ## After the rip
 
 When every track was proven (by AccurateRip, or by two reads alike), Deadwax finishes the album for the
 library (Preferences, Library tab, **After a rip**; on by default). Nothing
 else needs to be installed for this.
+
+![The Intake screen after a rip: all ten tracks accurately ripped, the disc filed as its own album, front and back covers fetched, and the tags and file names checked](docs/images/intake.png)
 
 - **Front cover.** `cover.jpg` is the Cover Art Archive's 500-pixel front for
   the release, or for its release group when the release has none. It is
