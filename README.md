@@ -108,7 +108,7 @@ else needs to be installed for this.
   fetched before the rip starts; if the archive is down, the rip goes ahead
   without it.
 - **Back cover** (Preferences > Filing, on by default). It is the back of
-  the CD case, usually the track list as printed: AlbumWall turns the sleeve
+  the CD case, usually the track list as printed: [AlbumWall](https://github.com/gsa700/albumwall) turns the sleeve
   over to show it when you open an album. `back.jpg` is the release's own back when the archive has
   one, otherwise the back of another edition of the same album: the same
   country first, then the nearest year. An image filed as the front is never
@@ -139,7 +139,7 @@ else needs to be installed for this.
     traced to the pressing it came from. (Choose *Keep the set together*
     instead and it stays one release, as sold: each disc filed as
     "Original Album Series (Disc N of 5)" under the box's cover.) Filed as
-    albums, in AlbumWall the box is five albums:
+    albums, in [AlbumWall](https://github.com/gsa700/albumwall) the box is five albums:
 
     ![The five Testament albums from the box set in AlbumWall, each under its own original cover: The Legacy, The New Order, Practice What You Preach, Souls of Black and The Ritual](docs/images/unboxed.png)
 - **Filed correctly.** The new album is checked against your Filing choices:
