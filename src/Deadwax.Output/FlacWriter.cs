@@ -7,9 +7,10 @@ public sealed class OutputException(string message) : Exception(message);
 
 /// Writes a track as FLAC: CD audio in, a tagged file out.
 ///
-/// libFLAC encodes with its verify mode on (it decodes every frame as it goes
-/// and fails on any mismatch) and stores the audio's MD5 in STREAMINFO, which
-/// FlacInfo can read back and compare with the MD5 of what was ripped. Tags go
+/// Deadwax's own FlacEncoder encodes since 0.6.0 (libFLAC before; it decoded
+/// every frame as it went, as FlacEncoder does with FlacDecoder) and stores
+/// the audio's MD5 in STREAMINFO, which FlacInfo can read back and compare
+/// with the MD5 of what was ripped. Tags go
 /// on afterwards through FlacTags (Deadwax's own FlacMetadata since 0.5.1).
 /// Pictures are never embedded: art lives in cover.jpg beside the files.
 public static class FlacWriter
@@ -19,7 +20,25 @@ public static class FlacWriter
 
     public const int CompressionLevel = 5; // libFLAC's default, what `flac` uses
 
-    public static unsafe void Encode(string path, ReadOnlySpan<byte> audio)
+    /// DEADWAX_FLAC=libflac: libFLAC encodes instead of FlacEncoder, as before
+    /// 0.6.0, for comparing the two (spec §11 step 2). libFLAC goes in the
+    /// release after.
+    public static bool UseLibFlac => Environment.GetEnvironmentVariable("DEADWAX_FLAC") == "libflac";
+
+    /// CD audio to a FLAC file: Deadwax's own encoder (FlacEncoder, every
+    /// frame decoded and compared as it is made), or libFLAC when asked.
+    public static void Encode(string path, ReadOnlySpan<byte> audio)
+    {
+        if (UseLibFlac) { EncodeWithLibFlac(path, audio); return; }
+        try { FlacEncoder.Encode(path, audio, $"Deadwax {Deadwax.Metadata.AppVersion.Current}"); }
+        catch
+        {
+            File.Delete(path);
+            throw;
+        }
+    }
+
+    public static unsafe void EncodeWithLibFlac(string path, ReadOnlySpan<byte> audio)
     {
         if (audio.Length % 4 != 0) throw new ArgumentException("CD audio is whole 16-bit stereo samples.", nameof(audio));
         var frames = audio.Length / 4;
