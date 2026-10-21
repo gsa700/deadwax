@@ -11,8 +11,8 @@
     <!-- AlbumWall's confirm dialog (the station tools' ConfirmWindow), in the
          light palette of Deadwax's Preferences, the other window with the
          system's own title bar. Used where the app is about to change the
-         MACHINE rather than itself (installing, uninstalling), which is the one
-         kind of thing that should stop and ask. -->
+         MACHINE rather than itself (installing, uninstalling), and before
+         stopping a rip, which throws away the minutes read so far. -->
     <Window.Resources>
         <SolidColorBrush x:Key="Ground" Color="#E4E4E2"/>
         <SolidColorBrush x:Key="Text" Color="#1D1D20"/>

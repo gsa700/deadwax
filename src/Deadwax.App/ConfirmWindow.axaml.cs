@@ -21,10 +21,21 @@ public partial class ConfirmWindow : Window
     /// </param>
     /// <param name="detail">Secondary text spelling out the consequences. Hidden when null.</param>
     /// <param name="option">A checkbox that rides along with the answer. Hidden when null.</param>
+    /// <param name="negativeIsDefault">
+    /// Enter and Esc both answer with the negative button, for an action a stray key
+    /// should not take (stopping a rip).
+    /// </param>
     public ConfirmWindow(string title, string message,
         string affirmative = "Continue", string? negative = "Cancel",
-        string? detail = null, string? option = null) : this()
+        string? detail = null, string? option = null, bool negativeIsDefault = false) : this()
     {
+        if (negativeIsDefault && negative is not null)
+        {
+            NegativeButton.IsDefault = true;
+            NegativeButton.IsCancel = true;
+            Opened += (_, _) => NegativeButton.Focus();
+        }
+
         Title = title;
         MessageText.Text = message;
         AffirmativeButton.Content = affirmative;

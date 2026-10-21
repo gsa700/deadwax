@@ -930,9 +930,15 @@ public sealed partial class MainWindow : Window
 
     /// Stops the rip between reads (the reader checks between them; a read is
     /// never cut short, which the BDR-209D takes badly). Before 2026-10-21 the
-    /// only way out of a rip was quitting.
-    private void OnStop(object? sender, RoutedEventArgs e)
+    /// only way out of a rip was quitting. Asked first, with "Keep ripping" as
+    /// the default for Enter and Esc: a stray click costs the minutes read so far.
+    private async void OnStop(object? sender, RoutedEventArgs e)
     {
+        var stop = await new ConfirmWindow("Stop", "Stop this rip?",
+            affirmative: "Stop", negative: "Keep ripping",
+            detail: "The tracks read so far stay in your library until you remove them.",
+            negativeIsDefault: true).ShowDialog<bool>(this);
+        if (!stop || !_vm.IsRipping) return;   // the rip may have finished while it asked
         _vm.NowText = "Stopping after this read...";
         _work?.Cancel();
     }
