@@ -402,8 +402,8 @@
                         <TextBlock Text="#"/>
                         <TextBlock Grid.Column="1" Text="TITLE"/>
                         <TextBlock Grid.Column="2" Text="LENGTH"/>
-                        <TextBlock Grid.Column="3" Text="TEST CRC"/>
-                        <TextBlock Grid.Column="4" Text="COPY CRC"/>
+                        <TextBlock Grid.Column="3" Text="READ 1 CRC"/>
+                        <TextBlock Grid.Column="4" Text="READ 2 CRC"/>
                         <TextBlock Grid.Column="5" Text="SPEED"/>
                         <TextBlock Grid.Column="6" Text="ACCURATERIP"/>
                     </Grid>

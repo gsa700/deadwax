@@ -93,6 +93,8 @@ The read map shows how each track was proven: green when AccurateRip confirmed
 it, teal when two reads agreed without it. The rip log says the same per track
 (`Reads: 1 (AccurateRip v2, confidence 64)` or `Reads: 2 (test and copy CRCs
 match)`); a track read once has no `Copy CRC` line, because no copy was read.
+The window calls the two CRCs **Read 1** and **Read 2**; the log keeps
+whipper's and EAC's names, Test CRC and Copy CRC, so it reads like theirs.
 For every track read twice regardless, choose **Always twice** in Preferences >
 Drive > Reading; AccurateRip is still checked and logged. On the command line it
 is `deadwax rip --two-passes`.
