@@ -204,11 +204,9 @@ public sealed partial class MainWindow : Window
         catch (Exception e) when (e is RipException && e.Message.StartsWith(DriveOffsets.NotMeasured, StringComparison.Ordinal))
         {
             // DriveOffsets.Advice: not a failure but the one-time setup of a new drive.
-            Reset("New drive: one-time setup");
+            // A measurement already under way keeps what its CDs found.
+            Reset(_offsetCds > 0 ? "One more CD, please" : "New drive: one-time setup");
             _vm.NeedsOffset = true;
-            _offsetCds = 0;
-            _offsetSoFar = null;
-            _vm.OffsetProgress = "";
             _vm.ErrorText = "";
             _vm.OffsetIntro =
                 "Before its first rip, Deadwax measures this drive's read offset. Every CD drive hands back the audio a few samples "
@@ -218,7 +216,7 @@ public sealed partial class MainWindow : Window
                 + "checking each against the rips other people have submitted to AccurateRip. The offset where they match is this "
                 + "drive's. A disc that was pressed more than once can match at more than one offset; then a second CD settles it.\n\n"
                 + "It takes a minute or two, it is done once, and it is remembered for this drive. Each drive you use gets its own.";
-            _vm.OffsetText = "A CD is in. Measure when you're ready.";
+            _vm.OffsetText = _offsetCds > 0 ? "A CD is in. Measuring carries on when you press Measure." : "A CD is in. Measure when you're ready.";
             _setupHadCd = true;
         }
         catch (Exception e)
@@ -323,12 +321,18 @@ public sealed partial class MainWindow : Window
                 await ScanAsync();
                 return;
             }
+            var noNews = _offsetSoFar is not null && combined.Candidates.Count == _offsetSoFar.Candidates.Count;
             Summary(_offsetSoFar is null
                 ? $"CD {_offsetCds}: fits {Offsets(search)}, because its pressings differ by a few samples."
-                : $"CD {_offsetCds}: fits {Offsets(search)}; together with the CDs before, {Offsets(combined)} are left.");
+                : noNews
+                    ? $"CD {_offsetCds}: fits the same {Offsets(combined)} as before, so it could not narrow them down."
+                    : $"CD {_offsetCds}: fits {Offsets(search)}; together with the CDs before, {Offsets(combined)} are left.");
             _offsetSoFar = combined;
             _vm.StatusText = "One more CD, please";
-            _vm.OffsetText = "A second CD settles which one is the drive's. " + NextCd;
+            _vm.OffsetText = noNews
+                // Discs of one box set or label tend to share the same other pressings.
+                ? "Discs from the same box set or label often have the same other pressings. A CD from a different label settles it. " + NextCd
+                : "Another CD settles which one is the drive's. " + NextCd;
         }
         catch (Exception ex) when (ex is RipException or DriveException or HttpRequestException)
         {
@@ -696,6 +700,14 @@ public sealed partial class MainWindow : Window
 
     private async void OnEject(object? sender, RoutedEventArgs e)
     {
+        // During the one-time setup Eject only opens the tray: the setup, and
+        // what the CDs so far have found, stay (2026-10-20: a Reset here ended
+        // the setup, and the next CD started the measurement from nothing).
+        if (_vm.NeedsOffset)
+        {
+            if (!_vm.MeasuringOffset) await EjectAsync();
+            return;
+        }
         _work?.Cancel();
         Reset("Put a CD in the drive.");
         await EjectAsync();
