@@ -115,6 +115,16 @@ public sealed partial class MainWindow : Window
         if (_vm.IsScanning || _vm.IsRipping) return;
         var (present, audio) = await MediaAsync(CdDrive.DefaultDevice);
         if (!present) _vm.DriveText = NoDisc;
+        if (_vm.NeedsOffset)
+        {
+            // The one-time setup: no scan (it would only fail on the missing
+            // offset again); just say whether there is a CD to measure from.
+            var hasCd = present && audio > 0;
+            if (hasCd != _setupHadCd && !_vm.MeasuringOffset)
+                _vm.OffsetText = hasCd ? "A CD is in. Measure when you're ready." : PutInACd;
+            _setupHadCd = hasCd;
+            return;
+        }
         if (_vm.IsWaiting && present && audio > 0 && !_vm.HasError) await ScanAsync();
         else if (_vm.IsWaiting && present && audio == 0) _vm.StatusText = "That disc has no audio tracks.";
         else if (!present && _vm.IsDisc) Reset("Put a CD in the drive.");
@@ -126,6 +136,8 @@ public sealed partial class MainWindow : Window
     }
 
     private const string NoDisc = "No disc";
+    private const string PutInACd = "Put in a well-known commercial CD (a big-selling album is best), then Measure.";
+    private bool _setupHadCd;
 
     private bool _placed;
     private PixelPoint? _normalPosition;
@@ -186,16 +198,22 @@ public sealed partial class MainWindow : Window
             }
         }
         catch (OperationCanceledException) { }
+        catch (Exception e) when (e is RipException && e.Message.StartsWith(DriveOffsets.NotMeasured, StringComparison.Ordinal))
+        {
+            // DriveOffsets.Advice: not a failure but the one-time setup of a new drive.
+            Reset("New drive: one-time setup");
+            _vm.NeedsOffset = true;
+            _vm.ErrorText = "";
+            _vm.OffsetIntro = "Before its first rip, Deadwax measures this drive's read offset: every drive reads a few samples early or late, "
+                + "and correcting it makes your rips match everyone else's, which is what lets them be checked against AccurateRip. "
+                + "It takes a minute, it is done once, and it is remembered for this drive.";
+            _vm.OffsetText = "A CD is in. Measure when you're ready.";
+            _setupHadCd = true;
+        }
         catch (Exception e)
         {
             Reset("The disc could not be read.");
-            // DriveOffsets.Advice: the one failure the window can fix itself.
-            _vm.NeedsOffset = e is RipException && e.Message.StartsWith(DriveOffsets.NotMeasured, StringComparison.Ordinal);
-            _vm.ErrorText = _vm.NeedsOffset
-                ? "First time with this drive: Deadwax needs to measure its read offset before it can rip. Every drive reads a few samples early or late; "
-                  + "measuring it once, from a well-known commercial CD, makes your rips match everyone else's. It is remembered for this drive, "
-                  + "and each drive you use gets its own."
-                : e.Message;
+            _vm.ErrorText = e.Message;
         }
     }
 
@@ -247,6 +265,7 @@ public sealed partial class MainWindow : Window
         if (_vm.MeasuringOffset) return;
         _vm.MeasuringOffset = true;
         _vm.ErrorText = "";
+        _vm.StatusText = "Measuring this drive's read offset…";
         try
         {
             var say = new Progress<string>(m => _vm.OffsetText = m);
@@ -255,14 +274,16 @@ public sealed partial class MainWindow : Window
                 m => ((IProgress<string>)say).Report(m), (d, t) => ((IProgress<(int, int)>)read).Report((d, t))));
             if (search.Candidates.Count == 0)
             {
-                _vm.OffsetText = $"Nothing from -{OffsetFinder.Range} to +{OffsetFinder.Range} matched AccurateRip on track {search.Track}. Try another well-known commercial CD.";
+                _vm.StatusText = "Try another CD";
+                _vm.OffsetText = $"This disc is not in AccurateRip well enough to measure from (nothing from -{OffsetFinder.Range} to +{OffsetFinder.Range} matched on track {search.Track}). A big-selling album works best.";
                 return;
             }
             var combined = _offsetSoFar?.Intersect(search) ?? search;
             if (combined.Candidates.Count == 0)
             {
                 _offsetSoFar = null;
-                _vm.OffsetText = "No offset fits every disc tried; starting over. Put in another well-known CD and measure again.";
+                _vm.StatusText = "One more CD, please";
+                _vm.OffsetText = "The discs tried so far disagree, so measuring starts over. Put in another well-known CD and Measure.";
                 return;
             }
             if (combined.Best is { } best && search.Drive is { } drive)
@@ -276,10 +297,12 @@ public sealed partial class MainWindow : Window
             }
             _offsetSoFar = combined;
             var list = string.Join(", ", combined.Candidates.Select(c => c.Offset.ToString("+0;-0;0")));
-            _vm.OffsetText = $"{combined.Candidates.Count} offsets match ({list}): other pressings of this disc sit a few samples apart. Put in ANOTHER well-known CD and measure again; the drive's offset is the one both allow.";
+            _vm.StatusText = "One more CD, please";
+            _vm.OffsetText = $"This disc fits {combined.Candidates.Count} offsets ({list}), because its pressings differ by a few samples. A second well-known CD settles it: put it in and Measure.";
         }
         catch (Exception ex) when (ex is RipException or DriveException or HttpRequestException)
         {
+            _vm.StatusText = "Measuring did not work this time";
             _vm.OffsetText = ex.Message;
         }
         finally

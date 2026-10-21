@@ -180,6 +180,11 @@ public sealed class MainViewModel : Observable
     public bool NeedsOffset { get => _needsOffset; set => Set(ref _needsOffset, value); }
     public bool MeasuringOffset { get => _measuringOffset; set => Set(ref _measuringOffset, value); }
     public string OffsetText { get => _offsetText; set => Set(ref _offsetText, value); }
+    /// What the one-time setup is and why, in the calm grey of an explanation:
+    /// a drive with no offset yet is a first step, not a failure (2026-10-20,
+    /// his first run on Windows: red "could not be read" while it read fine).
+    private string _offsetIntro = "";
+    public string OffsetIntro { get => _offsetIntro; set => Set(ref _offsetIntro, value); }
 
     // The Disc screen.
     private Bitmap? _cover;
