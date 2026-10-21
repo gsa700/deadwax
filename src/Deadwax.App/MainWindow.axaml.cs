@@ -139,6 +139,16 @@ public sealed partial class MainWindow : Window
             else _vm.OffsetText = hasCd ? "A CD is in. Measure when you're ready." : PutInACd;
             return;
         }
+        if (_vm.IsIntake)
+        {
+            // The summary stays until the ripped disc has left the drive; the
+            // next CD in after that is read without "Eject, next disc" (his
+            // second Jackson Browne disc sat behind the summary, 2026-10-21).
+            // A disc never taken out keeps the summary, so it is not read twice.
+            if (!present) _intakeEmptied = true;
+            else if (_intakeEmptied && audio > 0) await ScanAsync();
+            return;
+        }
         if (_vm.IsWaiting && present && audio > 0 && !_vm.HasError) await ScanAsync();
         else if (_vm.IsWaiting && present && audio == 0) _vm.StatusText = "That disc has no audio tracks.";
         else if (!present && _vm.IsDisc) Reset("Put a CD in the drive.");
@@ -864,6 +874,7 @@ public sealed partial class MainWindow : Window
             foreach (var f in Directory.EnumerateFiles(dir).Where(f => !f.EndsWith(".flac")).Select(Path.GetFileName).Order())
                 _vm.Files.Add("  " + f);
             _lastAlbum = dir;
+            _intakeEmptied = false;
             _vm.Stage = Stage.Intake;
             // As whipper did; the Intake screen's "Eject, next disc" still works for the rest.
             if (_settings.EjectAfterRip) await EjectAsync();
@@ -886,6 +897,7 @@ public sealed partial class MainWindow : Window
     }
 
     private string? _lastAlbum;
+    private bool _intakeEmptied;   // the drive has been seen empty since the summary came up
 
     /// A rip that stopped partway leaves its tracks in the library, where
     /// AlbumWall already shows them; say so, and offer to take them out.
