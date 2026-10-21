@@ -64,7 +64,9 @@ fewer if they come from different labels. The result is remembered in
 example `{"PIONEER BD-RW BDR-209D 1.10": 667}`, and recalled whenever that drive
 is plugged in. Several external drives each keep their own entry; a drive
 carried to another computer is measured once there too. Preferences shows the
-drive and its offset, with or without a disc in, and every drive remembered.
+drive and its offset (on Linux with or without a disc in; on a Mac or Windows,
+which name a drive only while a disc is in it, once there is one), and every
+drive remembered.
 
 ![A new drive's one-time setup: why the read offset is measured, how, and a button to measure it from the CD in the drive](docs/images/new-drive.png)
 
