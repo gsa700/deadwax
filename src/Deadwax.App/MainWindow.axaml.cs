@@ -90,6 +90,12 @@ public sealed partial class MainWindow : Window
         Closing += (_, _) =>
         {
             _work?.Cancel();
+            // Hand the disc back to macOS: Deadwax unmounted it to read it, and
+            // an unmounted audio CD stays in after Deadwax quits, the drive's
+            // own button only asking macOS to eject (his test, 2026-10-20).
+            if (OperatingSystem.IsMacOS() && !_vm.IsRipping && CdDrive.FoundDevice is { } device
+                && !MacDisc.Mount(device, out var why))
+                Console.Error.WriteLine($"[drive] could not hand {device} back to macOS: {why}");
             // The size of the normal window, not the maximized one, so leaving
             // maximized restores to what he last chose.
             _settings.Maximized = WindowState == WindowState.Maximized;

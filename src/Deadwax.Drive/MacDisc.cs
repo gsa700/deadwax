@@ -18,6 +18,7 @@ public static unsafe class MacDisc
     private const string DiskArbitration = "/System/Library/Frameworks/DiskArbitration.framework/DiskArbitration";
 
     private const uint UnmountOptionWhole = 0x00000100;   // kDADiskUnmountOptionWhole: every volume on the disk
+    private const uint MountOptionWhole = 0x00000001;     // kDADiskMountOptionWhole: every volume on the disk
     private const uint StringEncodingUtf8 = 0x08000100;    // kCFStringEncodingUTF8
     private const int RunLoopRunTimedOut = 3;              // kCFRunLoopRunTimedOut
 
@@ -31,6 +32,7 @@ public static unsafe class MacDisc
     [DllImport(DiskArbitration)] private static extern void DASessionUnscheduleFromRunLoop(IntPtr session, IntPtr runLoop, IntPtr mode);
     [DllImport(DiskArbitration)] private static extern IntPtr DADiskCreateFromBSDName(IntPtr allocator, IntPtr session, [MarshalAs(UnmanagedType.LPUTF8Str)] string bsdName);
     [DllImport(DiskArbitration)] private static extern void DADiskUnmount(IntPtr disk, uint options, delegate* unmanaged<IntPtr, IntPtr, IntPtr, void> callback, IntPtr context);
+    [DllImport(DiskArbitration)] private static extern void DADiskMount(IntPtr disk, IntPtr path, uint options, delegate* unmanaged<IntPtr, IntPtr, IntPtr, void> callback, IntPtr context);
     [DllImport(DiskArbitration)] private static extern int DADissenterGetStatus(IntPtr dissenter);
     [DllImport(DiskArbitration)] private static extern IntPtr DADissenterGetStatusString(IntPtr dissenter);
 
@@ -54,7 +56,15 @@ public static unsafe class MacDisc
     /// result, up to thirty seconds. True when the disk is unmounted (or was
     /// not mounted); false with the system's reason otherwise. On any other
     /// platform: true, nothing to do.
-    public static bool Unmount(string device, out string? reason)
+    public static bool Unmount(string device, out string? reason) => Arbitrate(device, mount: false, TimeSpan.FromSeconds(30), out reason);
+
+    /// The disc handed back to macOS: its volumes mounted again, as they were
+    /// before Deadwax unmounted them. An audio CD left unmounted stays in the
+    /// drive after Deadwax quits, because the drive's own button only asks
+    /// macOS to eject, and macOS holds nothing to eject (his test, 2026-10-20).
+    public static bool Mount(string device, out string? reason) => Arbitrate(device, mount: true, TimeSpan.FromSeconds(10), out reason);
+
+    private static bool Arbitrate(string device, bool mount, TimeSpan limit, out string? reason)
     {
         reason = null;
         if (!OperatingSystem.IsMacOS()) return true;
@@ -74,15 +84,16 @@ public static unsafe class MacDisc
                 disk = DADiskCreateFromBSDName(IntPtr.Zero, session, bsd);
                 if (disk == IntPtr.Zero) { reason = $"DiskArbitration knows no {bsd}."; return false; }
                 _done = false; _dissent = null; _status = 0;
-                DADiskUnmount(disk, UnmountOptionWhole, &Unmounted, IntPtr.Zero);
+                if (mount) DADiskMount(disk, IntPtr.Zero, MountOptionWhole, &Unmounted, IntPtr.Zero);
+                else DADiskUnmount(disk, UnmountOptionWhole, &Unmounted, IntPtr.Zero);
                 var clock = Stopwatch.StartNew();
-                while (!_done && clock.Elapsed < TimeSpan.FromSeconds(30))
+                while (!_done && clock.Elapsed < limit)
                     CFRunLoopRunInMode(mode, 0.5, true);
-                if (!_done) { reason = "the unmount did not finish in thirty seconds."; return false; }
+                if (!_done) { reason = $"the {(mount ? "mount" : "unmount")} did not finish in {limit.TotalSeconds:0} seconds."; return false; }
                 reason = _dissent;
                 // "not mounted" is the outcome wanted; DiskArbitration reports it as a dissent,
                 // kDAReturnNotMounted with no text (the first Mac, 2026-10-15).
-                return _dissent is null || _status == NotMounted;
+                return _dissent is null || (!mount && _status == NotMounted);
             }
             finally
             {
