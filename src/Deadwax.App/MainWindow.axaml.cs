@@ -120,9 +120,12 @@ public sealed partial class MainWindow : Window
             // The one-time setup: no scan (it would only fail on the missing
             // offset again); just say whether there is a CD to measure from.
             var hasCd = present && audio > 0;
-            if (hasCd != _setupHadCd && !_vm.MeasuringOffset)
-                _vm.OffsetText = hasCd ? "A CD is in. Measure when you're ready." : PutInACd;
+            var changed = hasCd != _setupHadCd;
             _setupHadCd = hasCd;
+            if (!changed || _vm.MeasuringOffset) return;
+            if (hasCd && _offsetCds > 0) { await MeasureOffsetAsync(); return; }   // the next CD of a measurement already begun
+            if (!hasCd && _offsetCds > 0) _vm.OffsetText = NextCd;
+            else _vm.OffsetText = hasCd ? "A CD is in. Measure when you're ready." : PutInACd;
             return;
         }
         if (_vm.IsWaiting && present && audio > 0 && !_vm.HasError) await ScanAsync();
@@ -203,10 +206,18 @@ public sealed partial class MainWindow : Window
             // DriveOffsets.Advice: not a failure but the one-time setup of a new drive.
             Reset("New drive: one-time setup");
             _vm.NeedsOffset = true;
+            _offsetCds = 0;
+            _offsetSoFar = null;
+            _vm.OffsetProgress = "";
             _vm.ErrorText = "";
-            _vm.OffsetIntro = "Before its first rip, Deadwax measures this drive's read offset: every drive reads a few samples early or late, "
-                + "and correcting it makes your rips match everyone else's, which is what lets them be checked against AccurateRip. "
-                + "It takes a minute, it is done once, and it is remembered for this drive.";
+            _vm.OffsetIntro =
+                "Before its first rip, Deadwax measures this drive's read offset. Every CD drive hands back the audio a few samples "
+                + "early or late, always by the same amount, and the amount differs from one model to the next. Correcting it makes "
+                + "your rips the same, bit for bit, as everyone else's, which is what lets AccurateRip confirm them.\n\n"
+                + "How it is measured: Deadwax reads one track of the CD in the drive and slides it across every possible offset, "
+                + "checking each against the rips other people have submitted to AccurateRip. The offset where they match is this "
+                + "drive's. A disc that was pressed more than once can match at more than one offset; then a second CD settles it.\n\n"
+                + "It takes a minute or two, it is done once, and it is remembered for this drive. Each drive you use gets its own.";
             _vm.OffsetText = "A CD is in. Measure when you're ready.";
             _setupHadCd = true;
         }
@@ -257,8 +268,16 @@ public sealed partial class MainWindow : Window
     /// What earlier discs allowed, while he swaps in another (OffsetFinder:
     /// one disc often matches several pressings' shifts as well as the drive).
     private OffsetSearch? _offsetSoFar;
+    private int _offsetCds;   // CDs measured in this round, for the summary
+    private const string NextCd = "Take this CD out and put in a different well-known one. Measuring carries on by itself when it is in.";
 
     private async void OnMeasureOffset(object? sender, RoutedEventArgs e) => await MeasureOffsetAsync();
+
+    private void Summary(string line) => _vm.OffsetProgress = _vm.OffsetProgress.Length == 0 ? line : _vm.OffsetProgress + "\n" + line;
+
+    private static string Offsets(OffsetSearch s) => s.Candidates.Count == 1
+        ? $"offset {s.Candidates[0].Offset:+0;-0;0}"
+        : $"{s.Candidates.Count} offsets ({string.Join(", ", s.Candidates.Select(c => c.Offset.ToString("+0;-0;0")))})";
 
     internal async Task MeasureOffsetAsync()
     {
@@ -268,37 +287,48 @@ public sealed partial class MainWindow : Window
         _vm.StatusText = "Measuring this drive's read offset…";
         try
         {
-            var say = new Progress<string>(m => _vm.OffsetText = m);
-            var read = new Progress<(int, int)>(p => _vm.OffsetText = $"Reading... {p.Item1 * 100 / Math.Max(p.Item2, 1)}%");
+            // The step being done stays on screen; the read's progress goes under it.
+            var step = "";
+            var say = new Progress<string>(m => _vm.OffsetText = step = m);
+            var read = new Progress<(int, int)>(p => _vm.OffsetText = $"{step}\n{p.Item1 * 100 / Math.Max(p.Item2, 1)}% read");
             var search = await Task.Run(() => OffsetFinder.FindAsync(null,
                 m => ((IProgress<string>)say).Report(m), (d, t) => ((IProgress<(int, int)>)read).Report((d, t))));
+            _offsetCds++;
             if (search.Candidates.Count == 0)
             {
+                Summary($"CD {_offsetCds}: not in AccurateRip well enough to measure from (no offset matched on track {search.Track}).");
                 _vm.StatusText = "Try another CD";
-                _vm.OffsetText = $"This disc is not in AccurateRip well enough to measure from (nothing from -{OffsetFinder.Range} to +{OffsetFinder.Range} matched on track {search.Track}). A big-selling album works best.";
+                _vm.OffsetText = "A big-selling album works best. " + NextCd;
                 return;
             }
             var combined = _offsetSoFar?.Intersect(search) ?? search;
             if (combined.Candidates.Count == 0)
             {
                 _offsetSoFar = null;
+                Summary($"CD {_offsetCds}: fits {Offsets(search)}, none of which the CD before allowed; starting over from this one.");
+                _offsetSoFar = search;
                 _vm.StatusText = "One more CD, please";
-                _vm.OffsetText = "The discs tried so far disagree, so measuring starts over. Put in another well-known CD and Measure.";
+                _vm.OffsetText = NextCd;
                 return;
             }
             if (combined.Best is { } best && search.Drive is { } drive)
             {
                 DriveOffsets.Write(drive.Vendor, drive.Model, drive.Revision, best.Offset);
                 _offsetSoFar = null;
+                _offsetCds = 0;
+                _vm.OffsetProgress = "";
                 _vm.OffsetText = $"Read offset {best.Offset:+0;-0;0}, agreed by {best.Confidence} rips of track {best.Track}. Saved for {DriveOffsets.Key(drive.Vendor, drive.Model, drive.Revision)}.";
+                _vm.Log.Add($"Read offset measured: {best.Offset:+0;-0;0} for {DriveOffsets.Key(drive.Vendor, drive.Model, drive.Revision)} (agreed by {best.Confidence} rips of track {best.Track}).");
                 _vm.NeedsOffset = false;
                 await ScanAsync();
                 return;
             }
+            Summary(_offsetSoFar is null
+                ? $"CD {_offsetCds}: fits {Offsets(search)}, because its pressings differ by a few samples."
+                : $"CD {_offsetCds}: fits {Offsets(search)}; together with the CDs before, {Offsets(combined)} are left.");
             _offsetSoFar = combined;
-            var list = string.Join(", ", combined.Candidates.Select(c => c.Offset.ToString("+0;-0;0")));
             _vm.StatusText = "One more CD, please";
-            _vm.OffsetText = $"This disc fits {combined.Candidates.Count} offsets ({list}), because its pressings differ by a few samples. A second well-known CD settles it: put it in and Measure.";
+            _vm.OffsetText = "A second CD settles which one is the drive's. " + NextCd;
         }
         catch (Exception ex) when (ex is RipException or DriveException or HttpRequestException)
         {

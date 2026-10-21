@@ -185,6 +185,11 @@ public sealed class MainViewModel : Observable
     /// his first run on Windows: red "could not be read" while it read fine).
     private string _offsetIntro = "";
     public string OffsetIntro { get => _offsetIntro; set => Set(ref _offsetIntro, value); }
+    /// What each CD of the measurement found, kept on screen while he swaps
+    /// in the next one (his ask, 2026-10-20: between discs the thread was lost).
+    private string _offsetProgress = "";
+    public string OffsetProgress { get => _offsetProgress; set { if (Set(ref _offsetProgress, value)) Raise(nameof(HasOffsetProgress)); } }
+    public bool HasOffsetProgress => OffsetProgress.Length > 0;
 
     // The Disc screen.
     private Bitmap? _cover;

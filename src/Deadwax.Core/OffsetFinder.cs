@@ -66,7 +66,7 @@ public static class OffsetFinder
         if (audio.Count < 3)
             throw new RipException("Use a disc with at least three audio tracks; the measurement needs one that is neither first nor last.");
 
-        say($"Drive {identity?.ToString() ?? device}, disc {discId}: asking AccurateRip...");
+        say("Asking AccurateRip which rips of this disc other people have submitted...");
         IReadOnlyList<AccurateRipBlock>? blocks;
         using (var http = new HttpClient { Timeout = TimeSpan.FromSeconds(20) })
         {
@@ -81,7 +81,8 @@ public static class OffsetFinder
         var track = inner.MinBy(t => toc.EndLsn(t) - t.StartLsn)!;
         var index = audio.IndexOf(track);
         var trackBytes = (long)(toc.EndLsn(track) - track.StartLsn) * ReadWindow.SectorBytes;
-        say($"Reading track {track.Number} ({(toc.EndLsn(track) - track.StartLsn) / Toc.SectorsPerSecond} s) with a margin on each side...");
+        say($"Reading track {track.Number} ({(toc.EndLsn(track) - track.StartLsn) / Toc.SectorsPerSecond} s), with a little extra on each side so that every possible offset can be tried. "
+            + "A short track from the middle of the disc: the first and last are left out, because a drive cannot read past the edges of the audio.");
 
         // Enough sectors on each side to slide Range samples either way.
         var margin = Range * 4 / ReadWindow.SectorBytes + 2;
@@ -92,7 +93,8 @@ public static class OffsetFinder
             (window, _) = reader.ReadSectors(first, end, Math.Max(first, 0), Math.Min(end, toc.AudioLeadoutLsn),
                 progress: progress, ct: ct);
 
-        say($"Checking {2 * Range + 1} offsets against {blocks.Count} pressing(s)...");
+        say($"Sliding that track across all {2 * Range + 1} possible offsets ({-Range} to +{Range} samples) and checking each one against "
+            + $"{blocks.Count} pressing{(blocks.Count == 1 ? "" : "s")} of this disc in AccurateRip...");
         var trackStart = (long)(track.StartLsn - first) * ReadWindow.SectorBytes;
         var found = new List<OffsetCandidate>();
         var gate = new object();

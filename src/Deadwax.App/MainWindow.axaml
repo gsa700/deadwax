@@ -145,11 +145,14 @@
                         <!-- A drive with no offset on file: the one-time setup, in calm grey (not
                              the red of a failure), and the measurement from the disc (OffsetFinder). -->
                         <StackPanel Spacing="10" HorizontalAlignment="Center" IsVisible="{Binding NeedsOffset}" Margin="0,4,0,0">
-                            <TextBlock Text="{Binding OffsetIntro}" Classes="soft" FontSize="14" TextWrapping="Wrap" MaxWidth="560"
+                            <TextBlock Text="{Binding OffsetIntro}" Classes="soft" FontSize="16" LineHeight="24" TextWrapping="Wrap" MaxWidth="600"
                                        HorizontalAlignment="Center" TextAlignment="Center"/>
+                            <!-- What each CD found so far, kept while the next one goes in. -->
+                            <TextBlock Text="{Binding OffsetProgress}" IsVisible="{Binding HasOffsetProgress}" FontSize="15" LineHeight="22"
+                                       TextWrapping="Wrap" MaxWidth="600" HorizontalAlignment="Center" TextAlignment="Center"/>
                             <Button Classes="quiet" HorizontalAlignment="Center" Content="Measure the read offset from this disc"
                                     IsEnabled="{Binding !MeasuringOffset}" Click="OnMeasureOffset"/>
-                            <TextBlock Text="{Binding OffsetText}" Classes="dim" FontSize="13" TextWrapping="Wrap" MaxWidth="640"
+                            <TextBlock Text="{Binding OffsetText}" Classes="dim" FontSize="15" LineHeight="22" TextWrapping="Wrap" MaxWidth="600"
                                        HorizontalAlignment="Center" TextAlignment="Center"/>
                         </StackPanel>
                     </StackPanel>
