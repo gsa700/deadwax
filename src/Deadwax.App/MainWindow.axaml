@@ -350,8 +350,12 @@
                 </Border>
 
                 <StackPanel DockPanel.Dock="Bottom" Margin="40,0,40,20" Spacing="8">
-                    <Button Classes="quiet" Height="34" Padding="14,0" FontSize="13" HorizontalAlignment="Left"
-                            Content="{Binding LogButtonText}" Click="OnToggleLog"/>
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Button Classes="quiet" Height="34" Padding="14,0" FontSize="13"
+                                Content="{Binding LogButtonText}" Click="OnToggleLog"/>
+                        <Button Classes="quiet" Height="34" Padding="14,0" FontSize="13"
+                                Content="Stop" Click="OnStop"/>
+                    </StackPanel>
                     <!-- A fixed ten lines, so opening it or a new line never shifts
                          the table and map above; it follows the newest line. -->
                     <Border Background="{StaticResource Bar}" CornerRadius="8" Padding="16,12" IsVisible="{Binding ShowLog}">

@@ -881,7 +881,11 @@ public sealed partial class MainWindow : Window
         }
         catch (OperationCanceledException)
         {
-            Reset("Stopped.");
+            // Back to the Disc screen with the disc still in, as after an error:
+            // a Reset here had the watcher read the same disc again at once,
+            // and that scan cleared the offer below (2026-10-21).
+            _vm.Stage = Stage.Disc;
+            _vm.ErrorText = "Stopped. Rip it again, or eject it.";
             OfferPartial(albumDir);
         }
         catch (Exception ex)
@@ -922,6 +926,15 @@ public sealed partial class MainWindow : Window
         {
             _vm.ErrorText = "Could not remove it: " + ex.Message;
         }
+    }
+
+    /// Stops the rip between reads (the reader checks between them; a read is
+    /// never cut short, which the BDR-209D takes badly). Before 2026-10-21 the
+    /// only way out of a rip was quitting.
+    private void OnStop(object? sender, RoutedEventArgs e)
+    {
+        _vm.NowText = "Stopping after this read...";
+        _work?.Cancel();
     }
 
     private void OnToggleLog(object? sender, RoutedEventArgs e) => _vm.ShowLog = !_vm.ShowLog;
