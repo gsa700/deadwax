@@ -215,7 +215,8 @@ public sealed partial class MainWindow : Window
                 + "your rips the same, bit for bit, as everyone else's, which is what lets AccurateRip confirm them.\n\n"
                 + "How it is measured: Deadwax reads one track of the CD in the drive and slides it across every possible offset, "
                 + "checking each against the rips other people have submitted to AccurateRip. The offset where they match is this "
-                + "drive's. A disc that was pressed more than once can match at more than one offset; then a second CD settles it.\n\n"
+                + "drive's. A disc that was pressed more than once can match at more than one offset; then each further CD rules some "
+                + "out, until one is left. Usually two or three CDs do it, fewer if they come from different labels.\n\n"
                 + "It takes a minute or two, it is done once, and it is remembered for this drive. Each drive you use gets its own.";
             _vm.OffsetText = _offsetCds > 0 ? "A CD is in. Measuring carries on when you press Measure." : "A CD is in. Measure when you're ready.";
             _setupHadCd = true;
@@ -332,8 +333,8 @@ public sealed partial class MainWindow : Window
             _vm.StatusText = "One more CD, please";
             _vm.OffsetText = noNews
                 // Discs of one box set or label tend to share the same other pressings.
-                ? "Discs from the same box set or label often have the same other pressings. A CD from a different label settles it. " + NextCd
-                : "Another CD settles which one is the drive's. " + NextCd;
+                ? "Discs from the same box set or label often have the same other pressings. A CD from a different label is more likely to narrow it down. " + NextCd
+                : $"{_offsetSoFar!.Candidates.Count} are still possible; another CD narrows them down. " + NextCd;
         }
         catch (Exception ex) when (ex is RipException or DriveException or HttpRequestException)
         {
