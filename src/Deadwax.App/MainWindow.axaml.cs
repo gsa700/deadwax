@@ -112,7 +112,10 @@ public sealed partial class MainWindow : Window
     /// on screen, has it gone? udev knows without spinning the drive up.
     private async Task WatchAsync()
     {
-        if (_vm.IsScanning || _vm.IsRipping) return;
+        // Not while the drive is busy: a measurement holds it too, and asking
+        // then reads as "no disc", so the same CD looked new when it ended and
+        // was measured again (2026-10-20, his screenshots).
+        if (_vm.IsScanning || _vm.IsRipping || _vm.MeasuringOffset) return;
         var (present, audio) = await MediaAsync(CdDrive.DefaultDevice);
         _vm.HasDisc = present;
         if (!present) _vm.DriveText = NoDisc;
