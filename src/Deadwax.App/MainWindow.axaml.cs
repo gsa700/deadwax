@@ -130,6 +130,7 @@ public sealed partial class MainWindow : Window
             // The one-time setup: no scan (it would only fail on the missing
             // offset again); just say whether there is a CD to measure from.
             var hasCd = present && audio > 0;
+            if (hasCd) _vm.DriveText = CdNotMeasured;
             var changed = hasCd != _setupHadCd;
             _setupHadCd = hasCd;
             if (!changed || _vm.MeasuringOffset) return;
@@ -149,6 +150,9 @@ public sealed partial class MainWindow : Window
     }
 
     private const string NoDisc = "No disc";
+    // The bar during the one-time setup: there is a CD, but no offset to name with the drive
+    // yet ("No disc" there contradicted the setup's "A CD is in", 2026-10-21).
+    private const string CdNotMeasured = "CD in · offset not measured yet";
     private const string PutInACd = "Put in a well-known commercial CD (a big-selling album is best), then Measure.";
     private bool _setupHadCd;
 
@@ -218,6 +222,7 @@ public sealed partial class MainWindow : Window
             Reset(_offsetCds > 0 ? "One more CD, please" : "New drive: one-time setup");
             _vm.NeedsOffset = true;
             _vm.ErrorText = "";
+            _vm.DriveText = CdNotMeasured;
             _vm.OffsetIntro =
                 "Before its first rip, Deadwax measures this drive's read offset. Every CD drive hands back the audio a few samples "
                 + "early or late, always by the same amount, and the amount differs from one model to the next. Correcting it makes "
