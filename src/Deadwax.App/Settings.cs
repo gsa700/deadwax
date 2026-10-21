@@ -26,7 +26,10 @@ public sealed class Settings
     public int SlowSpinSpeed { get; set; } = DefaultSlowSpinSpeed;
     public const int DefaultSlowSpinSpeed = 4;
     /// Open the tray when the rip and post-rip steps are done, as whipper did.
-    public bool EjectAfterRip { get; set; }
+    /// On by default since 0.6.0 (his call, 2026-10-20): on a Mac the drive's
+    /// own button does not eject a disc macOS holds, so this saves a trip to
+    /// the Finder. A settings file that already says false keeps it.
+    public bool EjectAfterRip { get; set; } = true;
     /// Read every track twice, even one whose first read matches AccurateRip
     /// (spec §11 step 0). Off: such a track is read once.
     public bool AlwaysTwoPasses { get; set; }
