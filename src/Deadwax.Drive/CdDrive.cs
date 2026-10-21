@@ -87,7 +87,8 @@ public sealed class CdDrive : IDisposable
         // On a Mac libcdio sees a drive only while a disc is in it, so an empty
         // drive is opened through macOS's own drutil (2026-10-20: "Open tray"
         // did nothing with the drive empty; DefaultDevice was only a guess).
-        if (OperatingSystem.IsMacOS() && device is null && FoundDevice is null) return MacTray();
+        // The window passes DefaultDevice, which is that same guess when nothing is found.
+        if (OperatingSystem.IsMacOS() && FoundDevice is null && (device is null || device == DefaultDevice)) return MacTray();
         try { return LibCdio.cdio_eject_media_drive(device ?? DefaultDevice) == 0; }
         catch (DllNotFoundException) { return false; }
     }
