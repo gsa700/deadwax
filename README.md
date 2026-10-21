@@ -55,14 +55,18 @@ gets a build only once it has run on Edge without trouble and been promoted:
 the same binary, with its pre-release flag cleared.
 
 Every drive reads audio a few samples early or late, always by the same
-amount: its read offset. The first time Deadwax meets a drive it asks to
-measure it, once, from a well-known commercial CD checked against AccurateRip
-(sometimes it needs a second CD). The result is remembered in
+amount: its read offset. The first time Deadwax meets a drive it is not an
+error but a one-time setup: Deadwax asks to measure the offset from the CD in
+the drive, checked against AccurateRip. A disc pressed more than once can fit
+several offsets, so it may ask for another CD; usually two or three do it,
+fewer if they come from different labels. The result is remembered in
 `~/.config/deadwax/drives.json`, one entry per drive model and firmware, for
 example `{"PIONEER BD-RW BDR-209D 1.10": 667}`, and recalled whenever that drive
 is plugged in. Several external drives each keep their own entry; a drive
 carried to another computer is measured once there too. Preferences shows the
 drive and its offset, with or without a disc in, and every drive remembered.
+
+![A new drive's one-time setup: why the read offset is measured, how, and a button to measure it from the CD in the drive](docs/images/new-drive.png)
 
 For a disc that vibrates in the drive, choose a **Drive speed** on the Disc
 screen (16x down to 1x; try 4x first). The cap holds for the scan and the rip,
