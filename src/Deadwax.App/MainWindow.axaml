@@ -310,19 +310,25 @@
                                 </Border>
                             </StackPanel>
 
-                            <TextBlock Text="{Binding ErrorText}" Foreground="{StaticResource Bad}" IsVisible="{Binding HasError}" TextWrapping="Wrap"/>
-                            <StackPanel Orientation="Horizontal" Spacing="12" IsVisible="{Binding HasPartialAlbum}">
-                                <TextBlock Text="{Binding PartialAlbum}" Classes="mono soft" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="560"/>
-                                <Button Classes="quiet" Content="Remove the partial album" Click="OnRemovePartial"/>
-                            </StackPanel>
                         </StackPanel>
                     </ScrollViewer>
 
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right" Margin="0,24,0,0">
-                        <Button Classes="quiet" Content="Read the disc again" Click="OnRescan" IsVisible="{Binding IsDisc}"/>
-                        <Button Classes="quiet" Content="{Binding EjectLabel}" Click="OnEject"/>
-                        <Button Classes="primary" Content="Rip disc" Click="OnRip" IsEnabled="{Binding CanRip}" IsVisible="{Binding IsDisc}"/>
-                    </StackPanel>
+                    <!-- The message and the partial-album offer sit in the button row, which
+                         is always in sight; at the end of the column above they were below
+                         the window's edge on a disc with many releases (2026-10-21). -->
+                    <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,24,0,0">
+                        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" Margin="0,0,24,0">
+                            <TextBlock Text="{Binding ErrorText}" Foreground="{StaticResource Bad}" IsVisible="{Binding HasError}"
+                                       TextWrapping="Wrap" MaxWidth="520" VerticalAlignment="Center"/>
+                            <Button Classes="quiet" Content="Remove the partial album" Click="OnRemovePartial"
+                                    IsVisible="{Binding HasPartialAlbum}" ToolTip.Tip="{Binding PartialAlbum}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
+                            <Button Classes="quiet" Content="Read the disc again" Click="OnRescan" IsVisible="{Binding IsDisc}"/>
+                            <Button Classes="quiet" Content="{Binding EjectLabel}" Click="OnEject"/>
+                            <Button Classes="primary" Content="Rip disc" Click="OnRip" IsEnabled="{Binding CanRip}" IsVisible="{Binding IsDisc}"/>
+                        </StackPanel>
+                    </Grid>
                 </Grid>
             </Grid>
 
