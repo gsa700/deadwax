@@ -150,6 +150,8 @@
                             <!-- What each CD found so far, kept while the next one goes in. -->
                             <TextBlock Text="{Binding OffsetProgress}" IsVisible="{Binding HasOffsetProgress}" FontSize="15" LineHeight="22"
                                        TextWrapping="Wrap" MaxWidth="600" HorizontalAlignment="Center" TextAlignment="Center"/>
+                            <ProgressBar Width="320" HorizontalAlignment="Center" IsVisible="{Binding MeasuringOffset}"
+                                         IsIndeterminate="{Binding OffsetWorking}" Minimum="0" Maximum="100" Value="{Binding OffsetPercent}"/>
                             <Button Classes="quiet" HorizontalAlignment="Center" Content="Measure the read offset from this disc"
                                     IsEnabled="{Binding !MeasuringOffset}" Click="OnMeasureOffset"/>
                             <TextBlock Text="{Binding OffsetText}" Classes="dim" FontSize="15" LineHeight="22" TextWrapping="Wrap" MaxWidth="600"
@@ -318,7 +320,7 @@
 
                     <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right" Margin="0,24,0,0">
                         <Button Classes="quiet" Content="Read the disc again" Click="OnRescan" IsVisible="{Binding IsDisc}"/>
-                        <Button Classes="quiet" Content="Eject" Click="OnEject"/>
+                        <Button Classes="quiet" Content="{Binding EjectLabel}" Click="OnEject"/>
                         <Button Classes="primary" Content="Rip disc" Click="OnRip" IsEnabled="{Binding CanRip}" IsVisible="{Binding IsDisc}"/>
                     </StackPanel>
                 </Grid>

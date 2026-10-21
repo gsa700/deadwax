@@ -170,6 +170,10 @@ public sealed class MainViewModel : Observable
 
     private string _drive = "", _status = "", _error = "";
     public string DriveText { get => _drive; set => Set(ref _drive, value); }
+    /// Whether a disc is in, for the Eject button's words (his ask, 2026-10-20).
+    private bool _hasDisc;
+    public bool HasDisc { get => _hasDisc; set { if (Set(ref _hasDisc, value)) Raise(nameof(EjectLabel)); } }
+    public string EjectLabel => HasDisc ? "Eject" : "Open tray";
     public string StatusText { get => _status; set => Set(ref _status, value); }
     public string ErrorText { get => _error; set { if (Set(ref _error, value)) Raise(nameof(HasError)); } }
     public bool HasError => ErrorText.Length > 0;
@@ -190,6 +194,14 @@ public sealed class MainViewModel : Observable
     private string _offsetProgress = "";
     public string OffsetProgress { get => _offsetProgress; set { if (Set(ref _offsetProgress, value)) Raise(nameof(HasOffsetProgress)); } }
     public bool HasOffsetProgress => OffsetProgress.Length > 0;
+    /// The measurement's bar, the app's own (his ask, 2026-10-20, instead of a
+    /// percentage in the text): filling while the track is read, moving for
+    /// the steps that have no percentage.
+    private double _offsetPercent;
+    private bool _offsetReading;
+    public double OffsetPercent { get => _offsetPercent; set => Set(ref _offsetPercent, value); }
+    public bool OffsetReading { get => _offsetReading; set { if (Set(ref _offsetReading, value)) Raise(nameof(OffsetWorking)); } }
+    public bool OffsetWorking => !_offsetReading;
 
     // The Disc screen.
     private Bitmap? _cover;

@@ -114,6 +114,7 @@ public sealed partial class MainWindow : Window
     {
         if (_vm.IsScanning || _vm.IsRipping) return;
         var (present, audio) = await MediaAsync(CdDrive.DefaultDevice);
+        _vm.HasDisc = present;
         if (!present) _vm.DriveText = NoDisc;
         if (_vm.NeedsOffset)
         {
@@ -286,9 +287,9 @@ public sealed partial class MainWindow : Window
         try
         {
             // The step being done stays on screen; the read's progress goes under it.
-            var step = "";
-            var say = new Progress<string>(m => _vm.OffsetText = step = m);
-            var read = new Progress<(int, int)>(p => _vm.OffsetText = $"{step}\n{p.Item1 * 100 / Math.Max(p.Item2, 1)}% read");
+            _vm.OffsetReading = false;
+            var say = new Progress<string>(m => { _vm.OffsetText = m; _vm.OffsetReading = m.StartsWith("Reading", StringComparison.Ordinal); _vm.OffsetPercent = 0; });
+            var read = new Progress<(int, int)>(p => _vm.OffsetPercent = p.Item1 * 100.0 / Math.Max(p.Item2, 1));
             var search = await Task.Run(() => OffsetFinder.FindAsync(null,
                 m => ((IProgress<string>)say).Report(m), (d, t) => ((IProgress<(int, int)>)read).Report((d, t))));
             _offsetCds++;

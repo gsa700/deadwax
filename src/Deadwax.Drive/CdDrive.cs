@@ -84,8 +84,30 @@ public sealed class CdDrive : IDisposable
     /// must not be held open by this process (dispose any CdDrive first).
     public static bool Eject(string? device = null)
     {
+        // On a Mac libcdio sees a drive only while a disc is in it, so an empty
+        // drive is opened through macOS's own drutil (2026-10-20: "Open tray"
+        // did nothing with the drive empty; DefaultDevice was only a guess).
+        if (OperatingSystem.IsMacOS() && device is null && FoundDevice is null) return MacTray();
         try { return LibCdio.cdio_eject_media_drive(device ?? DefaultDevice) == 0; }
         catch (DllNotFoundException) { return false; }
+    }
+
+    private static bool MacTray()
+    {
+        foreach (var args in new[] { new[] { "tray", "open" }, new[] { "tray", "eject" } })
+        {
+            try
+            {
+                var start = new System.Diagnostics.ProcessStartInfo("/usr/bin/drutil") { RedirectStandardOutput = true, RedirectStandardError = true };
+                foreach (var a in args) start.ArgumentList.Add(a);
+                using var p = System.Diagnostics.Process.Start(start);
+                if (p is null) continue;
+                if (!p.WaitForExit(10000)) { p.Kill(); continue; }
+                if (p.ExitCode == 0) return true;
+            }
+            catch (System.ComponentModel.Win32Exception) { return false; }
+        }
+        return false;
     }
 
     private IntPtr _cdio;
