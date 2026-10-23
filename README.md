@@ -7,18 +7,22 @@ album into the library the way the library wants it.
 
 It is in daily use on the author's library since 2026-09-24: every disc
 is checked against AccurateRip as it is read, and read again until two passes
-agree unless AccurateRip has already confirmed it (since 0.5.0), encoded with
-libFLAC, tagged from MusicBrainz and written with `.cue`, `.m3u`, `.toc` and a
-rip log in whipper's layout, so a library ripped with whipper and one ripped
-with Deadwax look the same. The window shows the disc, its MusicBrainz
+agree unless AccurateRip has already confirmed it (since 0.5.0), encoded by
+Deadwax's own FLAC encoder (since 0.6.0; libFLAC before), tagged from
+MusicBrainz with ReplayGain measured as it rips, and written with `.cue`,
+`.m3u`, `.toc` and a rip log in whipper's layout, so a library ripped with
+whipper and one ripped with Deadwax look the same. The window shows the disc, its MusicBrainz
 releases (with a barcode match against the disc's catalog number), the rip as
 it happens with a read map of the disc surface, and the post-rip filing steps.
 
 ![The Disc screen: a disc from a five-album box set, the three MusicBrainz releases that carry its disc ID, and the choice to file it as the album it originally was](docs/images/disc.png)
 
-Linux and Windows, with a macOS app built from source; the drive layer is
-libcdio-paranoia, and the disc's pregaps, ISRCs, catalog number and CD-Text
-are read by Deadwax itself through libcdio's MMC pass-through. The design
+Linux and Windows, with a macOS app built from source. Only the drive layer
+comes from outside: libcdio and libcdio-paranoia read the disc. Everything
+after the read is Deadwax's own code: the disc's pregaps, ISRCs, catalog number
+and CD-Text (read through libcdio's MMC pass-through), AccurateRip, the FLAC
+encoder and decoder (from the format's specification, RFC 9639), the tags and
+ReplayGain. The design
 is in a spec kept outside the repository, and the build went through its
 validation gates in order, each checked against the 309 whipper 0.10.0 rips
 already in the library.
@@ -43,7 +47,9 @@ Since 0.3.1 the program carries its own libcdio, libcdio-paranoia and libFLAC (b
 `tools/build-natives`, published as a `natives-N` pre-release with the
 sources attached), so nothing needs installing. Releases before that needed
 `libcdio`, `libcdio-paranoia` and `flac-libs` from the distribution, and
-0.2.x needed `cdrdao` as well.
+0.2.x needed `cdrdao` as well. Since 0.6.0 libFLAC no longer encodes the rips;
+it stays in the bundle for one more release, used only when `DEADWAX_FLAC=libflac`
+is set, to compare the two encoders, and then leaves.
 
 A running copy checks GitHub for a newer release a few seconds after launch
 and, if there is one, offers it in the title bar. The update is verified against
@@ -175,6 +181,7 @@ applies to new rips only, and albums already in the library are never renamed.
 | Track files | `Artist - 01 - Title.flac` (default), `01 - Title.flac`, `01 Title.flac` |
 | Embed the front cover in each file | off for an existing setup, on for a fresh install: phones and car stereos show only embedded art |
 | Back cover as `back.jpg` | on |
+| Write ReplayGain tags | on: track and album loudness, measured while it rips (EBU R128); the audio is not changed |
 | `.cue` sheet, `.m3u` playlist | on |
 
 The front cover is always saved as `cover.jpg`, and the rip log (`.log`) and
@@ -199,8 +206,9 @@ rip was verified, and how Deadwax knows a disc is already in your library.
 | G1 · IDs | TOC, MusicBrainz, CDDB and AccurateRip disc IDs, catalog and ISRCs equal whipper's | Offline: all 309 logs and cdrdao TOC files match. Drive: 52nd Street, Turnstiles, Anthology of Bread, Shout at the Devil PASS |
 | G2 · Audio | Same audio as whipper, sample for sample | Offline: CRC of all 3,529 tracks in the library matches. Drive: Turnstiles (8 tracks) and Anthology of Bread (20, gap before track 1) read twice, identical, same CRC and FLAC MD5 as whipper |
 | G3 · AccurateRip | Same v1/v2 checksums as whipper | Offline: all 1,617 v1 and 3,376 v2 checksums in 309 logs match. Drive: Anthology of Bread, all 20 tracks accurate (79–87 matching rips) and equal to whipper's |
-| G4 · Output | Same tags and sidecar files, `music-audit` clean | Tags: 177 of 199 non-box albums identical (the rest is MusicBrainz drift). FLAC: byte-identical frames to whipper's. .m3u: 308 of 309 identical (the other was hand-edited, and is wrong). .cue: structure identical on all 306 comparable. Log: written and verifiable. `deadwax rip` works end to end |
+| G4 · Output | Same tags and sidecar files, `music-audit` clean | Tags: 177 of 199 non-box albums identical (the rest is MusicBrainz drift). FLAC (libFLAC, before 0.6.0): byte-identical frames to whipper's. .m3u: 308 of 309 identical (the other was hand-edited, and is wrong). .cue: structure identical on all 306 comparable. Log: written and verifiable. `deadwax rip` works end to end |
 | G5 · Side by side | 10 discs through both tools | **PASS, 10 of 10.** Seven identical on every check, art included; the rest differ only by the deliberate `"`→`'` file name, one composer MusicBrainz added after the rip, and his hand-renamed folder. Two naming rules (compilation year, disambiguation) found and fixed on the way |
+| FLAC encoder (0.6.0) | Deadwax's own encoder makes the same audio as libFLAC, the same bytes on every platform | **PASS.** All 4,186 FLACs in the library decoded by Deadwax (every frame CRC and the MD5 checked), encoded again, and read back identically by Deadwax and by FFmpeg; 0.01% smaller than the libFLAC originals overall, the worst track 0.65% larger. Same output, byte for byte, on Windows, Linux and macOS (CI). First rip with it: all 13 tracks with the same audio MD5, decoded audio and tags as the libFLAC rip of the same disc |
 
 ## Install
 
@@ -229,8 +237,9 @@ Applications. It does not update itself yet: rebuild it after pulling.
 ## Build and run
 
 Needs the .NET 10 SDK and, unless `native/` holds the bundled copies
-(`tools/build-natives`), libcdio, libcdio-paranoia and libFLAC from the
-distribution (the -devel packages are not needed). cdrdao is only needed by
+(`tools/build-natives`), libcdio and libcdio-paranoia from the distribution
+(the -devel packages are not needed). libFLAC is needed only for
+`DEADWAX_FLAC=libflac`. cdrdao is only needed by
 `deadwax subchannel --cdrdao`, which compares Deadwax's reading with it.
 
 ```
@@ -269,7 +278,8 @@ src/Deadwax.Metadata   disc IDs; MusicBrainz client, tags and library convention
                        front and back covers from the Cover Art Archive
 src/Deadwax.Verify     AccurateRip IDs, database and checksums; CRC32/MD5 audio
                        checks; whipper log, cue and config readers
-src/Deadwax.Output     libFLAC encoding, tags, file names, .cue/.m3u, the rip log
+src/Deadwax.Output     the FLAC encoder and decoder (RFC 9639), tags, file names,
+                       .cue/.m3u, the rip log
 src/Deadwax.Core       the rip session and the steps after it (set discs refiled,
                        back cover), shared by the command line and the window
 src/Deadwax.Cli        the deadwax command
@@ -277,7 +287,7 @@ src/Deadwax.App        the window (Avalonia, native Wayland) and its updater
 tests/Deadwax.Tests    golden files from real rips
 ```
 
-## Licence
+## License
 
 GPLv3. libcdio and libcdio-paranoia are GPLv3 themselves. What else a release
 carries, under which licenses, and what is patched: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
