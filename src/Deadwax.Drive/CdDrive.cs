@@ -95,6 +95,11 @@ public sealed class CdDrive : IDisposable
         // did nothing with the drive empty; DefaultDevice was only a guess).
         // The window passes DefaultDevice, which is that same guess when nothing is found.
         if (OperatingSystem.IsMacOS() && (OwnDriveAccess || FoundDevice is null && (device is null || device == DefaultDevice))) return MacTray();
+        if (OperatingSystem.IsLinux() && OwnDriveAccess)
+        {
+            try { using var sg = new LinuxSgTransport(device ?? DefaultDevice); return sg.Eject(); }
+            catch (DriveException) { return false; }
+        }
         try { return LibCdio.cdio_eject_media_drive(device ?? DefaultDevice) == 0; }
         catch (DllNotFoundException) { return false; }
     }
@@ -122,18 +127,19 @@ public sealed class CdDrive : IDisposable
     /// (proven the same by check-drive on Control, 2026-10-24; his call to take
     /// libcdio and paranoia out at once rather than a release later). Linux
     /// and Windows keep libcdio until their own READ CD transport exists.
-    public static bool OwnDriveAccess => OperatingSystem.IsMacOS();
+    public static bool OwnDriveAccess => OperatingSystem.IsMacOS()
+        || OperatingSystem.IsLinux() && Environment.GetEnvironmentVariable("DEADWAX_DRIVE") == "deadwax";   // Linux: SG_IO, being proven
 
     private IntPtr _cdio;
-    private MacIoctlTransport? _mac;
+    private IDriveTransport? _own;
     private IReadOnlyDictionary<int, byte>? _control;
 
     public string Device { get; }
 
-    private CdDrive(string device, MacIoctlTransport mac)
+    private CdDrive(string device, IDriveTransport mac)
     {
         Device = device;
-        _mac = mac;
+        _own = mac;
     }
 
     private CdDrive(string device, IntPtr cdio)
@@ -159,7 +165,7 @@ public sealed class CdDrive : IDisposable
             if (!MacDisc.Unmount(device, out var why))
                 Console.Error.WriteLine($"[drive] could not unmount {device}: {why}");
         }
-        if (OwnDriveAccess && !libcdio) return new CdDrive(device, new MacIoctlTransport(device));
+        if (OwnDriveAccess && !libcdio) return new CdDrive(device, IDriveTransport.Open(device));
         IntPtr cdio;
         try
         {
@@ -176,9 +182,9 @@ public sealed class CdDrive : IDisposable
 
     public Toc ReadToc()
     {
-        if (_mac is not null)
+        if (_own is not null)
         {
-            var answer = _mac.ReadFullToc() ?? throw new DriveException($"No disc in {Device}, or the disc has no table of contents.");
+            var answer = _own.ReadFullToc() ?? throw new DriveException($"No disc in {Device}, or the disc has no table of contents.");
             var (toc, control) = FullToc.Parse(answer);
             _control = control;
             return toc;
@@ -204,7 +210,7 @@ public sealed class CdDrive : IDisposable
 
     public unsafe DriveIdentity? ReadIdentity()
     {
-        if (_mac is not null) return MacDisc.Identity(Device);
+        if (_own is not null) return OperatingSystem.IsMacOS() ? MacDisc.Identity(Device) : DriveIdentity.FromSysfs(Device);
         var buffer = stackalloc byte[LibCdio.HwInfoSize];
         if (!LibCdio.cdio_get_hwinfo(Handle, buffer)) return null;
 
@@ -237,9 +243,9 @@ public sealed class CdDrive : IDisposable
         {
             // libcdio's set_speed on macOS passes the value where the ioctl
             // wants a pointer (security scan 2026-10-12, L2); do it directly.
-            if (_mac is not null)
+            if (_own is not null)
             {
-                if (!_mac.SetSpeed(speed)) throw new DriveException($"{Device} did not accept a {speed}x speed limit.");
+                if (!_own.SetSpeed(speed)) throw new DriveException($"{Device} did not accept a {speed}x speed limit.");
                 return;
             }
             using var mac = new MacIoctlTransport(Device);
@@ -262,11 +268,14 @@ public sealed class CdDrive : IDisposable
     /// libcdio's handle, for the subchannel reader's MMC commands.
     internal IntPtr NativeHandle => Handle;
 
+    /// Deadwax's own transport when it is the one in use, for the subchannel reader.
+    internal IDriveTransport? OwnTransport => _own;
+
     /// The TOC's control bits for a track, which cdrdao's TOC file records
     /// (its Q-subchannel reading is only checked against them).
     public (bool PreEmphasis, bool CopyPermitted, bool FourChannel) TrackFlags(int track)
     {
-        if (_mac is not null)
+        if (_own is not null)
         {
             if (_control is null) ReadToc();
             var c = _control!.GetValueOrDefault(track);
@@ -288,8 +297,8 @@ public sealed class CdDrive : IDisposable
 
     public void Dispose()
     {
-        _mac?.Dispose();
-        _mac = null;
+        _own?.Dispose();
+        _own = null;
         if (_cdio == IntPtr.Zero) return;
         LibCdio.cdio_destroy(_cdio);
         _cdio = IntPtr.Zero;

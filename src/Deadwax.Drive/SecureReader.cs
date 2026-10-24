@@ -124,15 +124,16 @@ public sealed class SecureReader : IDisposable
     public const int DefaultMaxRetries = 20;
 
     /// Whether this run reads audio with Deadwax's own reader.
-    public static bool OwnReader => OperatingSystem.IsMacOS();
+    public static bool OwnReader => OperatingSystem.IsMacOS()
+        || OperatingSystem.IsLinux() && Environment.GetEnvironmentVariable("DEADWAX_READER") == "deadwax";   // Linux: SG_IO, being proven
 
     /// The rip log's extraction engine.
     public static string EngineDescription => OwnReader
-        ? $"Deadwax {typeof(SecureReader).Assembly.GetName().Version?.ToString(3)} secure read (DKIOCCDREAD, C2)"
+        ? $"Deadwax {typeof(SecureReader).Assembly.GetName().Version?.ToString(3)} secure read ({(OperatingSystem.IsMacOS() ? "DKIOCCDREAD" : "SG_IO")}, C2)"
         : CdDrive.EngineDescription;
 
     private IntPtr _drive;
-    private MacIoctlTransport? _mac;
+    private IDriveTransport? _transport;
     private Source? _source;
     private PassReader? _own;
 
@@ -144,17 +145,17 @@ public sealed class SecureReader : IDisposable
         _drive = drive;
     }
 
-    private SecureReader(string device, MacIoctlTransport mac)
+    private SecureReader(string device, IDriveTransport mac)
     {
         Device = device;
-        _mac = mac;
+        _transport = mac;
         _source = new Source(mac);
         _own = new PassReader(_source);
     }
 
     /// The Mac transport as PassReader's audio source; AudioEnd is what the
     /// reads so far have shown of the disc (a TOC's audio lead-out when one is known).
-    private sealed class Source(MacIoctlTransport mac) : IAudioSource
+    private sealed class Source(IDriveTransport mac) : IAudioSource
     {
         public int AudioEnd { get; set; }
         public byte[]? ReadAudio(int lsn, int count, bool c2) => mac.ReadAudio(lsn, count, c2);
@@ -163,7 +164,7 @@ public sealed class SecureReader : IDisposable
     public static SecureReader Open(string? device = null)
     {
         device ??= CdDrive.DefaultDevice;
-        if (OwnReader) return new SecureReader(device, new MacIoctlTransport(device));
+        if (OwnReader) return new SecureReader(device, IDriveTransport.Open(device));
         IntPtr drive;
         try
         {
@@ -284,8 +285,8 @@ public sealed class SecureReader : IDisposable
 
     public void Dispose()
     {
-        _mac?.Dispose();
-        _mac = null;
+        _transport?.Dispose();
+        _transport = null;
         if (_drive == IntPtr.Zero) return;
         LibParanoia.cdio_cddap_close(_drive);
         _drive = IntPtr.Zero;

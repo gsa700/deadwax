@@ -89,7 +89,7 @@ public sealed unsafe class LibCdioTransport(IntPtr handle) : IMmcTransport
 /// macOS: the CD ioctls of /dev/rdiskN (IOCDMediaBSDClient.h). Offsets are
 /// in bytes of 2352-byte sectors; "sector area" bits say what each sector
 /// should include. Untested until a Mac is here (2026-10-14).
-public sealed unsafe class MacIoctlTransport : IMmcTransport
+public sealed unsafe class MacIoctlTransport : IDriveTransport
 {
     // _IOWR('d', n, size): IOC_INOUT | (size << 16) | ('d' << 8) | n, on LP64.
     private const uint ReadIoctl = 0xC0206460;      // DKIOCCDREAD, dk_cd_read_t (32 bytes)

@@ -94,6 +94,16 @@ public sealed class PassReader(IAudioSource source)
                 {
                     Audio(run, i).CopyTo(target);
                     report.Record((int)ParanoiaEvent.Read, Word(sector));
+                    continue;
+                }
+                // A run that failed is not damage: the BDR-209D ends a read at a
+                // track start (2026-10-24, Mac and Linux alike), so each of its
+                // sectors is first read once on its own, and only one that then
+                // fails or carries C2 flags is damaged.
+                if (run is null && ReadRun(sector, 1) is { } single && !HasC2(single, 0))
+                {
+                    Audio(single, 0).CopyTo(target);
+                    report.Record((int)ParanoiaEvent.Read, Word(sector));
                 }
                 else
                 {

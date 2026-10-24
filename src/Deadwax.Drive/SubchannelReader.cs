@@ -31,13 +31,12 @@ public static class SubchannelReader
     /// libcdio's; only its audio session is read (cdrdao reads session 1).
     public static Cdrdao.Result Read(CdDrive drive, Toc toc, Action<string>? say = null, CancellationToken ct = default)
     {
-        using var transport = TransportFor(drive);
+        // The drive's own transport when Deadwax's own drive access is in use
+        // (it belongs to the drive, which disposes it), else libcdio's pass-through.
+        if (drive.OwnTransport is { } own) return Read(own, drive, toc, say, ct);
+        using var transport = new LibCdioTransport(drive.NativeHandle);
         return Read(transport, drive, toc, say, ct);
     }
-
-    /// libcdio's pass-through on Linux and Windows; the CD ioctls on macOS.
-    public static IMmcTransport TransportFor(CdDrive drive) =>
-        OperatingSystem.IsMacOS() ? new MacIoctlTransport(drive.Device) : new LibCdioTransport(drive.NativeHandle);
 
     public static Cdrdao.Result Read(IMmcTransport io, CdDrive drive, Toc toc, Action<string>? say, CancellationToken ct)
     {
@@ -95,7 +94,7 @@ public static class SubchannelReader
                 trackTexts.TryGetValue(t.Number, out var text) ? text : null));
         }
         var result = CdrdaoToc.Build(mcn is null ? null : CdrdaoToc.CatalogNumber(mcn), discText, list);
-        return new Cdrdao.Result(result.Write(), result, OperatingSystem.IsMacOS() ? "Deadwax (DKIOCCDREAD)" : $"Deadwax (libcdio {LibCdio.Version() ?? "unknown"})");
+        return new Cdrdao.Result(result.Write(), result, drive.OwnTransport is not null ? $"Deadwax ({(OperatingSystem.IsMacOS() ? "DKIOCCDREAD" : "SG_IO")})" : $"Deadwax (libcdio {LibCdio.Version() ?? "unknown"})");
     }
 
     /// Formatted Q if the drive gives it, else raw P-W, else nothing.

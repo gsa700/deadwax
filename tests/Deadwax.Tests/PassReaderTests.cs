@@ -32,6 +32,8 @@ public class PassReaderTests
         private int _guess;
 
         public int AudioEnd => sectors;
+        /// The BDR-209D's way (2026-10-24): a read that crosses one of these ends early.
+        public readonly List<int> TrackStarts = [];
 
         public byte[]? ReadAudio(int lsn, int count, bool c2)
         {
@@ -39,6 +41,7 @@ public class PassReaderTests
             if (count == 1) SingleReads[lsn] = SingleReads.GetValueOrDefault(lsn) + 1;
             if (c2 && !C2Supported) return null;
             if (lsn < 0 || lsn + count > sectors) return null;
+            if (TrackStarts.Any(b => b > lsn && b < lsn + count)) return null;   // a short read, refused
             if (_cache is { } cached && cached.Lsn == lsn && cached.Data.Length == count * (S + (c2 ? 294 : 0)))
                 return cached.Data;   // a stale answer, unless the reader made the drive read elsewhere first
             var per = S + (c2 ? 294 : 0);
@@ -131,14 +134,14 @@ public class PassReaderTests
     }
 
     [Fact]
-    public void A_drive_without_C2_still_reads_and_retries_a_failed_run()
+    public void A_drive_without_C2_still_reads_a_failed_run_sector_by_sector()
     {
         var drive = new FakeDrive(100) { C2Supported = false };
         drive.BadReads[60] = 1;
         drive.Fails.Add(60);
         var (window, report) = Read(drive, 100);
         Assert.Equal(drive.Disc, window);
-        Assert.Equal(SectorState.Recovered, report.Sectors[60]);
+        Assert.Equal(SectorState.Clean, report.Sectors[60]);   // the run failed; the sector alone read fine
     }
 
     [Fact]
@@ -183,5 +186,18 @@ public class PassReaderTests
         Assert.Equal(SectorState.Recovered, statuses[^1].Result);
         Assert.Equal(37, statuses[^1].Sector);
         Assert.Equal(3, statuses[^1].Attempt);   // flagged once more, then two clean reads that agree
+    }
+
+    [Fact]
+    public void A_run_cut_short_at_a_track_start_is_not_damage()
+    {
+        var drive = new FakeDrive(200);
+        drive.TrackStarts.AddRange([50, 130]);
+        var statuses = new List<RetryStatus>();
+        var (window, report) = new PassReader(drive).ReadSectors(0, 200, 0, 200, 5, retrying: statuses.Add);
+        Assert.Equal(drive.Disc, window);
+        Assert.All(report.Sectors, st => Assert.Equal(SectorState.Clean, st));
+        Assert.Equal(0, report.ReadErrors);
+        Assert.Empty(statuses);
     }
 }

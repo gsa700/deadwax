@@ -11,9 +11,9 @@ internal static class CheckDriveCommand
 {
     public static Task<int> RunAsync(string[] args)
     {
-        if (!OperatingSystem.IsMacOS())
+        if (!OperatingSystem.IsMacOS() && !OperatingSystem.IsLinux())
         {
-            Console.Error.WriteLine("deadwax: check-drive compares Deadwax's own drive access with libcdio's; so far it exists on macOS only.");
+            Console.Error.WriteLine("deadwax: check-drive compares Deadwax's own drive access with libcdio's; so far it exists on macOS and Linux.");
             return Task.FromResult(2);
         }
         var differences = 0;
@@ -24,18 +24,20 @@ internal static class CheckDriveCommand
             Console.WriteLine($"  {(same ? "same" : "DIFF")}  {what,-14} {ours}{(same ? "" : $"   (libcdio: {theirs})")}");
         }
 
-        var ourDevices = MacDisc.CdDevices();
-        var cdioDevices = CdDrive.LibCdioDevices().Where(MacDisc.IsCd).ToList();
+        // The drive list: macOS from DiskArbitration; Linux from /dev, as it always was.
+        var ourDevices = OperatingSystem.IsMacOS() ? MacDisc.CdDevices() : CdDrive.FoundDevice is { } found ? [found] : [];
+        var cdioDevices = OperatingSystem.IsMacOS() ? CdDrive.LibCdioDevices().Where(MacDisc.IsCd).ToList() : CdDrive.LibCdioDevices().ToList();
         Line("drives", string.Join(" ", ourDevices), string.Join(" ", cdioDevices));
         var device = args.Length > 1 && args[0] == "--device" ? args[1] : ourDevices.FirstOrDefault();
         if (device is null) { Console.WriteLine("No CD in any drive."); return Task.FromResult(1); }
 
         using var cdio = CdDrive.Open(device, libcdio: true);
         var theirToc = cdio.ReadToc();
-        Line("identity", MacDisc.Identity(device)?.ToString() ?? "(none)", cdio.ReadIdentity()?.ToString() ?? "(none)");
+        var ourIdentity = OperatingSystem.IsMacOS() ? MacDisc.Identity(device) : DriveIdentity.FromSysfs(device);
+        Line("identity", ourIdentity?.ToString() ?? "(none)", cdio.ReadIdentity()?.ToString() ?? "(none)");
 
-        using var mac = new MacIoctlTransport(device);
-        var answer = mac.ReadFullToc() ?? throw new DriveException("The drive gave no full TOC.");
+        using var own = IDriveTransport.Open(device);
+        var answer = own.ReadFullToc() ?? throw new DriveException("The drive gave no full TOC.");
         var (ourToc, control) = FullToc.Parse(answer);
         Line("tracks", $"{ourToc.FirstTrack}-{ourToc.LastTrack}", $"{theirToc.FirstTrack}-{theirToc.LastTrack}");
         Line("lead-out", ourToc.LeadoutLsn.ToString(), theirToc.LeadoutLsn.ToString());
