@@ -488,7 +488,7 @@ public sealed class RipSession
 
         var identity = disc.Identity;
         var driveName = identity is null ? disc.Device : $"{identity.Vendor} {identity.Model} (revision {identity.Revision})";
-        var logDisc = new LogDisc(driveName, CdDrive.EngineDescription, disc.Offset, cdrdao.Version, false,
+        var logDisc = new LogDisc(driveName, SecureReader.EngineDescription, disc.Offset, cdrdao.Version, false,
             plan.AlbumArtist, plan.DiscTitle, disc.Cddb, disc.DiscId, DiscIds.MusicBrainzAttachUrl(toc), plan.ReleaseId, toc,
             disc.SpeedLimit);
         await File.WriteAllTextAsync(Path.Combine(albumDir, baseName + ".log"),

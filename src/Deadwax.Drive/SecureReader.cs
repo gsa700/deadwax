@@ -114,13 +114,27 @@ public readonly record struct ReadWindow(
     }
 }
 
-/// Reads tracks through paranoia, with the drive's read offset corrected
-/// (see ReadWindow).
+/// Reads tracks with the drive's read offset corrected (see ReadWindow):
+/// through libcdio-paranoia, or with DEADWAX_READER=deadwax on a Mac through
+/// Deadwax's own PassReader (step 4, spec §11), which stays off by default
+/// until damaged discs read at least as well with it as with paranoia.
 public sealed class SecureReader : IDisposable
 {
     public const int DefaultMaxRetries = 20;
 
+    /// Whether this run reads audio with Deadwax's own reader.
+    public static bool OwnReader =>
+        OperatingSystem.IsMacOS() && Environment.GetEnvironmentVariable("DEADWAX_READER") == "deadwax";
+
+    /// The rip log's extraction engine.
+    public static string EngineDescription => OwnReader
+        ? $"Deadwax {typeof(SecureReader).Assembly.GetName().Version?.ToString(3)} secure read (DKIOCCDREAD, C2)"
+        : CdDrive.EngineDescription;
+
     private IntPtr _drive;
+    private MacIoctlTransport? _mac;
+    private Source? _source;
+    private PassReader? _own;
 
     public string Device { get; }
 
@@ -130,9 +144,26 @@ public sealed class SecureReader : IDisposable
         _drive = drive;
     }
 
+    private SecureReader(string device, MacIoctlTransport mac)
+    {
+        Device = device;
+        _mac = mac;
+        _source = new Source(mac);
+        _own = new PassReader(_source);
+    }
+
+    /// The Mac transport as PassReader's audio source; AudioEnd is what the
+    /// reads so far have shown of the disc (a TOC's audio lead-out when one is known).
+    private sealed class Source(MacIoctlTransport mac) : IAudioSource
+    {
+        public int AudioEnd { get; set; }
+        public byte[]? ReadAudio(int lsn, int count, bool c2) => mac.ReadAudio(lsn, count, c2);
+    }
+
     public static SecureReader Open(string? device = null)
     {
         device ??= CdDrive.DefaultDevice;
+        if (OwnReader) return new SecureReader(device, new MacIoctlTransport(device));
         IntPtr drive;
         try
         {
@@ -162,6 +193,7 @@ public sealed class SecureReader : IDisposable
         if (!track.IsAudio) throw new ArgumentException($"Track {trackNumber} is data, not audio.");
 
         var w = ReadWindow.For(toc, track, offsetSamples);
+        if (_source is not null) _source.AudioEnd = Math.Max(_source.AudioEnd, toc.AudioLeadoutLsn);
         var (window, report) = ReadSectors(w.FirstSector, w.EndSector, w.ReadableStart, w.ReadableEnd, maxRetries, progress, ct, damaged);
         return (window.AsSpan(w.TrackStartInWindow, w.TrackBytes).ToArray(), report);
     }
@@ -176,6 +208,7 @@ public sealed class SecureReader : IDisposable
         if (!track.IsAudio) throw new ArgumentException($"Track {trackNumber} is data, not audio.");
 
         var p = ReadWindow.For(toc, track, offsetSamples).Part(fromByte, toByte);
+        if (_source is not null) _source.AudioEnd = Math.Max(_source.AudioEnd, toc.AudioLeadoutLsn);
         var (window, report) = ReadSectors(p.FirstSector, p.EndSector, p.ReadableStart, p.ReadableEnd, maxRetries, ct: ct);
         return (window.AsSpan(p.TrackStartInWindow, p.TrackBytes).ToArray(), report);
     }
@@ -190,6 +223,11 @@ public sealed class SecureReader : IDisposable
         int maxRetries = DefaultMaxRetries, Action<int, int>? progress = null, CancellationToken ct = default,
         Action<int, SectorState>? damaged = null)
     {
+        if (_own is not null)
+        {
+            _source!.AudioEnd = Math.Max(_source.AudioEnd, readableEnd);
+            return _own.ReadSectors(firstSector, endSector, readableStart, readableEnd, maxRetries, progress, ct, damaged);
+        }
         var window = new byte[(long)(endSector - firstSector) * LibParanoia.SectorBytes];
         var report = new ReadReport(firstSector, endSector - firstSector) { Damaged = damaged };
         var clock = Stopwatch.StartNew();
@@ -246,6 +284,8 @@ public sealed class SecureReader : IDisposable
 
     public void Dispose()
     {
+        _mac?.Dispose();
+        _mac = null;
         if (_drive == IntPtr.Zero) return;
         LibParanoia.cdio_cddap_close(_drive);
         _drive = IntPtr.Zero;

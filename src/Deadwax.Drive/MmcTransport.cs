@@ -97,8 +97,9 @@ public sealed unsafe class MacIoctlTransport : IMmcTransport
     private const uint McnIoctl = 0xC0106462;       // DKIOCCDREADMCN, dk_cd_read_mcn_t (16 bytes)
     private const uint SetSpeedIoctl = 0x80026463;  // DKIOCCDSETSPEED, uint16_t (KB/s)
     private const uint TocIoctl = 0xC0186464;       // DKIOCCDREADTOC, dk_cd_read_toc_t (24 bytes)
-    private const byte AreaUser = 0x10, AreaSubChannelQ = 0x04, TypeCdda = 0x01, FormatFullToc = 0x02, FormatText = 0x05;
+    private const byte AreaUser = 0x10, AreaErrorFlags = 0x02, AreaSubChannelQ = 0x04, TypeCdda = 0x01, FormatFullToc = 0x02, FormatText = 0x05;
     private const int SectorBytes = 2352, QBytes = 16;
+    public const int C2Bytes = 294;   // one bit per audio byte: 2352 / 8
 
     private int _fd;
 
@@ -119,6 +120,28 @@ public sealed unsafe class MacIoctlTransport : IMmcTransport
         var req = stackalloc byte[32];
         *(ulong*)(req + 0) = (ulong)lsn * (SectorBytes + QBytes);
         req[8] = AreaUser | AreaSubChannelQ;
+        req[9] = TypeCdda;
+        *(uint*)(req + 20) = (uint)buffer.Length;
+        fixed (byte* buf = buffer)
+        {
+            *(void**)(req + 24) = buf;
+            if (ioctl(_fd, ReadIoctl, req) != 0) return null;
+        }
+        return *(uint*)(req + 20) == (uint)buffer.Length ? buffer : null;
+    }
+
+    /// Audio for `count` sectors from `lsn`, 2352 bytes each, and with `c2`
+    /// the drive's C2 error flags after each sector's audio (294 bytes, a bit
+    /// set for every byte the drive could not correct and had to guess):
+    /// the raw read step 4's secure reader is built on (spec §11). Null when
+    /// the read failed, or the drive will not give C2 flags.
+    public byte[]? ReadAudio(int lsn, int count, bool c2)
+    {
+        var per = SectorBytes + (c2 ? C2Bytes : 0);
+        var buffer = new byte[count * per];
+        var req = stackalloc byte[32];
+        *(ulong*)(req + 0) = (ulong)lsn * (ulong)per;
+        req[8] = (byte)(AreaUser | (c2 ? AreaErrorFlags : 0));
         req[9] = TypeCdda;
         *(uint*)(req + 20) = (uint)buffer.Length;
         fixed (byte* buf = buffer)
