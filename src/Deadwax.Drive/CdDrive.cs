@@ -56,6 +56,11 @@ public sealed class CdDrive : IDisposable
             }
             try
             {
+                // On a Mac only a disk macOS says holds a CD: libcdio lists disk
+                // images too, and a mounted Deadwax.dmg came first (MacDisc.IsCd).
+                if (OperatingSystem.IsMacOS())
+                    return LibCdio.Devices().FirstOrDefault(MacDisc.IsCd)
+                        ?? (LibCdio.DefaultDevice() is { } d && MacDisc.IsCd(d) ? d : null);
                 return LibCdio.Devices().FirstOrDefault() ?? LibCdio.DefaultDevice();
             }
             catch (DllNotFoundException)
@@ -127,8 +132,16 @@ public sealed class CdDrive : IDisposable
         // macOS mounts the disc on insertion; rippers unmount it so the
         // Finder is not reading the same disc. Best effort: the reads
         // themselves do not need it (MacDisc). Elsewhere this does nothing.
-        if (OperatingSystem.IsMacOS() && !MacDisc.Unmount(device, out var why))
-            Console.Error.WriteLine($"[drive] could not unmount {device}: {why}");
+        // ONLY A CD: with the drive empty, device is DefaultDevice's guess,
+        // which on another Mac may be an external disk or a disk image, and
+        // this runs every three seconds.
+        if (OperatingSystem.IsMacOS())
+        {
+            if (!MacDisc.IsCd(device))
+                throw new DriveException($"No CD in {device}.");
+            if (!MacDisc.Unmount(device, out var why))
+                Console.Error.WriteLine($"[drive] could not unmount {device}: {why}");
+        }
         IntPtr cdio;
         try
         {

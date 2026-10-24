@@ -27,12 +27,18 @@ public static unsafe class MacDisc
     [DllImport(CoreFoundation)] private static extern IntPtr CFStringCreateWithCString(IntPtr allocator, [MarshalAs(UnmanagedType.LPUTF8Str)] string s, uint encoding);
     [DllImport(CoreFoundation)] private static extern IntPtr CFStringGetCStringPtr(IntPtr s, uint encoding);
     [DllImport(CoreFoundation)] private static extern void CFRelease(IntPtr cf);
+    [DllImport(CoreFoundation)] private static extern IntPtr CFDictionaryGetValue(IntPtr dict, IntPtr key);
+    [DllImport(CoreFoundation)] private static extern IntPtr CFStringGetTypeID();
+    [DllImport(CoreFoundation)] private static extern IntPtr CFGetTypeID(IntPtr cf);
+    [DllImport(CoreFoundation)] [return: MarshalAs(UnmanagedType.I1)]
+    private static extern bool CFStringGetCString(IntPtr s, byte* buffer, nint size, uint encoding);
     [DllImport(DiskArbitration)] private static extern IntPtr DASessionCreate(IntPtr allocator);
     [DllImport(DiskArbitration)] private static extern void DASessionScheduleWithRunLoop(IntPtr session, IntPtr runLoop, IntPtr mode);
     [DllImport(DiskArbitration)] private static extern void DASessionUnscheduleFromRunLoop(IntPtr session, IntPtr runLoop, IntPtr mode);
     [DllImport(DiskArbitration)] private static extern IntPtr DADiskCreateFromBSDName(IntPtr allocator, IntPtr session, [MarshalAs(UnmanagedType.LPUTF8Str)] string bsdName);
     [DllImport(DiskArbitration)] private static extern void DADiskUnmount(IntPtr disk, uint options, delegate* unmanaged<IntPtr, IntPtr, IntPtr, void> callback, IntPtr context);
     [DllImport(DiskArbitration)] private static extern void DADiskMount(IntPtr disk, IntPtr path, uint options, delegate* unmanaged<IntPtr, IntPtr, IntPtr, void> callback, IntPtr context);
+    [DllImport(DiskArbitration)] private static extern IntPtr DADiskCopyDescription(IntPtr disk);
     [DllImport(DiskArbitration)] private static extern int DADissenterGetStatus(IntPtr dissenter);
     [DllImport(DiskArbitration)] private static extern IntPtr DADissenterGetStatusString(IntPtr dissenter);
 
@@ -50,6 +56,48 @@ public static unsafe class MacDisc
         var name = device[at..];
         var end = name.IndexOf('s', 4);
         return end > 0 ? name[..end] : name;
+    }
+
+    /// Whether the device holds a CD, by what macOS says of its media
+    /// (DiskArbitration's media kind, IOCDMedia), without sending the drive a
+    /// command. libcdio's list of drives on a Mac also holds disk images: the
+    /// Deadwax.dmg a new user has just installed from came FIRST in it, so
+    /// Deadwax took the image for the drive and saw "No disc" with the CD in
+    /// (Control, 2026-10-24, the first install from the dmg). True on any
+    /// other platform.
+    public static bool IsCd(string device)
+    {
+        if (!OperatingSystem.IsMacOS()) return true;
+        return MediaKind(device) == "IOCDMedia";
+    }
+
+    /// DiskArbitration's media kind for the device's disk (IOCDMedia,
+    /// IODVDMedia, IOMedia for a disk image or an ordinary disk), or null.
+    public static string? MediaKind(string device)
+    {
+        if (BsdName(device) is not { } bsd) return null;
+        var session = DASessionCreate(IntPtr.Zero);
+        if (session == IntPtr.Zero) return null;
+        IntPtr disk = IntPtr.Zero, description = IntPtr.Zero, key = IntPtr.Zero;
+        try
+        {
+            disk = DADiskCreateFromBSDName(IntPtr.Zero, session, bsd);
+            if (disk == IntPtr.Zero) return null;
+            description = DADiskCopyDescription(disk);
+            if (description == IntPtr.Zero) return null;
+            key = CFStringCreateWithCString(IntPtr.Zero, "DAMediaKind", StringEncodingUtf8);   // kDADiskDescriptionMediaKindKey
+            var value = CFDictionaryGetValue(description, key);
+            if (value == IntPtr.Zero || CFGetTypeID(value) != CFStringGetTypeID()) return null;
+            var buffer = stackalloc byte[128];
+            return CFStringGetCString(value, buffer, 128, StringEncodingUtf8) ? Marshal.PtrToStringUTF8((IntPtr)buffer) : null;
+        }
+        finally
+        {
+            if (key != IntPtr.Zero) CFRelease(key);
+            if (description != IntPtr.Zero) CFRelease(description);
+            if (disk != IntPtr.Zero) CFRelease(disk);
+            CFRelease(session);
+        }
     }
 
     /// Unmounts every volume of the disk the device is on and waits for the

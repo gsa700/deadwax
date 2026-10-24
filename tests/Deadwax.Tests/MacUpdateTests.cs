@@ -179,3 +179,51 @@ public class MacUpdateTests
         p.WaitForExit();
     }
 }
+
+/// Which disks count as the CD drive on a Mac (MacDisc.IsCd): never a disk
+/// image, which libcdio lists among the drives (a mounted Deadwax.dmg came
+/// first, 2026-10-24), and never a disk that is not there.
+public class MacDiscTests
+{
+    [Fact]
+    public void A_disk_image_is_not_a_cd()
+    {
+        if (!OperatingSystem.IsMacOS()) return;
+        var dir = Directory.CreateTempSubdirectory("deadwax-macdisc-").FullName;
+        string? device = null;
+        try
+        {
+            var image = Path.Combine(dir, "t.dmg");
+            Run("/usr/bin/hdiutil", "create", "-quiet", "-size", "1m", "-layout", "NONE", "-fs", "HFS+", "-volname", "t", image);
+            var attached = Run("/usr/bin/hdiutil", "attach", "-nomount", image);
+            device = attached.Split('\n', StringSplitOptions.RemoveEmptyEntries)[0].Split('\t')[0].Trim();
+            Assert.StartsWith("/dev/disk", device);
+            Assert.NotEqual("IOCDMedia", Deadwax.Drive.MacDisc.MediaKind(device));
+            Assert.False(Deadwax.Drive.MacDisc.IsCd(device));
+            Assert.False(Deadwax.Drive.MacDisc.IsCd(device.Replace("/dev/disk", "/dev/rdisk")));
+        }
+        finally
+        {
+            if (device is not null) Run("/usr/bin/hdiutil", "detach", "-quiet", device);
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void A_disk_that_is_not_there_is_not_a_cd()
+    {
+        if (!OperatingSystem.IsMacOS()) return;
+        Assert.False(Deadwax.Drive.MacDisc.IsCd("/dev/disk987"));
+        Assert.False(Deadwax.Drive.MacDisc.IsCd("not a device"));
+    }
+
+    private static string Run(string file, params string[] args)
+    {
+        var start = new ProcessStartInfo(file) { RedirectStandardOutput = true, RedirectStandardError = true };
+        foreach (var a in args) start.ArgumentList.Add(a);
+        using var p = Process.Start(start)!;
+        var o = p.StandardOutput.ReadToEnd(); p.StandardError.ReadToEnd();
+        p.WaitForExit();
+        return o;
+    }
+}
