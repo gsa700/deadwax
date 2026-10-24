@@ -3,6 +3,8 @@
 #
 #   tools/make-macos-app.sh            dist/Deadwax.app, for the machine's own arch
 #   tools/make-macos-app.sh --install  and copy it to /Applications (replacing one there)
+#   tools/make-macos-app.sh --notarize also have Apple notarize it and staple the ticket
+#                                      (needs the Developer ID; options combine)
 #
 # WHAT IS IN IT: the same single-file program release.sh publishes for every
 # platform (libcdio and libcdio-paranoia from native/osx-<arch>/ are
@@ -37,11 +39,12 @@ set -euo pipefail
 
 [ "$(uname -s)" = Darwin ] || { echo "make-macos-app.sh: on a Mac only" >&2; exit 1; }
 
-INSTALL=no
+INSTALL=no; NOTARIZE=no
 for arg in "$@"; do
     case "$arg" in
         --install) INSTALL=yes ;;
-        *) echo "usage: $0 [--install]" >&2; exit 2 ;;
+        --notarize) NOTARIZE=yes ;;
+        *) echo "usage: $0 [--install] [--notarize]" >&2; exit 2 ;;
     esac
 done
 
@@ -145,14 +148,47 @@ else
            security find-identity -v -p codesigning | grep "Developer ID Application" >&2; exit 1 ;;
     esac
 fi
+# A Developer ID signature gets the hardened runtime, which notarization
+# requires, with the two exceptions .NET needs (tools/macos/Deadwax.entitlements:
+# JIT, and loading the libraries the single-file program unpacks into ~/.net;
+# without the second, Skia fails to load and the app aborts at start, tested
+# 2026-10-23), and Apple's timestamp.
 if security find-identity -p codesigning | grep -qF -e "\"$SIGN_ID\"" -e ") $SIGN_ID "; then
-    echo "== sign ($(security find-identity -p codesigning | grep -F -e "\"$SIGN_ID\"" -e ") $SIGN_ID " | head -1 | sed 's/^[^"]*"\([^"]*\)".*/\1/'))"
-    codesign --force --sign "$SIGN_ID" "$APP"
+    LABEL=$(security find-identity -p codesigning | grep -F -e "\"$SIGN_ID\"" -e ") $SIGN_ID " | head -1 | sed 's/^[^"]*"\([^"]*\)".*/\1/')
+    echo "== sign ($LABEL)"
+    case $LABEL in
+        "Developer ID Application:"*)
+            codesign --force --options runtime --timestamp \
+                --entitlements "$ROOT/tools/macos/Deadwax.entitlements" --sign "$SIGN_ID" "$APP" ;;
+        *)
+            [ "$NOTARIZE" = yes ] && { echo "--notarize needs a Developer ID certificate, not \"$LABEL\"" >&2; exit 1; }
+            codesign --force --sign "$SIGN_ID" "$APP" ;;
+    esac
 else
+    [ "$NOTARIZE" = yes ] && { echo "--notarize needs a Developer ID certificate" >&2; exit 1; }
     echo "== sign (ad hoc: no \"$SIGN_ID\" certificate on this Mac, so macOS will ask for its permissions again)"
     codesign --force --sign - "$APP"
 fi
 codesign --verify --strict "$APP"
+
+# NOTARIZE: Apple checks the signed app and issues a ticket; stapling puts the
+# ticket inside the app, so a Mac that downloads it can check it offline.
+# Credentials are a notarytool keychain profile (made once with `xcrun notarytool
+# store-credentials`), named in DEADWAX_NOTARY_PROFILE, "notary" by default.
+if [ "$NOTARIZE" = yes ]; then
+    echo "== notarize (Apple; usually a few minutes)"
+    ditto -c -k --keepParent "$APP" "$WORK/notarize.zip"
+    xcrun notarytool submit "$WORK/notarize.zip" --keychain-profile "${DEADWAX_NOTARY_PROFILE:-notary}" --wait \
+        | tee "$WORK/notary.txt"
+    if ! grep -q "status: Accepted" "$WORK/notary.txt"; then
+        id=$(sed -n 's/^ *id: //p' "$WORK/notary.txt" | head -1)
+        [ -n "$id" ] && xcrun notarytool log "$id" --keychain-profile "${DEADWAX_NOTARY_PROFILE:-notary}" >&2
+        echo "notarization was not accepted" >&2; exit 1
+    fi
+    xcrun stapler staple "$APP"
+    xcrun stapler validate "$APP"
+    spctl --assess --type execute -vv "$APP"
+fi
 
 echo "== $APP"
 du -sh "$APP" | cut -f1
