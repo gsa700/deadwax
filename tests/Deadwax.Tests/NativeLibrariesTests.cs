@@ -11,7 +11,6 @@ public class NativeLibrariesTests
     [InlineData("cdio")]
     [InlineData("cdio_cdda")]
     [InlineData("cdio_paranoia")]
-    [InlineData("FLAC")]
     public void Every_library_has_a_versioned_name_first_for_this_platform(string name)
     {
         var candidates = NativeLibraries.Candidates(name);

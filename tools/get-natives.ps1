@@ -1,6 +1,6 @@
 # Fetches the native libraries Deadwax carries, for a Windows development build.
 #
-# libcdio, libcdio-paranoia and libFLAC are C libraries, so NuGet cannot bring
+# libcdio and libcdio-paranoia are C libraries, so NuGet cannot bring
 # them in. This fetches OUR build of them (tools/build-natives, published as a
 # natives-N pre-release on this repository) into native\win-x64\, where the
 # project picks them up. The same files a release carries inside its exe.

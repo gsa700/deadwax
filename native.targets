@@ -1,6 +1,6 @@
 <Project>
-  <!-- The native libraries the program carries (libcdio, libcdio-paranoia,
-       libFLAC), per platform, from native/<rid>/: built by
+  <!-- The native libraries the program carries (libcdio, libcdio-paranoia),
+       per platform, from native/<rid>/: built by
        tools/build-natives (Linux and Windows in a container, macOS on a Mac)
        or fetched from a natives-N release by tools/release.sh. Never
        committed: native/ is git-ignored. The folder follows what is being
@@ -17,7 +17,8 @@
     <NativeDir>$(MSBuildThisFileDirectory)native/$(NativeRid)</NativeDir>
   </PropertyGroup>
   <ItemGroup Condition="'$(NativeRid)' != '' and Exists('$(NativeDir)')">
-    <None Include="$(NativeDir)/*.dll;$(NativeDir)/*.so.*;$(NativeDir)/*.dylib;$(NativeDir)/natives-build-info*.txt" Link="%(Filename)%(Extension)"
+    <None Include="$(NativeDir)/*.dll;$(NativeDir)/*.so.*;$(NativeDir)/*.dylib;$(NativeDir)/natives-build-info*.txt"
+          Exclude="$(NativeDir)/*FLAC*" Link="%(Filename)%(Extension)"
           CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

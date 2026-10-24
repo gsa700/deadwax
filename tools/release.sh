@@ -173,7 +173,7 @@ if [ -z "$NOTES" ]; then
         platforms=$(for rid in "${RIDS[@]}"; do case $rid in (linux-x64) echo "Linux x86-64";; (win-x64) echo "Windows x64";; (osx-arm64) echo "macOS (Apple silicon)";; (*) echo "$rid";; esac; done | paste -sd, - | sed 's/,/, /g')
         echo "Deadwax $VERSION, for $platforms.$([ $EDGE -eq 1 ] && echo " An Edge build: offered to copies set to Edge until it is promoted to Stable.")"
         echo
-        echo "Unpack the zip and run Deadwax. Nothing else to install: libcdio, libcdio-paranoia and libFLAC are built in ($NATIVES; sources on that release)."
+        echo "Unpack the zip and run Deadwax. Nothing else to install: libcdio and libcdio-paranoia are built in ($NATIVES; sources on that release)."
         echo "A running copy offers newer releases from its title bar and updates itself in place."
         if printf '%s\n' "${RIDS[@]}" | grep -q '^win-'; then
             echo

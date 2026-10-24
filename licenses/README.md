@@ -15,8 +15,6 @@ with it; the SHA-256 says exactly which text this is.
 |---|---|---|---|---|---|
 | [libcdio-COPYING.txt](libcdio-COPYING.txt) | libcdio (GPL v3 or later) | https://github.com/libcdio/libcdio | `2.3.0` | `COPYING` | `8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903` |
 | [libcdio-paranoia-COPYING.txt](libcdio-paranoia-COPYING.txt) | libcdio-paranoia (GPL v3 or later) | https://github.com/libcdio/libcdio-paranoia | `release-10.2+2.0.2` | `COPYING` | `8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903` |
-| [flac-COPYING.Xiph.txt](flac-COPYING.Xiph.txt) | libFLAC (BSD 3-Clause) | https://github.com/xiph/flac | `1.5.0` | `COPYING.Xiph` | `7866ee98760fc1f0156b4fe6bf530257e02be487ab3fd94e2b63799dd32d6b2c` |
-| [core-math-LICENSE.txt](core-math-LICENSE.txt) | CORE-MATH, cosf and log (MIT) | https://gitlab.inria.fr/core-math/core-math | `29f5112` | `LICENSE` | `81830875362f4d477637de58eecd6d458db108cc90c40904fca3694807b86de3` |
 | [cdrdao-COPYING.txt](cdrdao-COPYING.txt) | cdrdao, the CD-Text and Q-subchannel decoders ported from it (GPL v2 or later) | https://github.com/cdrdao/cdrdao | `default branch` | `COPYING` | `91df39d1816bfb17a4dda2d3d2c83b1f6f2d38d53e53e41e8f97ad5ac46a0cad` |
 | [dotnet-runtime-LICENSE.TXT](dotnet-runtime-LICENSE.TXT) | .NET runtime and System.IO.Hashing (MIT) | https://github.com/dotnet/runtime | `v10.0.0` | `LICENSE.TXT` | `cfc21f5e8bd655ae997eec916138b707b1d290b83272c02a95c9f821b8c87310` |
 | [avalonia-licence.md](avalonia-licence.md) | Avalonia (MIT) | https://github.com/AvaloniaUI/Avalonia | `12.1.2` | `licence.md` | `213814d306090074d234d760239ff0f67eb9b8d20eefb4d5631bb39dbe0b769b` |

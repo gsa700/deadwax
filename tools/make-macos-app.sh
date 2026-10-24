@@ -5,7 +5,7 @@
 #   tools/make-macos-app.sh --install  and copy it to /Applications (replacing one there)
 #
 # WHAT IS IN IT: the same single-file program release.sh publishes for every
-# platform (libcdio, libcdio-paranoia and libFLAC from native/osx-<arch>/ are
+# platform (libcdio and libcdio-paranoia from native/osx-<arch>/ are
 # inside it), in the folder layout macOS expects of an application:
 #
 #   Deadwax.app/Contents/Info.plist        name, version, identity, icon
@@ -57,7 +57,7 @@ trap 'rm -rf "$WORK"' EXIT
 
 # Without its own libraries the app has nothing to read a disc with: a Mac
 # has no libcdio. A bundle without them is not worth making.
-for lib in libcdio.19.dylib libcdio_cdda.2.dylib libcdio_paranoia.2.dylib libFLAC.14.dylib; do
+for lib in libcdio.19.dylib libcdio_cdda.2.dylib libcdio_paranoia.2.dylib; do
     [ -f "$ROOT/native/$RID/$lib" ] || {
         echo "no native/$RID/$lib: fetch the natives first (tools/get-natives.sh)" >&2; exit 1; }
 done

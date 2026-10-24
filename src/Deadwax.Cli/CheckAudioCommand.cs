@@ -1,5 +1,5 @@
-using System.Diagnostics;
 using System.Text.RegularExpressions;
+using Deadwax.Output;
 using Deadwax.Verify;
 using static Deadwax.Cli.Commands;
 
@@ -11,7 +11,9 @@ namespace Deadwax.Cli;
 /// they will agree on audio Deadwax reads.
 internal static partial class CheckAudioCommand
 {
-    public static async Task<int> RunAsync(string[] args)
+    public static Task<int> RunAsync(string[] args) => Task.FromResult(Run(args));
+
+    private static int Run(string[] args)
     {
         var options = new Options(args);
         var limitText = options.Value("--limit");
@@ -46,7 +48,7 @@ internal static partial class CheckAudioCommand
             foreach (var t in log.Tracks.Where(t => t.Number >= 1))
             {
                 if (!flacs.TryGetValue(t.Number, out var flac)) continue;
-                var audio = await DecodeAsync(flac);
+                var audio = FlacDecoder.DecodeToPcm(flac, out _);
                 tracks++;
 
                 var crc = AudioChecks.Crc32(audio);
@@ -82,22 +84,6 @@ internal static partial class CheckAudioCommand
         return failed == 0 ? 0 : 1;
     }
 
-    /// Raw 16-bit little-endian audio from `flac -d`. A test harness only: Deadwax
-    /// itself encodes with libFLAC and never needs to decode.
-    private static async Task<byte[]> DecodeAsync(string path)
-    {
-        var start = new ProcessStartInfo("flac") { RedirectStandardOutput = true, RedirectStandardError = true };
-        foreach (var a in new[] { "-d", "-s", "-c", "--force-raw-format", "--endian=little", "--sign=signed", path })
-            start.ArgumentList.Add(a);
-        using var process = Process.Start(start) ?? throw new InvalidOperationException("flac did not start");
-        using var buffer = new MemoryStream();
-        var copy = process.StandardOutput.BaseStream.CopyToAsync(buffer);
-        var errors = process.StandardError.ReadToEndAsync();
-        await copy;
-        await process.WaitForExitAsync();
-        if (process.ExitCode != 0) throw new InvalidOperationException($"flac -d failed on {path}: {await errors}");
-        return buffer.ToArray();
-    }
 
     [GeneratedRegex(@" - (\d{2,3}) - ")]
     private static partial Regex TrackNumber();

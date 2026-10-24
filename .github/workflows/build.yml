@@ -37,15 +37,13 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      # The tests that encode FLAC need libFLAC; libcdio is loaded by name
-      # where a test asks for the default device. Windows has neither yet (the
-      # FLAC tests say so and return), which is what the native bundles fix.
+      # libcdio is loaded by name where a test asks for the default device.
       - name: Native libraries (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update -q && sudo apt-get install -y -q libcdio-paranoia-dev libflac-dev
+        run: sudo apt-get update -q && sudo apt-get install -y -q libcdio-paranoia-dev
       - name: Native libraries (macOS)
         if: runner.os == 'macOS'
-        run: brew install libcdio libcdio-paranoia flac
+        run: brew install libcdio libcdio-paranoia
 
       - name: Build
         run: dotnet build Deadwax.slnx -c Release -nologo -v quiet

@@ -31,31 +31,6 @@ in `tools/build-natives/patches/`, and its README says what each one fixes.
   Source: https://ftp.gnu.org/gnu/libcdio/ (`libcdio-paranoia-10.2+2.0.2`)
   Patched: a buffer sized in bytes for a count of samples, from the same review.
 
-- **libFLAC 1.5.0**: encodes each track as FLAC and checks every frame as it
-  goes.
-  License: BSD 3-Clause (Xiph.Org).
-  Source: https://github.com/xiph/flac (release `1.5.0`)
-  Patched: its two maths functions go through CORE-MATH's correctly rounded
-  versions, so that the same audio encodes to the same bytes on Linux, Windows
-  and macOS.
-
-- **CORE-MATH** (`cosf` and `log` only): the correctly rounded functions that
-  patch uses, copied in from upstream commit `29f5112`.
-  License: MIT.
-  Source: https://core-math.gitlabpages.inria.fr
-
-## Code taken from cdrdao
-
-Deadwax reads the disc's subchannel itself, and two parts of that reader are
-ported line for line from **cdrdao**: the CD-Text decoder (`CdTextPacks`, from
-`processPacks` in `dao/CdrDriver.cc`) and the Q-subchannel decoding
-(`QSubchannel`). The `.toc` file Deadwax writes is cdrdao's format, written
-byte for byte as cdrdao writes it.
-License: GNU GPL, version 2 or later (so it can be part of a GPLv3 program).
-Source: https://github.com/cdrdao/cdrdao
-
-## The application
-
 - **.NET 10 runtime**: a release is self-contained, so the runtime is inside
   it.
   License: MIT.

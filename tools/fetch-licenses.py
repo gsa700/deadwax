@@ -31,7 +31,6 @@ import urllib.request
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "licenses")
 PINS = os.path.join(ROOT, "tools", "build-natives", "pins.sh")
-CORE_MATH = "29f5112"   # the upstream commit the flac patch's crmath_*.c come from
 
 
 def pins():
@@ -58,8 +57,6 @@ WANTED = [
     ("libcdio-COPYING.txt", "libcdio (GPL v3 or later)", GITHUB, "libcdio/libcdio", [P["LIBCDIO_VERSION"]], ["COPYING"]),
     ("libcdio-paranoia-COPYING.txt", "libcdio-paranoia (GPL v3 or later)", GITHUB, "libcdio/libcdio-paranoia",
      ["release-" + P["PARANOIA_VERSION"]], ["COPYING"]),
-    ("flac-COPYING.Xiph.txt", "libFLAC (BSD 3-Clause)", GITHUB, "xiph/flac", [P["FLAC_VERSION"]], ["COPYING.Xiph"]),
-    ("core-math-LICENSE.txt", "CORE-MATH, cosf and log (MIT)", INRIA, "core-math/core-math", [CORE_MATH], ["LICENSE"]),
     ("cdrdao-COPYING.txt", "cdrdao, the CD-Text and Q-subchannel decoders ported from it (GPL v2 or later)", GITHUB,
      "cdrdao/cdrdao", [None], ["COPYING"]),
 

@@ -28,7 +28,7 @@ public static class NativeLibraries
     }
 
     /// The file names tried, in order, for a library known by its base name
-    /// ("cdio", "cdio_cdda", "cdio_paranoia", "FLAC") on this platform.
+    /// ("cdio", "cdio_cdda", "cdio_paranoia") on this platform.
     public static string[] Candidates(string name)
     {
         if (OperatingSystem.IsWindows())
@@ -37,7 +37,6 @@ public static class NativeLibraries
                 "cdio" => ["libcdio-19.dll", "libcdio.dll", "cdio.dll"],
                 "cdio_cdda" => ["libcdio_cdda-2.dll", "libcdio_cdda.dll", "cdio_cdda.dll"],
                 "cdio_paranoia" => ["libcdio_paranoia-2.dll", "libcdio_paranoia.dll", "cdio_paranoia.dll"],
-                "FLAC" => ["libFLAC-14.dll", "libFLAC-12.dll", "libFLAC.dll", "FLAC.dll"],
                 _ => [],
             };
         if (OperatingSystem.IsMacOS())
@@ -46,7 +45,6 @@ public static class NativeLibraries
                 "cdio" => ["libcdio.19.dylib", "libcdio.dylib"],
                 "cdio_cdda" => ["libcdio_cdda.2.dylib", "libcdio_cdda.dylib"],
                 "cdio_paranoia" => ["libcdio_paranoia.2.dylib", "libcdio_paranoia.dylib"],
-                "FLAC" => ["libFLAC.14.dylib", "libFLAC.12.dylib", "libFLAC.dylib"],
                 _ => [],
             };
         return name switch
@@ -54,7 +52,6 @@ public static class NativeLibraries
             "cdio" => ["libcdio.so.19", "libcdio.so"],
             "cdio_cdda" => ["libcdio_cdda.so.2", "libcdio_cdda.so"],
             "cdio_paranoia" => ["libcdio_paranoia.so.2", "libcdio_paranoia.so"],
-            "FLAC" => ["libFLAC.so.14", "libFLAC.so.12", "libFLAC.so"],
             _ => [],
         };
     }

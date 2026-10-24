@@ -43,13 +43,12 @@ Windows may say "Windows protected your PC" on the first run, because the
 program is not signed: More info, then Run anyway. There is no Mac download
 yet: build the app as described under [Install](#install).
 
-Since 0.3.1 the program carries its own libcdio, libcdio-paranoia and libFLAC (built from pinned source by
+Since 0.3.1 the program carries its own libcdio and libcdio-paranoia (built from pinned source by
 `tools/build-natives`, published as a `natives-N` pre-release with the
 sources attached), so nothing needs installing. Releases before that needed
 `libcdio`, `libcdio-paranoia` and `flac-libs` from the distribution, and
-0.2.x needed `cdrdao` as well. Since 0.6.0 libFLAC no longer encodes the rips;
-it stays in the bundle for one more release, used only when `DEADWAX_FLAC=libflac`
-is set, to compare the two encoders, and then leaves.
+0.2.x needed `cdrdao` as well. Since 0.6.0 Deadwax's own encoder makes the
+FLACs; libFLAC, which made them before, left the program in 0.6.2.
 
 A running copy checks GitHub for a newer release a few seconds after launch
 and, if there is one, offers it in the title bar. The update is verified against
@@ -238,8 +237,7 @@ Applications. It does not update itself yet: rebuild it after pulling.
 
 Needs the .NET 10 SDK and, unless `native/` holds the bundled copies
 (`tools/build-natives`), libcdio and libcdio-paranoia from the distribution
-(the -devel packages are not needed). libFLAC is needed only for
-`DEADWAX_FLAC=libflac`. cdrdao is only needed by
+(the -devel packages are not needed). cdrdao is only needed by
 `deadwax subchannel --cdrdao`, which compares Deadwax's reading with it.
 
 ```
