@@ -16,14 +16,16 @@
 # Launchpad, Spotlight and the Dock find it there. AlbumWall's
 # scripts/make-macos-app.sh is the model; the two stay alike.
 #
-# SIGNED WITH A LOCAL CERTIFICATE when this Mac has one, AD HOC otherwise.
-# Neither is Apple's Developer ID: both are enough for Apple silicon to run what
-# was built here, neither lets a DOWNLOADED copy past Gatekeeper. This is for
-# building at home, not for a release. macOS remembers a permission (the Music
-# folder the rips go into) against the app's signature; ad hoc, every rebuild
-# would ask again. Make a code-signing certificate once in Keychain Access
+# SIGNED WITH APPLE'S DEVELOPER ID when this Mac has that certificate (since
+# 2026-10-23, team 4QX5GG2276), else with a local certificate, else AD HOC.
+# Not yet notarized, and without the hardened runtime: a DOWNLOADED copy still
+# doesn't get past Gatekeeper, so this is for building at home, not for a
+# release. macOS remembers a permission (the Music folder the rips go into)
+# against the app's signature; ad hoc, every rebuild would ask again. Without a
+# Developer ID, make a code-signing certificate once in Keychain Access
 # (Certificate Assistant, Create a Certificate: Self-Signed Root, Certificate
-# Type Code Signing), named "Deadwax Local", or name yours in DEADWAX_SIGN_ID.
+# Type Code Signing), named "Deadwax Local", or name any certificate in
+# DEADWAX_SIGN_ID.
 #
 # The identity, io.github.gsa700.Deadwax, is where macOS keeps the app's
 # permissions and preferences, so it must not change.
@@ -129,9 +131,22 @@ cat > "$APP/Contents/Info.plist" <<EOF
 EOF
 plutil -lint "$APP/Contents/Info.plist" >/dev/null
 
-SIGN_ID="${DEADWAX_SIGN_ID:-Deadwax Local}"
-if security find-identity -p codesigning | grep -qF "\"$SIGN_ID\""; then
-    echo "== sign ($SIGN_ID)"
+# Which certificate: DEADWAX_SIGN_ID if set (a name or a SHA-1); else this Mac's
+# Apple Developer ID Application certificate when there is exactly one (two
+# while one is being renewed: then name one); else the local "Deadwax Local".
+if [ -n "${DEADWAX_SIGN_ID:-}" ]; then
+    SIGN_ID=$DEADWAX_SIGN_ID
+else
+    DEVID=$(security find-identity -v -p codesigning | sed -n 's/^ *[0-9]*) \([0-9A-F]\{40\}\) "Developer ID Application: .*"$/\1/p')
+    case $(printf '%s' "$DEVID" | grep -c . || true) in
+        0) SIGN_ID="Deadwax Local" ;;
+        1) SIGN_ID=$DEVID ;;
+        *) echo "several Developer ID Application certificates on this Mac: name one in DEADWAX_SIGN_ID" >&2
+           security find-identity -v -p codesigning | grep "Developer ID Application" >&2; exit 1 ;;
+    esac
+fi
+if security find-identity -p codesigning | grep -qF -e "\"$SIGN_ID\"" -e ") $SIGN_ID "; then
+    echo "== sign ($(security find-identity -p codesigning | grep -F -e "\"$SIGN_ID\"" -e ") $SIGN_ID " | head -1 | sed 's/^[^"]*"\([^"]*\)".*/\1/'))"
     codesign --force --sign "$SIGN_ID" "$APP"
 else
     echo "== sign (ad hoc: no \"$SIGN_ID\" certificate on this Mac, so macOS will ask for its permissions again)"
