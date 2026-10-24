@@ -29,13 +29,14 @@ public static class FlacTags
 
     /// Replaces every Vorbis comment with these (FlacWriter.WriteTags).
     /// Repeated keys become one field with several values, which is how FLAC
-    /// stores them anyway (one line each). Any ID3 or APE tag goes.
+    /// stores them anyway (one line each). An ID3v2 tag in front goes; the audio frames, and
+    /// anything after them, are not touched.
     public static void Replace(string path, IReadOnlyList<Tag> tags)
     {
         var flac = FlacMetadata.Read(path);
         flac.Clear();
         foreach (var group in tags.GroupBy(t => t.Key))
             flac.Set(group.Key, group.Select(t => t.Value));
-        flac.Save(path, dropOtherTags: true);
+        flac.Save(path, dropId3v2: true);
     }
 }

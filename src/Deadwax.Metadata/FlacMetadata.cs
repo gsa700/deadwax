@@ -125,9 +125,12 @@ public sealed class FlacMetadata
 
     public void Clear() => _fields.Clear();
 
-    /// Writes the metadata back. dropOtherTags removes an ID3v2 tag before the
-    /// FLAC data and ID3v1/APE tags after it, as FlacWriter.WriteTags always did.
-    public void Save(string path, bool dropOtherTags = false)
+    /// Writes the metadata back. dropId3v2 removes an ID3v2 tag before the
+    /// FLAC data, as FlacWriter.WriteTags always did; it ends exactly where
+    /// "fLaC" starts. Everything after the last metadata block (the audio
+    /// frames, and any tag after them) is copied as it is: guessing where a
+    /// trailing ID3v1/APE tag starts cut audio off (review 2026-10-24 M2).
+    public void Save(string path, bool dropId3v2 = false)
     {
         var blocks = new List<(int Type, byte[] Data)> { _blocks[0] };
         blocks.AddRange(_blocks.Skip(1).Where(b => b.Type is not (StreamInfo or VorbisComment or Picture or Padding)));
@@ -152,9 +155,8 @@ public sealed class FlacMetadata
             rendered.Write(data);
         }
 
-        var (tailStart, tailEnd) = dropOtherTags ? AudioEnd(path) : (-1L, -1L);
-        var keepPrefix = !dropOtherTags || _flacStart == 0;
-        if (rendered.Length == oldSpace && keepPrefix && tailStart < 0)
+        var keepPrefix = !dropId3v2 || _flacStart == 0;
+        if (rendered.Length == oldSpace && keepPrefix)
         {
             // The same size: only the metadata is rewritten, the audio stays where it is.
             using var file = new FileStream(path, FileMode.Open, FileAccess.Write);
@@ -175,9 +177,7 @@ public sealed class FlacMetadata
                 target.Write("fLaC"u8);
                 rendered.Position = 0;
                 rendered.CopyTo(target);
-                var audioEnd = tailStart >= 0 ? tailStart : source.Length;
-                Copy(source, target, _metadataEnd, audioEnd - _metadataEnd);
-                if (tailEnd >= 0 && tailEnd < source.Length) Copy(source, target, tailEnd, source.Length - tailEnd);
+                Copy(source, target, _metadataEnd, source.Length - _metadataEnd);
             }
             File.Move(temp, path, overwrite: true);
         }
@@ -287,32 +287,6 @@ public sealed class FlacMetadata
         if (file.Read(h) != 10 || !h[..3].SequenceEqual("ID3"u8)) return 0;
         var size = (h[6] & 0x7F) << 21 | (h[7] & 0x7F) << 14 | (h[8] & 0x7F) << 7 | (h[9] & 0x7F);
         return 10 + size + ((h[5] & 0x10) != 0 ? 10 : 0);   // a footer, when the flags say so
-    }
-
-    /// Where tags after the audio start and end: an APE tag, then an ID3v1
-    /// tag, as TagLib# looks for them. (-1, -1) when there are none.
-    private static (long Start, long End) AudioEnd(string path)
-    {
-        using var file = File.OpenRead(path);
-        var end = file.Length;
-        var start = end;
-        Span<byte> b = stackalloc byte[32];
-        if (end >= 128)
-        {
-            file.Position = end - 128;
-            if (file.Read(b[..3]) == 3 && b[..3].SequenceEqual("TAG"u8)) start = end - 128;
-        }
-        if (start >= 32)
-        {
-            file.Position = start - 32;
-            if (file.Read(b) == 32 && b[..8].SequenceEqual("APETAGEX"u8))
-            {
-                var size = BinaryPrimitives.ReadUInt32LittleEndian(b.Slice(12, 4));
-                var hasHeader = (BinaryPrimitives.ReadUInt32LittleEndian(b.Slice(20, 4)) & 0x80000000) != 0;
-                start -= size + (hasHeader ? 32 : 0);
-            }
-        }
-        return start == end ? (-1, -1) : (start, end);
     }
 
     private static void Copy(Stream source, Stream target, long from, long count)

@@ -28,5 +28,23 @@ public static class FlacWriter
 
     /// Replaces every Vorbis comment with these. Repeated keys become one field
     /// with several values, which is how FLAC stores them anyway (one line each).
-    public static void WriteTags(string path, IReadOnlyList<Tag> tags) => FlacTags.Replace(path, tags);
+    /// The audio frames after the metadata must come out byte for byte as the
+    /// encoder wrote (and decoded) them: the stored MD5 alone would not notice
+    /// frames cut short (review 2026-10-24 M2).
+    public static void WriteTags(string path, IReadOnlyList<Tag> tags)
+    {
+        var before = FramesHash(path);
+        FlacTags.Replace(path, tags);
+        if (!FramesHash(path).AsSpan().SequenceEqual(before))
+            throw new OutputException($"{Path.GetFileName(path)}: writing the tags changed the audio frames.");
+    }
+
+    /// SHA-256 of everything after the last metadata block.
+    private static byte[] FramesHash(string path)
+    {
+        var offset = FlacMetadata.Read(path).AudioOffset;
+        using var file = File.OpenRead(path);
+        file.Position = offset;
+        return System.Security.Cryptography.SHA256.HashData(file);
+    }
 }
