@@ -227,3 +227,53 @@ public class MacDiscTests
         return o;
     }
 }
+
+/// The first start's offer to eject the installer (MacInstaller): only a
+/// mounted disk image holding our Deadwax.app is offered.
+public class MacInstallerTests
+{
+    private static IReadOnlyList<(string MountPoint, string Name)> Disks() =>
+        (IReadOnlyList<(string, string)>)typeof(MacUpdate).Assembly.GetType("Deadwax.App.MacInstaller")!
+            .GetMethod("InstallerDisks")!.Invoke(null, null)!;
+
+    [Fact]
+    public void Only_an_image_holding_Deadwax_is_offered()
+    {
+        if (!OperatingSystem.IsMacOS()) return;
+        var dir = Directory.CreateTempSubdirectory("deadwax-installer-").FullName;
+        var mounted = new List<string>();
+        try
+        {
+            // One image with something that is not Deadwax, one with a Deadwax.app of ours (Info.plist only).
+            foreach (var (name, id) in new[] { ("NotDeadwax", "com.example.Other"), ("DeadwaxTest", MacUpdate.BundleId) })
+            {
+                var src = Path.Combine(dir, name);
+                Directory.CreateDirectory(Path.Combine(src, "Deadwax.app", "Contents"));
+                File.WriteAllText(Path.Combine(src, "Deadwax.app", "Contents", "Info.plist"),
+                    $"<?xml version=\"1.0\"?><plist version=\"1.0\"><dict><key>CFBundleIdentifier</key><string>{id}</string></dict></plist>");
+                var image = Path.Combine(dir, name + ".dmg");
+                Run("/usr/bin/hdiutil", "create", "-quiet", "-volname", name, "-srcfolder", src, "-fs", "HFS+", "-format", "UDRO", image);
+                var output = Run("/usr/bin/hdiutil", "attach", "-nobrowse", "-noautoopen", "-readonly", image);
+                mounted.Add(output.Split('\n').Last(l => l.Contains("/Volumes/")).Split('\t').Last().Trim());
+            }
+            var offered = Disks().Select(d => d.MountPoint).ToList();
+            Assert.Contains(mounted[1], offered);
+            Assert.DoesNotContain(mounted[0], offered);
+        }
+        finally
+        {
+            foreach (var m in mounted) Run("/usr/bin/hdiutil", "detach", "-quiet", m);
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    private static string Run(string file, params string[] args)
+    {
+        var start = new ProcessStartInfo(file) { RedirectStandardOutput = true, RedirectStandardError = true };
+        foreach (var a in args) start.ArgumentList.Add(a);
+        using var p = Process.Start(start)!;
+        var o = p.StandardOutput.ReadToEnd(); p.StandardError.ReadToEnd();
+        p.WaitForExit();
+        return o;
+    }
+}

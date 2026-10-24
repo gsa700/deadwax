@@ -30,6 +30,9 @@ internal static class InstallFlow
         // The unpacked native libraries of builds that are no longer running.
         _ = Task.Run(InstallService.SweepStaleExtractions);
 
+        // The Mac: the installer's disk image left mounted, or this copy run from it.
+        await MacInstaller.OfferAsync(window);
+
         // A release sitting wherever it was unzipped offers to install itself.
         // Never a development build (see InstallService).
         return InstallService.ShouldOfferInstall && await OfferInstallAsync(window);
