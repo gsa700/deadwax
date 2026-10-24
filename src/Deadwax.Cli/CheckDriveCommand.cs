@@ -30,7 +30,7 @@ internal static class CheckDriveCommand
         var device = args.Length > 1 && args[0] == "--device" ? args[1] : ourDevices.FirstOrDefault();
         if (device is null) { Console.WriteLine("No CD in any drive."); return Task.FromResult(1); }
 
-        using var cdio = CdDrive.Open(device);
+        using var cdio = CdDrive.Open(device, libcdio: true);
         var theirToc = cdio.ReadToc();
         Line("identity", MacDisc.Identity(device)?.ToString() ?? "(none)", cdio.ReadIdentity()?.ToString() ?? "(none)");
 

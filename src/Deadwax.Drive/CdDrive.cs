@@ -59,8 +59,9 @@ public sealed class CdDrive : IDisposable
                 // On a Mac only a disk macOS says holds a CD: libcdio lists disk
                 // images too, and a mounted Deadwax.dmg came first (MacDisc.IsCd).
                 if (OperatingSystem.IsMacOS())
-                    return LibCdio.Devices().FirstOrDefault(MacDisc.IsCd)
-                        ?? (LibCdio.DefaultDevice() is { } d && MacDisc.IsCd(d) ? d : null);
+                    return OwnDriveAccess ? MacDisc.CdDevices().FirstOrDefault()
+                        : LibCdio.Devices().FirstOrDefault(MacDisc.IsCd)
+                          ?? (LibCdio.DefaultDevice() is { } d && MacDisc.IsCd(d) ? d : null);
                 return LibCdio.Devices().FirstOrDefault() ?? LibCdio.DefaultDevice();
             }
             catch (DllNotFoundException)
@@ -93,7 +94,7 @@ public sealed class CdDrive : IDisposable
         // drive is opened through macOS's own drutil (2026-10-20: "Open tray"
         // did nothing with the drive empty; DefaultDevice was only a guess).
         // The window passes DefaultDevice, which is that same guess when nothing is found.
-        if (OperatingSystem.IsMacOS() && FoundDevice is null && (device is null || device == DefaultDevice)) return MacTray();
+        if (OperatingSystem.IsMacOS() && (OwnDriveAccess || FoundDevice is null && (device is null || device == DefaultDevice))) return MacTray();
         try { return LibCdio.cdio_eject_media_drive(device ?? DefaultDevice) == 0; }
         catch (DllNotFoundException) { return false; }
     }
@@ -116,9 +117,24 @@ public sealed class CdDrive : IDisposable
         return false;
     }
 
+    /// Deadwax's own drive access instead of libcdio's (step 3, spec §11): on
+    /// the Mac since 0.7.2, proven the same by check-drive. DEADWAX_DRIVE=libcdio
+    /// goes back to libcdio's. The audio itself is still read by
+    /// libcdio-paranoia (SecureReader) until step 4.
+    public static bool OwnDriveAccess =>
+        OperatingSystem.IsMacOS() && Environment.GetEnvironmentVariable("DEADWAX_DRIVE") != "libcdio";
+
     private IntPtr _cdio;
+    private MacIoctlTransport? _mac;
+    private IReadOnlyDictionary<int, byte>? _control;
 
     public string Device { get; }
+
+    private CdDrive(string device, MacIoctlTransport mac)
+    {
+        Device = device;
+        _mac = mac;
+    }
 
     private CdDrive(string device, IntPtr cdio)
     {
@@ -126,7 +142,8 @@ public sealed class CdDrive : IDisposable
         _cdio = cdio;
     }
 
-    public static CdDrive Open(string? device = null)
+    /// libcdio forces libcdio's drive access whatever OwnDriveAccess says, for check-drive.
+    public static CdDrive Open(string? device = null, bool libcdio = false)
     {
         device ??= DefaultDevice;
         // macOS mounts the disc on insertion; rippers unmount it so the
@@ -142,6 +159,7 @@ public sealed class CdDrive : IDisposable
             if (!MacDisc.Unmount(device, out var why))
                 Console.Error.WriteLine($"[drive] could not unmount {device}: {why}");
         }
+        if (OwnDriveAccess && !libcdio) return new CdDrive(device, new MacIoctlTransport(device));
         IntPtr cdio;
         try
         {
@@ -158,6 +176,13 @@ public sealed class CdDrive : IDisposable
 
     public Toc ReadToc()
     {
+        if (_mac is not null)
+        {
+            var answer = _mac.ReadFullToc() ?? throw new DriveException($"No disc in {Device}, or the disc has no table of contents.");
+            var (toc, control) = FullToc.Parse(answer);
+            _control = control;
+            return toc;
+        }
         var handle = Handle;
         var first = LibCdio.cdio_get_first_track_num(handle);
         var count = LibCdio.cdio_get_num_tracks(handle);
@@ -179,6 +204,7 @@ public sealed class CdDrive : IDisposable
 
     public unsafe DriveIdentity? ReadIdentity()
     {
+        if (_mac is not null) return MacDisc.Identity(Device);
         var buffer = stackalloc byte[LibCdio.HwInfoSize];
         if (!LibCdio.cdio_get_hwinfo(Handle, buffer)) return null;
 
@@ -211,6 +237,11 @@ public sealed class CdDrive : IDisposable
         {
             // libcdio's set_speed on macOS passes the value where the ioctl
             // wants a pointer (security scan 2026-10-12, L2); do it directly.
+            if (_mac is not null)
+            {
+                if (!_mac.SetSpeed(speed)) throw new DriveException($"{Device} did not accept a {speed}x speed limit.");
+                return;
+            }
             using var mac = new MacIoctlTransport(Device);
             if (!mac.SetSpeed(speed)) throw new DriveException($"{Device} did not accept a {speed}x speed limit.");
             return;
@@ -235,6 +266,12 @@ public sealed class CdDrive : IDisposable
     /// (its Q-subchannel reading is only checked against them).
     public (bool PreEmphasis, bool CopyPermitted, bool FourChannel) TrackFlags(int track)
     {
+        if (_mac is not null)
+        {
+            if (_control is null) ReadToc();
+            var c = _control!.GetValueOrDefault(track);
+            return ((c & 0x01) != 0, (c & 0x02) != 0, (c & 0x08) != 0);
+        }
         var n = (byte)track;
         return (LibCdio.cdio_get_track_preemphasis(Handle, n) == LibCdio.TrackFlagTrue,
                 LibCdio.cdio_get_track_copy_permit(Handle, n) == LibCdio.TrackFlagTrue,
@@ -249,6 +286,8 @@ public sealed class CdDrive : IDisposable
 
     public void Dispose()
     {
+        _mac?.Dispose();
+        _mac = null;
         if (_cdio == IntPtr.Zero) return;
         LibCdio.cdio_destroy(_cdio);
         _cdio = IntPtr.Zero;
