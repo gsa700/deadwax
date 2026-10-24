@@ -62,11 +62,15 @@ public static class UpdateService
     /// never offered an update.
     public static bool IsSingleFile => string.IsNullOrEmpty(typeof(UpdateService).Assembly.Location);
 
-    /// Not on macOS yet: there the program sits inside Deadwax.app, signed as a
-    /// whole (tools/make-macos-app.sh), and swapping the executable inside it
-    /// breaks the signature, which Apple silicon refuses to run. Updating a Mac
-    /// copy means replacing the bundle; until then it is rebuilt by hand.
-    public static bool CanUpdate => IsSingleFile && !OperatingSystem.IsMacOS();
+    /// On macOS since 0.7.0, by replacing Deadwax.app whole (MacUpdate):
+    /// the program sits inside it, signed as a whole, and swapping only the
+    /// executable would break the seal. Not from the disk image, from
+    /// Downloads, or where this account cannot write (MacBlocker says which).
+    public static bool CanUpdate => IsSingleFile && MacBlocker is null;
+
+    /// Why a Mac copy cannot update itself, as a sentence; null when it can,
+    /// and on every other system.
+    public static string? MacBlocker => OperatingSystem.IsMacOS() && IsSingleFile ? MacUpdate.Blocker(ExePath) : null;
 
     /// The version this copy reports, without the source-revision suffix.
     public static string CurrentVersion
@@ -254,6 +258,14 @@ public static class UpdateService
         Console.WriteLine($"[update] {info.AssetName} matches SHA256SUMS ({actual[..12]}...)");
 
         var unpacked = Path.Combine(tmp, "ex");
+        if (OperatingSystem.IsMacOS())
+        {
+            // The whole bundle, checked for our signature, Apple's notarization and its version.
+            var app = MacUpdate.UnpackAndVerify(zip, unpacked, info.LatestTag, CurrentVersion);
+            File.Delete(zip);
+            Console.WriteLine($"[update] {app}: signed by {MacUpdate.TeamId}, notarized, version {info.LatestTag}");
+            return app;
+        }
         ZipFile.ExtractToDirectory(zip, unpacked, overwriteFiles: true);
         File.Delete(zip);
         var staged = Directory.GetFiles(unpacked, ExeFileName, SearchOption.AllDirectories).FirstOrDefault()
@@ -279,8 +291,8 @@ public static class UpdateService
     }
 
     /// Launches the detached helper that waits for this process to exit,
-    /// replaces the executable with the staged one and relaunches it. THE
-    /// CALLER MUST THEN EXIT THE APP.
+    /// replaces the executable (on the Mac, the bundle) with the staged one
+    /// and relaunches it. THE CALLER MUST THEN EXIT THE APP.
     public static void ApplyAndRestart(string stagedExe)
     {
         var target = ExePath;
@@ -292,6 +304,13 @@ public static class UpdateService
         // The helper has a private folder of its own, not the staging folder:
         // it deletes that one first, and its own last.
         var helperDir = Directory.CreateTempSubdirectory("deadwax-apply-").FullName;
+        if (OperatingSystem.IsMacOS())
+        {
+            var app = MacUpdate.AppBundle(target) ?? throw new InvalidOperationException("This copy is not inside Deadwax.app.");
+            MacUpdate.Start(pid, stagedExe, app, marker, stageRoot, helperDir);
+            Console.WriteLine($"[update] helper started; replacing {app} once pid {pid} has gone");
+            return;
+        }
         if (OperatingSystem.IsWindows())
         {
             var ps1 = Path.Combine(helperDir, "apply-update.ps1");
@@ -377,8 +396,11 @@ public static class UpdateService
             $"rm -rf {Q(helperDir)}\n";
     }
 
-    private static string FailedMarkerPath(string targetExe) =>
-        Path.Combine(Path.GetDirectoryName(targetExe) ?? ".", ".deadwax-update-failed");
+    /// Beside the program; on the Mac beside the settings instead, since a
+    /// file put inside the signed bundle would break its seal.
+    private static string FailedMarkerPath(string targetExe) => OperatingSystem.IsMacOS()
+        ? Path.Combine(Path.GetDirectoryName(Settings.FilePath)!, ".update-failed")
+        : Path.Combine(Path.GetDirectoryName(targetExe) ?? ".", ".deadwax-update-failed");
 
     /// True, once, if the last helper could not swap the executable (it
     /// relaunched the old one). Clears the marker, so the warning shows on the
