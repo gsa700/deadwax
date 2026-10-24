@@ -157,7 +157,6 @@ public sealed class SecureReader : IDisposable
     private sealed class Source(MacIoctlTransport mac) : IAudioSource
     {
         public int AudioEnd { get; set; }
-        public IReadOnlyList<int> Boundaries { get; set; } = [];
         public byte[]? ReadAudio(int lsn, int count, bool c2) => mac.ReadAudio(lsn, count, c2);
     }
 
@@ -194,7 +193,7 @@ public sealed class SecureReader : IDisposable
         if (!track.IsAudio) throw new ArgumentException($"Track {trackNumber} is data, not audio.");
 
         var w = ReadWindow.For(toc, track, offsetSamples);
-        if (_source is not null) { _source.AudioEnd = Math.Max(_source.AudioEnd, toc.AudioLeadoutLsn); _source.Boundaries = [.. toc.Tracks.Select(t => t.StartLsn), toc.AudioLeadoutLsn]; }
+        if (_source is not null) _source.AudioEnd = Math.Max(_source.AudioEnd, toc.AudioLeadoutLsn);
         var (window, report) = ReadSectors(w.FirstSector, w.EndSector, w.ReadableStart, w.ReadableEnd, maxRetries, progress, ct, damaged, retrying);
         return (window.AsSpan(w.TrackStartInWindow, w.TrackBytes).ToArray(), report);
     }
@@ -209,7 +208,7 @@ public sealed class SecureReader : IDisposable
         if (!track.IsAudio) throw new ArgumentException($"Track {trackNumber} is data, not audio.");
 
         var p = ReadWindow.For(toc, track, offsetSamples).Part(fromByte, toByte);
-        if (_source is not null) { _source.AudioEnd = Math.Max(_source.AudioEnd, toc.AudioLeadoutLsn); _source.Boundaries = [.. toc.Tracks.Select(t => t.StartLsn), toc.AudioLeadoutLsn]; }
+        if (_source is not null) _source.AudioEnd = Math.Max(_source.AudioEnd, toc.AudioLeadoutLsn);
         var (window, report) = ReadSectors(p.FirstSector, p.EndSector, p.ReadableStart, p.ReadableEnd, maxRetries, ct: ct);
         return (window.AsSpan(p.TrackStartInWindow, p.TrackBytes).ToArray(), report);
     }
