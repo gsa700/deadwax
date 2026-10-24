@@ -112,7 +112,6 @@ public class MacUpdateTests
 
     private static void RunHelper(string root, params string[] args)
     {
-        if (!OperatingSystem.IsMacOS() && !OperatingSystem.IsLinux()) return;
         var sh = Path.Combine(root, "apply.sh");
         File.WriteAllText(sh, Helper(root) + "\n");
         Run("/bin/sh", [sh, "999999", .. args]);
@@ -121,6 +120,7 @@ public class MacUpdateTests
     [Fact]
     public void The_helper_swaps_the_whole_bundle_and_relaunches()
     {
+        if (OperatingSystem.IsWindows()) return;   // the helper is a /bin/sh script
         var (root, target, staged, marker) = FakeBundles();
         try
         {
@@ -138,6 +138,7 @@ public class MacUpdateTests
     [Fact]
     public void When_the_new_bundle_cannot_go_in_the_old_one_stays_and_says_so()
     {
+        if (OperatingSystem.IsWindows()) return;   // the helper is a /bin/sh script
         var (root, target, _, marker) = FakeBundles();
         try
         {
@@ -153,6 +154,7 @@ public class MacUpdateTests
     [Fact]
     public void Values_with_shell_characters_are_only_ever_arguments()
     {
+        if (OperatingSystem.IsWindows()) return;   // the helper is a /bin/sh script
         var (root, _, _, _) = FakeBundles();
         try
         {
