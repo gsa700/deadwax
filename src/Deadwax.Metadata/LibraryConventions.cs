@@ -30,9 +30,15 @@ public static class LibraryConventions
         if (!compilation && rg.ValueKind == JsonValueKind.Object && rg.TryGetProperty("first-release-date", out var f))
             first = f.GetString();
         if (string.IsNullOrEmpty(first) && release.TryGetProperty("date", out var d)) first = d.GetString();
-        // Four digits or nothing: the year becomes part of a folder name.
-        return first is { Length: >= 4 } && first[..4].All(char.IsAsciiDigit) ? first[..4] : null;
+        return Year(first);
     }
+
+    /// The year a MusicBrainz date starts with: four digits or nothing, since
+    /// the year becomes part of a folder name. Every year taken from a date
+    /// goes through here (security review 2026-10-24, L9: the edition and
+    /// original years did not, so "../x-01-01" came back through them).
+    public static string? Year(string? date) =>
+        date is { Length: >= 4 } && date[..4].All(char.IsAsciiDigit) ? date[..4] : null;
 
     /// Applies the chosen year and the folder spelling of the album artist.
     /// DATE keeps whipper's full release date when it already falls in the

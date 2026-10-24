@@ -44,8 +44,18 @@ public static class CoverArt
         return full is null ? null : ScaleToFit(full, 500);
     }
 
+    /// The most pixels a cover may have to be decoded at all: 50 million
+    /// (about 200 MB decoded; the archive's largest real scans are about
+    /// 7000 x 7000). The download cap of 20 MB says nothing about this: a
+    /// 1.1 MB PNG of 20000 x 20000 decoded to 1.5 GB (security review
+    /// 2026-10-24, L12), and anyone can upload a front.
+    public const long MaxPixels = 50_000_000;
+
     /// A JPEG no larger than max pixels on its longer side (smaller images are
-    /// returned as they came). Null when the bytes are not an image.
+    /// returned as they came). Null when the bytes are not an image, or are
+    /// one larger than MaxPixels. The size is read from the header before
+    /// anything is decoded, and a JPEG is decoded straight at the smallest
+    /// size its codec offers that is still at least max (1/2, 1/4, 1/8).
     public static byte[]? ScaleToFit(byte[] image, int max)
     {
         // SKBitmap.Decode throws on bytes no codec recognises (a cut-off
@@ -53,9 +63,15 @@ public static class CoverArt
         using var data = SkiaSharp.SKData.CreateCopy(image);
         using var codec = SkiaSharp.SKCodec.Create(data);
         if (codec is null) return null;
-        using var bitmap = SkiaSharp.SKBitmap.Decode(codec);
-        if (bitmap is null) return null;
-        if (bitmap.Width <= max && bitmap.Height <= max) return image;
+        var (width, height) = (codec.Info.Width, codec.Info.Height);
+        if (width <= 0 || height <= 0 || (long)width * height > MaxPixels) return null;
+        if (width <= max && height <= max) return image;
+        var fit = (float)max / Math.Max(width, height);
+        var decodeAt = codec.GetScaledDimensions(fit);
+        if (Math.Max(decodeAt.Width, decodeAt.Height) < max) decodeAt = new SkiaSharp.SKSizeI(width, height);
+        using var bitmap = new SkiaSharp.SKBitmap(codec.Info.WithSize(decodeAt.Width, decodeAt.Height));
+        var result = codec.GetPixels(bitmap.Info, bitmap.GetPixels());
+        if (result is not (SkiaSharp.SKCodecResult.Success or SkiaSharp.SKCodecResult.IncompleteInput)) return null;
         var scale = (double)max / Math.Max(bitmap.Width, bitmap.Height);
         var info = new SkiaSharp.SKImageInfo(Math.Max(1, (int)Math.Round(bitmap.Width * scale)), Math.Max(1, (int)Math.Round(bitmap.Height * scale)));
         using var scaled = bitmap.Resize(info, new SkiaSharp.SKSamplingOptions(SkiaSharp.SKCubicResampler.Mitchell));

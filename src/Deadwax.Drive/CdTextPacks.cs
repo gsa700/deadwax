@@ -132,6 +132,13 @@ public static class CdTextPacks
 
             if (type is < 0x80 or > 0x8F) return items;
 
+            // One item never runs past a block's 256 packs (cdrdao's buffer;
+            // the drive may send up to 2048). A disc that says otherwise keeps
+            // the text read so far and loses the rest, as an unknown pack type
+            // does above (security review 2026-10-24, L6: it threw instead,
+            // and the disc could not be ripped).
+            if (pos + 12 > buf.Length) return items;
+
             if (IsBinary(type))
             {
                 data.CopyTo(buf.AsSpan(pos));

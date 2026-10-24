@@ -205,4 +205,151 @@ public class SecurityReview2Tests
         }
         finally { Directory.Delete(root, recursive: true); }
     }
+
+    // ---- the second pass: ripping (L6, L7, L9, L10, L11, L12) ------------------
+
+    private static byte[] Packs(int type, int count, byte fill)
+    {
+        var packs = new byte[count * CdTextPacks.PackBytes];
+        for (var n = 0; n < count; n++)
+        {
+            var p = packs.AsSpan(n * 18, 18);
+            p[0] = (byte)type; p[1] = 0; p[2] = (byte)n; p[3] = 0;
+            p.Slice(4, 12).Fill(fill);
+        }
+        return packs;
+    }
+
+    [Theory]
+    [InlineData(0x87, 300)]   // binary GENRE packs in one block: 300 x 12 bytes, past the 3073-byte item buffer
+    [InlineData(0x80, 300)]   // a TITLE that never ends in NUL
+    [InlineData(0x80, 2048)]  // as many packs as the drive may send
+    public void L6_cd_text_longer_than_a_block_is_cut_short_not_thrown(int type, int count) =>
+        Assert.Null(Record.Exception(() => CdTextPacks.Decode(Packs(type, count, (byte)'A'))));
+
+    /// A disc whose Q frames before track 3 all say "track 3, index 0, absolute time 00:00:00".
+    private sealed class LyingQ : IMmcTransport
+    {
+        public bool SupportsRawSubchannel => false;
+        public byte[]? ReadCd(int lsn, int count, bool raw)
+        {
+            var buffer = new byte[count * (2352 + 16)];
+            for (var s = 0; s < count; s++)
+                QFrame.EncodePosition(0, 3, 0, 0, 0).CopyTo(buffer, s * (2352 + 16) + 2352);
+            return buffer;
+        }
+        public string? ReadCode(bool isrc, byte track) => null;
+        public byte[]? ReadCdTextPacks() => null;
+        public void Dispose() { }
+    }
+
+    [Fact]
+    public void L7_a_pregap_is_never_longer_than_the_track_before_it()
+    {
+        var pregapBefore = typeof(SubchannelReader).GetMethod("PregapBefore", BindingFlags.NonPublic | BindingFlags.Static)!;
+        var pregap = (int)pregapBefore.Invoke(null, [new LyingQ(), false, 3, 20000, 10000, CancellationToken.None])!;
+        Assert.InRange(pregap, 0, 10000 - 1);
+    }
+
+    [Theory]
+    [InlineData("../x-01-01")]
+    [InlineData("19x9")]
+    [InlineData("")]
+    public void L9_no_year_from_a_date_is_anything_but_four_digits(string date)
+    {
+        var toc = new Toc([new TocTrack(1, 0, true)], 10000);
+        var prepared = new PreparedDisc("/dev/none", null, toc, 0, "DISCID", 1u, null, []);
+        using var plan = RipSession.PlanSelfDescribed(prepared, new DiscDescription("Artist", "Album", date, ["t"]));
+        Assert.True(plan.DefaultYear.All(char.IsAsciiDigit) && plan.DefaultYear.Length == 4, plan.DefaultYear);
+        Assert.True(plan.EditionYear is null || plan.EditionYear.All(char.IsAsciiDigit), plan.EditionYear);
+        Assert.True(plan.OriginalYear is null || plan.OriginalYear.All(char.IsAsciiDigit), plan.OriginalYear);
+        Assert.Equal("1979", LibraryConventions.Year("1979-05-01"));
+    }
+
+    [Fact]
+    public void L10_a_very_long_title_still_makes_a_file_the_file_system_takes()
+    {
+        var title = string.Concat(Enumerable.Repeat("Symphonie No. 9 – ", 15)) + "Finale ♪";   // 270+ characters
+        var artist = new string('É', 150);
+        foreach (var style in Enum.GetValues<TrackStyle>())
+        {
+            var name = FileNames.Track(style, artist, 1, title);
+            Assert.True(Encoding.UTF8.GetByteCount(name) <= FileNames.NameBytes, $"{style}: {Encoding.UTF8.GetByteCount(name)} bytes");
+            Assert.EndsWith(".flac", name);
+            Assert.DoesNotContain('�', name);
+        }
+        Assert.True(Encoding.UTF8.GetByteCount(FileNames.Sidecar(artist, title) + ".log") <= FileNames.NameBytes + 4);
+        Assert.True(Encoding.UTF8.GetByteCount(FileNames.AlbumLeaf(FolderStyle.ArtistYearAlbum, artist, "1824", title)) <= 255);
+
+        var dir = Directory.CreateTempSubdirectory("deadwax-l10-").FullName;
+        try { FlacWriter.Encode(Path.Combine(dir, FileNames.Track(TrackStyle.ArtistNumberTitle, artist, 1, title)), new byte[2352 * 4]); }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    [Fact]
+    public void L10_names_that_fit_are_left_as_they_are()
+    {
+        Assert.Equal("Wiener Philharmoniker - 01 - Symphonie No. 9.flac", FileNames.Track(TrackStyle.ArtistNumberTitle, "Wiener Philharmoniker", 1, "Symphonie No. 9"));
+        Assert.Equal("café 🎻", FileNames.Shorten("café 🎻 x", Encoding.UTF8.GetByteCount("café 🎻")));
+    }
+
+    [Fact]
+    public void L11_a_cover_too_large_for_a_flac_is_not_embedded_and_the_rip_goes_on()
+    {
+        var dir = Directory.CreateTempSubdirectory("deadwax-l11-").FullName;
+        try
+        {
+            var flac = Path.Combine(dir, "01.flac");
+            FlacWriter.Encode(flac, new byte[2352 * 4]);
+            var cover = new byte[17 * 1024 * 1024]; cover[0] = 0xFF; cover[1] = 0xD8; cover[2] = 0xFF;
+            Assert.True(cover.Length < WebLimits.MaxImageBytes);
+            File.WriteAllBytes(Path.Combine(dir, "cover.jpg"), cover);
+            Assert.Equal(0, CoverEmbed.Apply(dir));
+            Assert.False(CoverEmbed.HasFront(flac));
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    /// A PNG of the given size that is only a header: its pixels are never there.
+    private static byte[] PngHeader(int width, int height)
+    {
+        var o = new MemoryStream();
+        o.Write([0x89, (byte)'P', (byte)'N', (byte)'G', 0x0D, 0x0A, 0x1A, 0x0A]);
+        void Chunk(string type, byte[] data)
+        {
+            Span<byte> n = stackalloc byte[4];
+            BinaryPrimitives.WriteInt32BigEndian(n, data.Length); o.Write(n);
+            var body = Encoding.ASCII.GetBytes(type).Concat(data).ToArray();
+            o.Write(body);
+            BinaryPrimitives.WriteUInt32BigEndian(n, System.IO.Hashing.Crc32.HashToUInt32(body)); o.Write(n);
+        }
+        var ihdr = new byte[13];
+        BinaryPrimitives.WriteInt32BigEndian(ihdr, width);
+        BinaryPrimitives.WriteInt32BigEndian(ihdr.AsSpan(4), height);
+        ihdr[8] = 8; ihdr[9] = 2;   // 8-bit RGB
+        Chunk("IHDR", ihdr);
+        Chunk("IDAT", [0x78, 0x9C, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01]);
+        Chunk("IEND", []);
+        return o.ToArray();
+    }
+
+    [Fact]
+    public void L12_a_cover_with_huge_dimensions_is_refused_before_it_is_decoded()
+    {
+        var before = GC.GetTotalAllocatedBytes(precise: true);
+        Assert.Null(CoverArt.ScaleToFit(PngHeader(20000, 20000), 500));
+        Assert.True(GC.GetTotalAllocatedBytes(precise: true) - before < 50_000_000);
+    }
+
+    [Fact]
+    public void L12_a_large_real_cover_is_still_scaled_to_500()
+    {
+        using var surface = SkiaSharp.SKSurface.Create(new SkiaSharp.SKImageInfo(3000, 2000));
+        surface.Canvas.Clear(SkiaSharp.SKColors.Teal);
+        using var shot = surface.Snapshot();
+        using var jpeg = shot.Encode(SkiaSharp.SKEncodedImageFormat.Jpeg, 90);
+        var scaled = CoverArt.ScaleToFit(jpeg.ToArray(), 500)!;
+        using var codec = SkiaSharp.SKCodec.Create(SkiaSharp.SKData.CreateCopy(scaled));
+        Assert.Equal((500, 333), (codec.Info.Width, codec.Info.Height));
+    }
 }

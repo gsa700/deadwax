@@ -11,12 +11,22 @@ namespace Deadwax.Metadata;
 /// carries (a back, a booklet page) are kept.
 public static class CoverEmbed
 {
+    /// The largest picture a FLAC can hold: a metadata block is at most
+    /// 16 MB (a 24-bit length), and the picture block's own fields (type,
+    /// "image/jpeg", an empty description, size, depth, colours, lengths) take
+    /// 42 bytes of it.
+    public const int MaxBytes = 0xFFFFFF - 42;
+
     /// Embeds cover.jpg in every FLAC in the folder; returns how many. Zero
-    /// when there is no cover.jpg.
+    /// when there is no cover.jpg, or when it is too large for a FLAC to hold
+    /// (MaxBytes): the archive allows 20 MB, and embedding one over 16 MB
+    /// threw part-way through the rip, before its log was written (security
+    /// review 2026-10-24, L11). cover.jpg stays beside the files either way,
+    /// and the filing check then says the files have no embedded cover.
     public static int Apply(string albumDir)
     {
         var coverPath = Path.Combine(albumDir, "cover.jpg");
-        if (!File.Exists(coverPath)) return 0;
+        if (!File.Exists(coverPath) || new FileInfo(coverPath).Length > MaxBytes) return 0;
         var bytes = File.ReadAllBytes(coverPath);
         var count = 0;
         foreach (var flac in Directory.EnumerateFiles(albumDir, "*.flac").Order(StringComparer.Ordinal))

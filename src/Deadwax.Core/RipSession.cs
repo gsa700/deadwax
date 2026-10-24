@@ -122,9 +122,9 @@ public sealed class ReleasePlan : IDisposable
         Album = sample.First(t => t.Key == "ALBUM").Value;
         Disambiguation = ReleaseChoice.Disambiguation(root);
 
-        EditionYear = root.TryGetProperty("date", out var d) && d.GetString() is { Length: >= 4 } date ? date[..4] : null;
-        OriginalYear = rg.ValueKind == JsonValueKind.Object && rg.TryGetProperty("first-release-date", out var f) &&
-                       f.GetString() is { Length: >= 4 } first ? first[..4] : null;
+        EditionYear = root.TryGetProperty("date", out var d) ? LibraryConventions.Year(d.GetString()) : null;
+        OriginalYear = rg.ValueKind == JsonValueKind.Object && rg.TryGetProperty("first-release-date", out var f)
+            ? LibraryConventions.Year(f.GetString()) : null;
         DefaultYear = LibraryConventions.DefaultYear(root) ?? EditionYear ?? OriginalYear ?? "0000";
 
         var tracks = new List<PlannedTrack>();
@@ -476,7 +476,7 @@ public sealed class RipSession
                 : "ReplayGain: the album is silent; no gain written.");
         }
 
-        var baseName = $"{FileNames.Safe(plan.AlbumArtist)} - {FileNames.Safe(plan.DiscTitle)}";
+        var baseName = FileNames.Sidecar(plan.AlbumArtist, plan.DiscTitle);
         await File.WriteAllTextAsync(Path.Combine(albumDir, baseName + ".toc"), cdrdao.Text, ct);
         if (filing.Cue)
             await File.WriteAllTextAsync(Path.Combine(albumDir, baseName + ".cue"),

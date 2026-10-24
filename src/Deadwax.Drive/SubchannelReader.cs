@@ -128,7 +128,15 @@ public static class SubchannelReader
             foreach (var f in ReadFrames(io, raw, from, n, ct).OrderByDescending(f => f.Lsn))
             {
                 if (!f.Q.Trusted || f.Q.Mode != 1) continue;
-                if (f.Q.Track == next && f.Q.Index == 0) lowestIndex0 = f.Q.AbsoluteLsn;
+                // Index 0 of the next track lies between the previous track's
+                // start and the next one's: a frame whose absolute time says
+                // otherwise is not believed (security review 2026-10-24, L7:
+                // a crafted disc made a pregap longer than the track before it,
+                // which the TOC check cannot see, and negative times in the .cue).
+                if (f.Q.Track == next && f.Q.Index == 0)
+                {
+                    if (f.Q.AbsoluteLsn > floor && f.Q.AbsoluteLsn < nextStart) lowestIndex0 = f.Q.AbsoluteLsn;
+                }
                 else if (f.Q.Track < next) return lowestIndex0 < 0 ? 0 : nextStart - lowestIndex0;
             }
             pos = from;

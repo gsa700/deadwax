@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Text;
+
 namespace Deadwax.Output;
 
 /// File and folder names, in the style chosen in Filing. The default is the
@@ -10,10 +13,51 @@ public static class FileNames
 
     public static string Track(TrackStyle style, string albumArtist, int number, string title) => style switch
     {
-        TrackStyle.NumberDashTitle => $"{number:D2} - {Safe(title)}.flac",
-        TrackStyle.NumberTitle => $"{number:D2} {Safe(title)}.flac",
-        _ => $"{Safe(albumArtist)} - {number:D2} - {Safe(title)}.flac",
+        TrackStyle.NumberDashTitle => Join($"{number:D2} - ", title, ".flac"),
+        TrackStyle.NumberTitle => Join($"{number:D2} ", title, ".flac"),
+        _ => Join($"{Safe(albumArtist)} - {number:D2} - ", title, ".flac"),
     };
+
+    /// The base name of the album's .toc, .cue, .m3u and .log: "Artist - Album".
+    public static string Sidecar(string albumArtist, string album) => Join($"{Safe(albumArtist)} - ", album, "");
+
+    /// The most a whole file name may be, in UTF-8 bytes, with room under the
+    /// 255 every file system Deadwax writes to allows (a ".log" after a
+    /// sidecar's base name included). Each name part alone is held to
+    /// PartBytes by Safe.
+    public const int NameBytes = 240;
+    public const int PartBytes = 200;
+
+    /// prefix + the (safe) part + suffix, the part shortened if the whole would
+    /// be longer than NameBytes.
+    private static string Join(string prefix, string part, string suffix)
+    {
+        var room = NameBytes - Encoding.UTF8.GetByteCount(prefix) - Encoding.UTF8.GetByteCount(suffix) - 4;   // ".log"
+        return prefix + Shorten(Safe(part), Math.Max(room, 16)) + suffix;
+    }
+
+    /// At most maxBytes of UTF-8, cut between whole characters (an accented
+    /// letter or an emoji stays whole), without a trailing space or dot.
+    /// Security review 2026-10-24, L10: a 270-character work title made a
+    /// file name the file system refused after track 1 had been read, and the
+    /// half-written album folder then blocked the rip being tried again.
+    public static string Shorten(string s, int maxBytes)
+    {
+        if (Encoding.UTF8.GetByteCount(s) <= maxBytes) return s;
+        var sb = new StringBuilder();
+        var bytes = 0;
+        var e = StringInfo.GetTextElementEnumerator(s);
+        while (e.MoveNext())
+        {
+            var element = e.GetTextElement();
+            var n = Encoding.UTF8.GetByteCount(element);
+            if (bytes + n > maxBytes) break;
+            sb.Append(element);
+            bytes += n;
+        }
+        var cut = sb.ToString().TrimEnd(' ', '.');
+        return cut.Length == 0 ? "_" : cut;
+    }
 
     /// The album's own folder name, without the artist folder above it.
     public static string AlbumLeaf(FolderStyle style, string albumArtist, string year, string album) => style switch
@@ -72,6 +116,8 @@ public static class FileNames
             var stem = name.Split('.')[0];
             if (WindowsDevices.Contains(stem)) name = "_" + name;
         }
+        name = Shorten(name, PartBytes);
+        if (windows) name = name.TrimEnd('.', ' ');
         return name is "" or "." or ".." ? "_" : name;
     }
 
