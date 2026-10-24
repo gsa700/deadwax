@@ -15,6 +15,10 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- No DOTNET_STARTUP_HOOKS: it runs managed code from any assembly named
+         in the environment inside this process, signed or not, hardened
+         runtime or not (security review 2026-10-24, M1). -->
+    <StartupHookSupport>false</StartupHookSupport>
   </PropertyGroup>
 
   <Import Project="..\..\native.targets" />

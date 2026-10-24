@@ -6,13 +6,23 @@
 #   tools/make-macos-app.sh --notarize also have Apple notarize it and staple the ticket
 #                                      (needs the Developer ID; options combine)
 #
-# WHAT IS IN IT: the same single-file program release.sh publishes for every
-# platform (libcdio and libcdio-paranoia from native/osx-<arch>/ are
-# inside it), in the folder layout macOS expects of an application:
+# WHAT IS IN IT: the single-file program, in the folder layout macOS expects
+# of an application, with its native libraries (libcdio and libcdio-paranoia
+# from native/osx-<arch>/, Avalonia's and Skia's) beside it in the bundle,
+# each signed with the app's own certificate:
 #
 #   Deadwax.app/Contents/Info.plist        name, version, identity, icon
 #   Deadwax.app/Contents/MacOS/Deadwax     the program
+#   Deadwax.app/Contents/MacOS/*.dylib     its native libraries
 #   Deadwax.app/Contents/Resources/Deadwax.icns
+#
+# NOT UNPACKED INTO ~/.net, as release.sh's builds for the other platforms
+# are (IncludeNativeLibrariesForSelfExtract): that folder is the user's to
+# write, the runtime reuses what it finds there, and the unpacked libraries
+# were not signed by our team, so the app needed library validation off,
+# and then any library put there ran inside the notarized app with its
+# permissions (security review 2026-10-24, M1). Inside the sealed bundle,
+# signed by our team, library validation stays on.
 #
 # Installing on a Mac IS putting that folder in /Applications: Finder,
 # Launchpad, Spotlight and the Dock find it there. AlbumWall's
@@ -20,9 +30,8 @@
 #
 # SIGNED WITH APPLE'S DEVELOPER ID when this Mac has that certificate (since
 # 2026-10-23, team 4QX5GG2276), else with a local certificate, else AD HOC.
-# Not yet notarized, and without the hardened runtime: a DOWNLOADED copy still
-# doesn't get past Gatekeeper, so this is for building at home, not for a
-# release. macOS remembers a permission (the Music folder the rips go into)
+# With the Developer ID it gets the hardened runtime, and --notarize has Apple
+# notarize it, which a DOWNLOADED copy needs to get past Gatekeeper. macOS remembers a permission (the Music folder the rips go into)
 # against the app's signature; ad hoc, every rebuild would ask again. Without a
 # Developer ID, make a code-signing certificate once in Keychain Access
 # (Certificate Assistant, Create a Certificate: Self-Signed Root, Certificate
@@ -68,9 +77,11 @@ for lib in libcdio.19.dylib libcdio_cdda.2.dylib libcdio_paranoia.2.dylib; do
 done
 
 echo "== publish $RID $VERSION"
-# The flags tools/release.sh publishes with.
+# tools/release.sh's flags, but the native libraries stay files of their own,
+# for the bundle (above).
 dotnet publish "$PROJECT" -c Release -r "$RID" --self-contained \
-    -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o "$WORK/pub" -nologo -v quiet
+    -p:PublishSingleFile=true -o "$WORK/pub" -nologo -v quiet
+ls "$WORK/pub"/*.dylib >/dev/null 2>&1 || { echo "the publish left no .dylib beside the program" >&2; exit 1; }
 
 echo "== icon"
 # Rendered from icon.svg by macOS itself (sips reads SVG), every size drawn at
@@ -93,6 +104,7 @@ echo "== bundle"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$WORK/pub/Deadwax" "$APP/Contents/MacOS/Deadwax"
+cp "$WORK/pub/"*.dylib "$APP/Contents/MacOS/"
 cp "$WORK/Deadwax.icns" "$APP/Contents/Resources/Deadwax.icns"
 # What the licenses ask to travel with the program, as in a release zip.
 cp "$ROOT/LICENSE" "$ROOT/THIRD-PARTY-NOTICES.md" "$APP/Contents/Resources/"
@@ -149,27 +161,31 @@ else
     esac
 fi
 # A Developer ID signature gets the hardened runtime, which notarization
-# requires, with the two exceptions .NET needs (tools/macos/Deadwax.entitlements:
-# JIT, and loading the libraries the single-file program unpacks into ~/.net;
-# without the second, Skia fails to load and the app aborts at start, tested
-# 2026-10-23), and Apple's timestamp.
+# requires, with the one exception .NET needs (tools/macos/Deadwax.entitlements:
+# JIT; without it CoreCLR does not start), and Apple's timestamp. Each library
+# is signed first, the same way, and the bundle last, which seals them in.
 if security find-identity -p codesigning | grep -qF -e "\"$SIGN_ID\"" -e ") $SIGN_ID "; then
     LABEL=$(security find-identity -p codesigning | grep -F -e "\"$SIGN_ID\"" -e ") $SIGN_ID " | head -1 | sed 's/^[^"]*"\([^"]*\)".*/\1/')
     echo "== sign ($LABEL)"
     case $LABEL in
         "Developer ID Application:"*)
+            for lib in "$APP/Contents/MacOS/"*.dylib; do
+                codesign --force --options runtime --timestamp --sign "$SIGN_ID" "$lib"
+            done
             codesign --force --options runtime --timestamp \
                 --entitlements "$ROOT/tools/macos/Deadwax.entitlements" --sign "$SIGN_ID" "$APP" ;;
         *)
             [ "$NOTARIZE" = yes ] && { echo "--notarize needs a Developer ID certificate, not \"$LABEL\"" >&2; exit 1; }
+            for lib in "$APP/Contents/MacOS/"*.dylib; do codesign --force --sign "$SIGN_ID" "$lib"; done
             codesign --force --sign "$SIGN_ID" "$APP" ;;
     esac
 else
     [ "$NOTARIZE" = yes ] && { echo "--notarize needs a Developer ID certificate" >&2; exit 1; }
     echo "== sign (ad hoc: no \"$SIGN_ID\" certificate on this Mac, so macOS will ask for its permissions again)"
+    for lib in "$APP/Contents/MacOS/"*.dylib; do codesign --force --sign - "$lib"; done
     codesign --force --sign - "$APP"
 fi
-codesign --verify --strict "$APP"
+codesign --verify --deep --strict "$APP"
 
 # NOTARIZE: Apple checks the signed app and issues a ticket; stapling puts the
 # ticket inside the app, so a Mac that downloads it can check it offline.

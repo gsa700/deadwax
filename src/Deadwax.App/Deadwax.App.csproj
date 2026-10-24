@@ -7,6 +7,10 @@
     <AssemblyName>Deadwax</AssemblyName>
     <RootNamespace>Deadwax.App</RootNamespace>
     <Nullable>enable</Nullable>
+    <!-- No DOTNET_STARTUP_HOOKS: it runs managed code from any assembly named
+         in the environment inside this process, signed or not, hardened
+         runtime or not (security review 2026-10-24, M1). -->
+    <StartupHookSupport>false</StartupHookSupport>
     <ImplicitUsings>enable</ImplicitUsings>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
