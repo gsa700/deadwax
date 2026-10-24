@@ -50,7 +50,7 @@ public static class WindowButtons
         {
             using var p = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
             {
-                FileName = "gsettings",
+                FileName = Deadwax.Drive.ToolPath.Find("gsettings") ?? "/usr/bin/gsettings",
                 Arguments = "get org.gnome.desktop.wm.preferences button-layout",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,

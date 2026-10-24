@@ -29,7 +29,7 @@ public static class Cdrdao
         var version = "cdrdao";
         try
         {
-            var start = new ProcessStartInfo("cdrdao")
+            var start = new ProcessStartInfo(ToolPath.Find("cdrdao") ?? throw new DriveException("cdrdao is not installed."))
             {
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,

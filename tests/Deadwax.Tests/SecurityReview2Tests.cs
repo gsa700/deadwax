@@ -426,4 +426,50 @@ public class SecurityReview2Tests
         }
         finally { File.Delete(path); }
     }
+
+    // ---- the second pass: clean-up (L16, L17) ----------------------------------
+
+    [Fact]
+    public void L16_a_tool_in_the_current_folder_is_never_the_one_found()
+    {
+        if (OperatingSystem.IsWindows()) return;
+        var dir = Directory.CreateTempSubdirectory("deadwax-l16-").FullName;
+        var path = Environment.GetEnvironmentVariable("PATH");
+        var cwd = Environment.CurrentDirectory;
+        try
+        {
+            var planted = Path.Combine(dir, "update-desktop-database");
+            File.WriteAllText(planted, "#!/bin/sh\ntouch PLANTED\n");
+            File.SetUnixFileMode(planted, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            Environment.CurrentDirectory = dir;
+            Environment.SetEnvironmentVariable("PATH", ".:" + ":" + "/usr/bin:/bin");
+            Assert.Null(ToolPath.Find("update-desktop-database"));
+            Assert.StartsWith("/", ToolPath.Find("sh"));   // a real one is still found, by its full path
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", path);
+            Environment.CurrentDirectory = cwd;
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void L17_no_menu_entry_is_written_for_a_path_with_a_line_break()
+    {
+        var quote = typeof(Deadwax.App.UpdateService).Assembly.GetType("Deadwax.App.Install.DesktopEntry")!.GetMethod("QuoteExec")!;
+        var e = Assert.Throws<TargetInvocationException>(() => quote.Invoke(null, ["/home/x/.local/share/deadwax\nExec=/tmp/evil\n/Deadwax"]));
+        Assert.Equal("InstallBlockedException", e.InnerException!.GetType().Name);
+        Assert.Equal(@"""/home/x/a\\\\b/Deadwax""", quote.Invoke(null, [@"/home/x/a\b/Deadwax"]));
+    }
+
+    [Fact]
+    public void L17_uninstall_is_refused_where_there_is_no_installer()
+    {
+        if (!OperatingSystem.IsMacOS()) return;   // elsewhere this WOULD uninstall
+        var install = typeof(Deadwax.App.UpdateService).Assembly.GetType("Deadwax.App.Install.InstallService")!;
+        var options = Activator.CreateInstance(typeof(Deadwax.App.UpdateService).Assembly.GetType("Deadwax.App.Install.UninstallOptions")!, [false])!;
+        var e = Assert.Throws<TargetInvocationException>(() => install.GetMethod("Uninstall")!.Invoke(null, [options]));
+        Assert.Equal("InstallBlockedException", e.InnerException!.GetType().Name);
+    }
 }

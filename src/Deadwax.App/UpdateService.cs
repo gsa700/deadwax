@@ -416,32 +416,11 @@ public static class UpdateService
         return false;
     }
 
-    /// Where this single-file build unpacked its native libraries
-    /// (IncludeNativeLibrariesForSelfExtract): ~/.net/Deadwax/<bundle id>/.
-    /// The host publishes it in NATIVE_DLL_SEARCH_DIRECTORIES. Null for a
-    /// development build, or when nothing was unpacked.
-    private static string? OwnExtractionDir
-    {
-        get
-        {
-            try
-            {
-                var root = Environment.GetEnvironmentVariable("DOTNET_BUNDLE_EXTRACT_BASE_DIR");
-                if (string.IsNullOrEmpty(root))
-                    root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".net");
-                root = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
-                var dirs = AppContext.GetData("NATIVE_DLL_SEARCH_DIRECTORIES") as string ?? "";
-                foreach (var d in dirs.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
-                {
-                    var full = Path.GetFullPath(d);
-                    if (!full.StartsWith(root, StringComparison.Ordinal)) continue;
-                    // <root>/<app name>/<bundle id>/: the bundle's own folder.
-                    var parts = full[root.Length..].Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
-                    if (parts.Length >= 2) return Path.Combine(root, parts[0], parts[1]);
-                }
-            }
-            catch { /* then there is nothing to clean, which is safe */ }
-            return null;
-        }
-    }
+    /// Where this single-file build unpacked its native libraries: the
+    /// installer's answer, the one folder directly under ~/.net/Deadwax (or
+    /// DOTNET_BUNDLE_EXTRACT_BASE_DIR/Deadwax) named for this build. This had
+    /// a copy of its own that took any two folders under the extraction
+    /// base, and with that base set to the home folder named ~/.local/share
+    /// for rm -rf (security review 2026-10-24, L14).
+    private static string? OwnExtractionDir => Install.InstallService.OwnExtractionDir;
 }

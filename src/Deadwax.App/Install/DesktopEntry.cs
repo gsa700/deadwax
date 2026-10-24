@@ -33,13 +33,20 @@ public static class DesktopEntry
     /// </remarks>
     public static string QuoteExec(string path)
     {
+        // A line break would start a key of its own (Exec=, run at login by the launcher): the
+        // path comes from HOME or XDG_DATA_HOME, but no entry is written for one that says so
+        // (security review 2026-10-24, L17).
+        if (path.Any(char.IsControl))
+            throw new InstallBlockedException("The install folder's path holds a control character, so no menu entry can be written for it.");
         var sb = new StringBuilder(path.Length + 8);
         sb.Append('"');
         foreach (var c in path)
         {
             switch (c)
             {
-                case '\\': sb.Append("\\\\"); break;
+                // Twice over: the file's string unescaping turns \\ into \ before the Exec
+                // rules read it, and those want \\ for a backslash (spec, "The Exec key").
+                case '\\': sb.Append("\\\\\\\\"); break;
                 case '"': sb.Append("\\\""); break;
                 case '`': sb.Append("\\`"); break;
                 case '$': sb.Append("\\$"); break;

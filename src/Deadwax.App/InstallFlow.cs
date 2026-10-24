@@ -97,6 +97,18 @@ internal static class InstallFlow
     /// </param>
     public static async Task RunUninstallAsync(Window owner, bool asked = false)
     {
+        // No installer here (the Mac): say how this system removes an app, and remove nothing.
+        if (!InstallService.CanInstall)
+        {
+            await new ConfirmWindow($"Uninstall {App.DisplayName}",
+                $"Drag {App.DisplayName} from Applications to the Bin.",
+                affirmative: "OK", negative: null,
+                detail: "That removes the program. Your music, the drive's measured offset and your settings stay.")
+                .ShowDialog<bool>(owner);
+            if (!asked) owner.Close();
+            return;
+        }
+
         var dialog = new ConfirmWindow(
             $"Uninstall {App.DisplayName}",
             $"Remove {App.DisplayName} from this computer?",

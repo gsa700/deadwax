@@ -591,6 +591,11 @@ public static class InstallService
     /// </summary>
     public static void Uninstall(UninstallOptions options)
     {
+        // Where there is no installer (the Mac: Deadwax.app, dragged to Applications) there is
+        // nothing of its to undo, and --uninstall deleted the settings and the cache all the same
+        // while saying it removed the program (security review 2026-10-24, L17).
+        if (!CanInstall)
+            throw new InstallBlockedException("On a Mac, Deadwax is removed by dragging Deadwax.app from Applications to the Bin.");
         Unregister();
 
         var toDelete = new List<string>();
@@ -602,8 +607,15 @@ public static class InstallService
         toDelete.AddRange(DataFilesToRemove(options));
 
         // The single-file build unpacks its native libraries here. It is a cache and would be
-        // recreated, so it goes with the program whatever was decided about the settings.
-        if (Directory.Exists(ExtractionRoot)) toDelete.Add(ExtractionRoot);
+        // recreated, so it goes with the program whatever was decided about the settings. All of
+        // it only when no other copy is running: another copy's folder holds the libraries it
+        // has loaded or will load on its first disc (security review 2026-10-24, L17); otherwise
+        // this copy's own folder, and the next lone start sweeps the rest.
+        if (Process.GetProcessesByName("Deadwax").Length <= 1)
+        {
+            if (Directory.Exists(ExtractionRoot)) toDelete.Add(ExtractionRoot);
+        }
+        else if (OwnExtractionDir is { } own && Directory.Exists(own)) toDelete.Add(own);
 
         var pid = Environment.ProcessId;
 
@@ -767,6 +779,12 @@ public static class InstallService
     /// <summary>Run a console tool with no window and return its exit code (-1 if it wouldn't start).</summary>
     private static int Run(string fileName, IEnumerable<string> arguments)
     {
+        // A bare name is looked up on PATH only (ToolPath; security review 2026-10-24, L16).
+        if (!Path.IsPathFullyQualified(fileName))
+        {
+            if (Deadwax.Drive.ToolPath.Find(fileName) is not { } found) return -1;
+            fileName = found;
+        }
         var psi = new ProcessStartInfo
         {
             FileName = fileName,
