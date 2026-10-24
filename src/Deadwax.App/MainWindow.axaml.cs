@@ -1030,7 +1030,20 @@ public sealed partial class MainWindow : Window
         {
             vm.Log.Add(message);
             if (vm.Log.Count > 400) vm.Log.RemoveAt(0);
+            // A track needing a third pass is trouble too (RipSession says "pass N differs").
+            if (message.Contains(" differs from pass ", StringComparison.Ordinal)) ShowTrouble();
         });
+
+        /// Trouble opens the engine log, once a rip (his idea, 2026-10-24: when
+        /// a read goes wrong, show what is happening there). Closed again by
+        /// hand, it stays closed.
+        private bool _troubleShown;
+        private void ShowTrouble()
+        {
+            if (_troubleShown) return;
+            _troubleShown = true;
+            vm.ShowLog = true;
+        }
 
         public void TrackStarted(int track) => Dispatcher.UIThread.Post(() =>
         {
@@ -1081,6 +1094,30 @@ public sealed partial class MainWindow : Window
             var brush = state == SectorState.Skipped ? Tone.Bad : Tone.Warn;
             if (!Worsen(cell, brush)) return;
             Dispatcher.UIThread.Post(() => { if (cell < vm.Map.Count) vm.Map[cell].Fill = brush; });
+        }
+
+        /// The status line says what a long silence at a damaged spot is: which
+        /// damaged sector, which try of how many, and how it ended (his ask,
+        /// 2026-10-24, after ten minutes at "90%" on Life for Rent).
+        public void Retrying(int track, string pass, RetryStatus st)
+        {
+            var text = st.Result switch
+            {
+                SectorState.Recovered => $"Track {track} · damaged sector {st.Damaged}: read again and recovered",
+                SectorState.Skipped => $"Track {track} · damaged sector {st.Damaged}: could not be read cleanly, kept the drive's best guess",
+                _ => $"Track {track} · re-reading damaged sector {st.Damaged} (try {st.Attempt} of {st.Tries})",
+            };
+            Dispatcher.UIThread.Post(() =>
+            {
+                vm.NowText = text;
+                // The log keeps the story: each damaged sector once when its tries begin, and how it ended.
+                if (st.Attempt == 1 && st.Result is null)
+                    vm.Log.Add($"Track {track}: damaged sector {st.Damaged} (sector {st.Sector}), reading it again, up to {st.Tries} tries");
+                else if (st.Result is { } result)
+                    vm.Log.Add($"Track {track}: damaged sector {st.Damaged} {(result == SectorState.Recovered ? "recovered" : "could not be read cleanly; the drive's best guess kept")} after {st.Attempt} tr{(st.Attempt == 1 ? "y" : "ies")}");
+                if (vm.Log.Count > 400) vm.Log.RemoveAt(0);
+                ShowTrouble();
+            });
         }
 
         /// Records the worst seen in a cell; true if it got worse.

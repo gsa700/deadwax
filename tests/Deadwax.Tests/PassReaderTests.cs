@@ -25,12 +25,18 @@ public class PassReaderTests
         /// The drive's cache: the last run it read. A re-read of it comes from here.
         private (int Lsn, byte[] Data)? _cache;
         public int Reads;
+        /// Reads of each sector on its own (count 1), the cache-defeating ones included.
+        public readonly Dictionary<int, int> SingleReads = [];
+        /// Dead sectors come back a different wrong way each time unless this is set.
+        public bool SameGuess;
+        private int _guess;
 
         public int AudioEnd => sectors;
 
         public byte[]? ReadAudio(int lsn, int count, bool c2)
         {
             Reads++;
+            if (count == 1) SingleReads[lsn] = SingleReads.GetValueOrDefault(lsn) + 1;
             if (c2 && !C2Supported) return null;
             if (lsn < 0 || lsn + count > sectors) return null;
             if (_cache is { } cached && cached.Lsn == lsn && cached.Data.Length == count * (S + (c2 ? 294 : 0)))
@@ -51,6 +57,7 @@ public class PassReaderTests
                 }
                 if (bad)
                 {
+                    if (Dead.Contains(sector) && !SameGuess) o[i * per + 300] = (byte)++_guess;
                     o[i * per + 100] ^= 0xFF;
                     if (c2) o[i * per + S + 12] = 0x80;
                 }
@@ -142,5 +149,38 @@ public class PassReaderTests
         Assert.Equal(new byte[2 * S], window.AsSpan(0, 2 * S).ToArray());
         Assert.Equal(drive.Disc.AsSpan(0, 50 * S).ToArray(), window.AsSpan(2 * S).ToArray());
         Assert.Equal(SectorState.NotRead, report.Sectors[0]);
+    }
+
+    [Fact]
+    public void A_damaged_sector_gets_at_most_five_tries_whatever_the_caller_asks()
+    {
+        var drive = new FakeDrive(100);
+        drive.Dead.Add(10);
+        var statuses = new List<RetryStatus>();
+        new PassReader(drive).ReadSectors(0, 100, 0, 100, maxRetries: 20, retrying: statuses.Add);
+        Assert.Equal(PassReader.MaxTries, drive.SingleReads[10]);
+        Assert.Equal(PassReader.MaxTries, statuses.Count(st => st.Result is null));
+        var last = statuses[^1];
+        Assert.Equal((10, SectorState.Skipped, 1), (last.Sector, last.Result!.Value, last.Damaged));
+    }
+
+    [Fact]
+    public void The_same_guess_three_times_ends_the_tries_early()
+    {
+        var drive = new FakeDrive(100) { SameGuess = true };
+        drive.Dead.Add(10);
+        new PassReader(drive).ReadSectors(0, 100, 0, 100, maxRetries: 5);
+        Assert.Equal(3, drive.SingleReads[10]);
+    }
+
+    [Fact]
+    public void A_recovered_sector_is_reported_as_recovered()
+    {
+        var drive = new FakeDrive(100);
+        drive.BadReads[37] = 2;
+        var statuses = new List<RetryStatus>();
+        new PassReader(drive).ReadSectors(0, 100, 0, 100, 5, retrying: statuses.Add);
+        Assert.Equal(SectorState.Recovered, statuses[^1].Result);
+        Assert.Equal(37, statuses[^1].Sector);
     }
 }

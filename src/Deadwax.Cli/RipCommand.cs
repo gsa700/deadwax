@@ -1,4 +1,5 @@
 using Deadwax.Core;
+using Deadwax.Drive;
 using Deadwax.Output;
 using Deadwax.Verify;
 using static Deadwax.Cli.Commands;
@@ -86,6 +87,14 @@ internal static class RipCommand
         private readonly System.Diagnostics.Stopwatch _clock = System.Diagnostics.Stopwatch.StartNew();
 
         public void Say(string message) => Console.WriteLine(message);
+
+        public void Retrying(int track, string pass, RetryStatus st)
+        {
+            if (st.Result is { } result)
+                Console.Error.WriteLine($"  track {track} {pass}: damaged sector {st.Damaged} (sector {st.Sector}) {(result == SectorState.Recovered ? "recovered" : "skipped, the drive's best guess kept")} after {st.Attempt} tr{(st.Attempt == 1 ? "y" : "ies")}");
+            else if (st.Attempt == 1)
+                Console.Error.WriteLine($"  track {track} {pass}: re-reading damaged sector {st.Damaged} (sector {st.Sector}), up to {st.Tries} tries");
+        }
 
         public void Progress(int track, string pass, int done, int total)
         {

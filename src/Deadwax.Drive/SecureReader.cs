@@ -187,14 +187,14 @@ public sealed class SecureReader : IDisposable
     public (byte[] Audio, ReadReport Report) ReadTrack(
         Toc toc, int trackNumber, int offsetSamples,
         int maxRetries = DefaultMaxRetries, Action<int, int>? progress = null, CancellationToken ct = default,
-        Action<int, SectorState>? damaged = null)
+        Action<int, SectorState>? damaged = null, Action<RetryStatus>? retrying = null)
     {
         var track = toc.Track(trackNumber);
         if (!track.IsAudio) throw new ArgumentException($"Track {trackNumber} is data, not audio.");
 
         var w = ReadWindow.For(toc, track, offsetSamples);
         if (_source is not null) _source.AudioEnd = Math.Max(_source.AudioEnd, toc.AudioLeadoutLsn);
-        var (window, report) = ReadSectors(w.FirstSector, w.EndSector, w.ReadableStart, w.ReadableEnd, maxRetries, progress, ct, damaged);
+        var (window, report) = ReadSectors(w.FirstSector, w.EndSector, w.ReadableStart, w.ReadableEnd, maxRetries, progress, ct, damaged, retrying);
         return (window.AsSpan(w.TrackStartInWindow, w.TrackBytes).ToArray(), report);
     }
 
@@ -221,12 +221,12 @@ public sealed class SecureReader : IDisposable
     public (byte[] Window, ReadReport Report) ReadSectors(
         int firstSector, int endSector, int readableStart, int readableEnd,
         int maxRetries = DefaultMaxRetries, Action<int, int>? progress = null, CancellationToken ct = default,
-        Action<int, SectorState>? damaged = null)
+        Action<int, SectorState>? damaged = null, Action<RetryStatus>? retrying = null)
     {
         if (_own is not null)
         {
             _source!.AudioEnd = Math.Max(_source.AudioEnd, readableEnd);
-            return _own.ReadSectors(firstSector, endSector, readableStart, readableEnd, maxRetries, progress, ct, damaged);
+            return _own.ReadSectors(firstSector, endSector, readableStart, readableEnd, maxRetries, progress, ct, damaged, retrying);
         }
         var window = new byte[(long)(endSector - firstSector) * LibParanoia.SectorBytes];
         var report = new ReadReport(firstSector, endSector - firstSector) { Damaged = damaged };

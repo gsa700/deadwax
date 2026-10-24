@@ -153,6 +153,9 @@ public interface IRipObserver
     void PassFinished(int track, string pass, ReadReport report) { }
     /// A sector turned Recovered or Skipped, reported while the pass runs.
     void SectorDamaged(int track, string pass, int sector, SectorState state) { }
+    /// A damaged sector being read again, try by try, and how it ended
+    /// (Deadwax's own reader only; paranoia does not say).
+    void Retrying(int track, string pass, RetryStatus status) { }
     void TrackFinished(RippedTrack track) { }
 }
 
@@ -367,7 +370,7 @@ public sealed class RipSession
                 // two passes agree: the first is the test, each later one a copy
                 // compared with the pass before it.
                 var (audio, report) = reader.ReadTrack(toc, n, disc.Offset, maxRetries, (d, t) => observer.Progress(n, "test", d, t), ct,
-                    (s, state) => observer.SectorDamaged(n, "test", s, state));
+                    (s, state) => observer.SectorDamaged(n, "test", s, state), st => observer.Retrying(n, "test", st));
                 observer.PassFinished(n, "test", report);
                 var testCrc = AudioChecks.Crc32(audio);
                 var previousCrc = testCrc;
@@ -410,7 +413,7 @@ public sealed class RipSession
                     while (passes < maxPasses)
                     {
                         (audio, report) = reader.ReadTrack(toc, n, disc.Offset, maxRetries, (d, t) => observer.Progress(n, "copy", d, t), ct,
-                            (s, state) => observer.SectorDamaged(n, "copy", s, state));
+                            (s, state) => observer.SectorDamaged(n, "copy", s, state), st => observer.Retrying(n, "copy", st));
                         observer.PassFinished(n, "copy", report);
                         passes++;
                         copyCrc = AudioChecks.Crc32(audio);
