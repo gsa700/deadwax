@@ -182,5 +182,6 @@ public class PassReaderTests
         new PassReader(drive).ReadSectors(0, 100, 0, 100, 5, retrying: statuses.Add);
         Assert.Equal(SectorState.Recovered, statuses[^1].Result);
         Assert.Equal(37, statuses[^1].Sector);
+        Assert.Equal(3, statuses[^1].Attempt);   // flagged once more, then two clean reads that agree
     }
 }

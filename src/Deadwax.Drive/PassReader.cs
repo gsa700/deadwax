@@ -100,10 +100,16 @@ public sealed class PassReader(IAudioSource source)
                     report.Record((int)ParanoiaEvent.ReadError, Word(sector));
                     damagedSoFar++;
                     var n2 = clock.Elapsed < budget ? tries : 1;
-                    var (audio, recovered) = Secure(sector, n2, ct, attempt => retrying?.Invoke(new RetryStatus(sector, attempt, n2, damagedSoFar, null)));
+                    var used = 0;
+                    var (audio, recovered) = Secure(sector, n2, ct, attempt =>
+                    {
+                        used = attempt;
+                        retrying?.Invoke(new RetryStatus(sector, attempt, n2, damagedSoFar, null));
+                    });
                     audio.CopyTo(target);
                     report.Record((int)(recovered ? ParanoiaEvent.Repair : ParanoiaEvent.Skip), Word(sector));
-                    retrying?.Invoke(new RetryStatus(sector, n2, n2, damagedSoFar, recovered ? SectorState.Recovered : SectorState.Skipped));
+                    // The try it ended on, not the limit: "recovered after 5 tries" was every one of them.
+                    retrying?.Invoke(new RetryStatus(sector, used, n2, damagedSoFar, recovered ? SectorState.Recovered : SectorState.Skipped));
                 }
             }
             progress?.Invoke(at + n - readableStart, readableEnd - readableStart);
