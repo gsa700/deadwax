@@ -167,7 +167,9 @@ public sealed class FlacMetadata
         }
 
         // Otherwise the file is written again beside itself and put in place.
-        var temp = path + ".deadwax-tmp";
+        // A name of its own each time: a fixed one was deleted when it already existed, someone
+        // else's file or not (security review 2026-10-24).
+        var temp = $"{path}.deadwax-{Guid.NewGuid():N}.tmp";
         try
         {
             using (var source = File.OpenRead(path))

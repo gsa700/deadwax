@@ -92,7 +92,7 @@ public class FlacMetadataTests : IDisposable
         var layout = FlacMetadata.Read(path).BlockLayout;
         Assert.Equal((1, 4096), layout[^1]);
         Assert.Equal(AudioFrames, Audio(path));
-        Assert.False(File.Exists(path + ".deadwax-tmp"));
+        Assert.Empty(Directory.GetFiles(Path.GetDirectoryName(path)!, Path.GetFileName(path) + ".deadwax-*"));   // no temp file left
     }
 
     [Fact]

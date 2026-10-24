@@ -67,8 +67,14 @@ internal static class CheckTagsCommand
             {
                 var actual = await ReadTagsAsync(flac);
                 var discId = actual.FirstOrDefault(t => t.Key == "MUSICBRAINZ_DISCID")?.Value;
-                var number = int.Parse(actual.First(t => t.Key == "TRACKNUMBER").Value);
-                var discNumber = actual.FirstOrDefault(t => t.Key == "DISCNUMBER") is { } dn ? int.Parse(dn.Value) : (int?)null;
+                // Tag text, so it may not be a number: a note for that file, not the end of the run.
+                if (!int.TryParse(actual.FirstOrDefault(t => t.Key == "TRACKNUMBER")?.Value?.Split('/')[0], out var number))
+                {
+                    Note("TRACKNUMBER", $"{Rel(dir)}: {UntrustedText.Show(Path.GetFileName(flac))} has no track number Deadwax can read");
+                    albumDiffs++;
+                    continue;
+                }
+                var discNumber = actual.FirstOrDefault(t => t.Key == "DISCNUMBER") is { } dn && int.TryParse(dn.Value.Split('/')[0], out var d) ? d : (int?)null;
                 var disc = toc?.Tracks.FirstOrDefault(t => t.Number == number);
 
                 IReadOnlyList<Tag> expected;

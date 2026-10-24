@@ -78,7 +78,7 @@ public sealed class Settings
             if (File.Exists(FilePath))
                 return JsonSerializer.Deserialize<Settings>(File.ReadAllText(FilePath)) ?? new Settings();
         }
-        catch (Exception e) when (e is IOException or JsonException) { }
+        catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException) { }
         return new Settings { EmbedCover = true };   // a fresh install
     }
 
@@ -89,6 +89,6 @@ public sealed class Settings
             Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
             File.WriteAllText(FilePath, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
         }
-        catch (IOException) { }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
     }
 }
