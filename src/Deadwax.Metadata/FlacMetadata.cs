@@ -242,6 +242,11 @@ public sealed class FlacMetadata
         var vendor = Text(U32());
         var count = U32();
         var fields = new List<(string Key, List<string> Values)>();
+        // Where each key is in fields: looked up per comment, a list search
+        // made reading quadratic in the number of keys, 100,000 distinct ones
+        // took 14 s, and the library scan reads one file per album on every
+        // rip (security review 2026-10-24, L3).
+        var index = new Dictionary<string, int>(StringComparer.Ordinal);
         for (var i = 0; i < count; i++)
         {
             var comment = Text(U32());
@@ -249,9 +254,12 @@ public sealed class FlacMetadata
             if (eq < 0) continue;
             var key = comment[..eq].ToUpper(CultureInfo.InvariantCulture);
             var value = comment[(eq + 1)..];
-            var existing = fields.FindIndex(f => f.Key == key);
-            if (existing >= 0) fields[existing].Values.Add(value);                 // a later value: kept even when blank
-            else if (value.Trim().Length != 0) fields.Add((key, [value]));        // a first value: dropped when blank
+            if (index.TryGetValue(key, out var existing)) fields[existing].Values.Add(value);   // a later value: kept even when blank
+            else if (value.Trim().Length != 0)                                                   // a first value: dropped when blank
+            {
+                index[key] = fields.Count;
+                fields.Add((key, [value]));
+            }
         }
         return (vendor, fields);
     }

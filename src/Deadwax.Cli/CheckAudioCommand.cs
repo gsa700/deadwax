@@ -48,7 +48,10 @@ internal static partial class CheckAudioCommand
             foreach (var t in log.Tracks.Where(t => t.Number >= 1))
             {
                 if (!flacs.TryGetValue(t.Number, out var flac)) continue;
-                var audio = FlacDecoder.DecodeToPcm(flac, out _);
+                byte[] audio;
+                // One unreadable file is one problem, not the end of the run (L2).
+                try { audio = FlacDecoder.DecodeToPcm(flac, out _); }
+                catch (IOException e) { problems.Add($"track {t.Number}: {e.Message}"); continue; }
                 tracks++;
 
                 var crc = AudioChecks.Crc32(audio);

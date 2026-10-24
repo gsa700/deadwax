@@ -35,7 +35,8 @@ internal static partial class CompareCommand
         foreach (var n in ourFlacs.Keys.Intersect(theirFlacs.Keys))
         {
             var (a, b) = (ourFlacs[n], theirFlacs[n]);
-            var sameAudio = FlacInfo.AudioMd5(a) == FlacInfo.AudioMd5(b);
+            // A file that states no MD5 proves nothing: two of them are not "the same audio" (L4).
+            var sameAudio = FlacInfo.AudioMd5(a) is { } md5 && md5 == FlacInfo.AudioMd5(b);
             var sameFrames = sameAudio && FramesEqual(a, b);
             // Same audio in different frames is a pass: a libFLAC built another way
             // makes other (equally lossless) choices. Since natives-2 every platform
@@ -102,14 +103,7 @@ internal static partial class CompareCommand
     private static byte[] Frames(string path)
     {
         var bytes = File.ReadAllBytes(path);
-        var at = 4;                                   // "fLaC"
-        while (true)
-        {
-            var last = (bytes[at] & 0x80) != 0;
-            var length = bytes[at + 1] << 16 | bytes[at + 2] << 8 | bytes[at + 3];
-            at += 4 + length;
-            if (last) return bytes[at..];
-        }
+        return bytes[(int)FlacMetadata.Read(path).AudioOffset..];   // bounds-checked there (L4)
     }
 
     // In-process (FlacMetadata), not metaflac: works where FLAC's tools aren't

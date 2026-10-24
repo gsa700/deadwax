@@ -352,4 +352,78 @@ public class SecurityReview2Tests
         using var codec = SkiaSharp.SKCodec.Create(SkiaSharp.SKData.CreateCopy(scaled));
         Assert.Equal((500, 333), (codec.Info.Width, codec.Info.Height));
     }
+
+    // ---- the second pass: the decoder and the comment reader (L1, L2, L3) -----
+
+    /// A real CD track, encoded by Deadwax, with STREAMINFO changed by patch.
+    private static string Patched(Action<byte[]> patch)
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"deadwax-dec-{Guid.NewGuid():N}.flac");
+        FlacWriter.Encode(path, NoiseWithTagAtEnd(4 * 4096, tag: false));
+        var bytes = File.ReadAllBytes(path);
+        patch(bytes);
+        File.WriteAllBytes(path, bytes);
+        return path;
+    }
+
+    // STREAMINFO starts at byte 8: min/max block (2+2), min/max frame (3+3),
+    // then 20 bits of rate, 3 of channels - 1, 5 of bits - 1, 36 of total samples.
+    private static void SetChannels(byte[] b, int channels) => b[8 + 12] = (byte)((b[8 + 12] & 0xF1) | ((channels - 1) << 1));
+    private static void SetTotalSamples(byte[] b, long total)
+    {
+        b[8 + 13] = (byte)((b[8 + 13] & 0xF0) | (int)(total >> 32));
+        BinaryPrimitives.WriteUInt32BigEndian(b.AsSpan(8 + 14), (uint)total);
+    }
+
+    [Fact]
+    public void L1_a_stream_claiming_more_samples_than_deadwax_decodes_is_refused_up_front()
+    {
+        var path = Patched(b => { SetChannels(b, 8); b[8 + 12] |= 0x01; b[8 + 13] |= 0xF0; SetTotalSamples(b, (1L << 36) - 1); });
+        try { Assert.Throws<FlacDecodeException>(() => FlacDecoder.DecodeToPcm(path, out _)); }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void L1_frames_beyond_what_streaminfo_says_stop_the_decode()
+    {
+        var path = Patched(b => SetTotalSamples(b, 100));
+        try
+        {
+            var e = Assert.Throws<FlacDecodeException>(() => FlacDecoder.DecodeToPcm(path, out _));
+            Assert.Contains("more audio than STREAMINFO", e.Message);
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void L2_a_frame_with_other_channels_than_streaminfo_is_a_decode_error_not_a_crash()
+    {
+        var path = Patched(b => SetChannels(b, 1));
+        try { Assert.Throws<FlacDecodeException>(() => FlacDecoder.DecodeToPcm(path, out _)); }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void L2_an_untouched_file_still_decodes()
+    {
+        var path = Patched(_ => { });
+        try { Assert.Equal(NoiseWithTagAtEnd(4 * 4096, tag: false), FlacDecoder.DecodeToPcm(path, out _)); }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void L3_reading_many_distinct_tags_is_not_quadratic()
+    {
+        var path = Patched(_ => { });
+        try
+        {
+            var tags = Enumerable.Range(0, 100_000).Select(i => new Tag($"K{i}", "v")).ToList();
+            FlacTags.Replace(path, tags);
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            var read = FlacTags.Read(path);
+            Assert.Equal(100_000, read.Count);
+            Assert.True(clock.Elapsed < TimeSpan.FromSeconds(2), $"{clock.Elapsed.TotalSeconds:0.0} s");
+        }
+        finally { File.Delete(path); }
+    }
 }

@@ -25,19 +25,41 @@ public static class FlacDecoder
     /// (bits + 7) / 8 bytes: for CD audio, exactly the bytes ripped. Throws
     /// FlacDecodeException on a bad CRC, a broken frame or an MD5 that does
     /// not match the audio (an MD5 of all zeros means "not given").
+    /// The most PCM one file may decode to: 1 GiB, past the 847 MB of a single
+    /// 80-minute CD track. STREAMINFO's own size is not believed for this:
+    /// a 42-byte file claiming 2^36 samples was given that much memory up
+    /// front, and constant subframes turned 26 KB into 2.4 GB (security
+    /// review 2026-10-24, L1).
+    public const long MaxPcmBytes = 1L << 30;
+
     public static byte[] DecodeToPcm(string path, out FlacStreamInfo info)
     {
         var data = File.ReadAllBytes(path);
         info = ReadStreamInfo(data, out var at);
         var bytesPerSample = (info.BitsPerSample + 7) / 8;
-        var pcm = new MemoryStream(info.TotalSamples > 0 ? (int)Math.Min(int.MaxValue, info.TotalSamples * info.Channels * bytesPerSample) : 1 << 20);
+        var expected = info.TotalSamples * info.Channels * bytesPerSample;
+        if (expected > MaxPcmBytes) throw new FlacDecodeException($"{path}: STREAMINFO claims {info.TotalSamples} samples, more than Deadwax decodes.");
+        var pcm = new MemoryStream(expected > 0 ? (int)Math.Min(expected, 64L << 20) : 1 << 20);
         var channels = new long[info.Channels][];
         for (var c = 0; c < channels.Length; c++) channels[c] = new long[Math.Max(info.MaxBlockSize, 1)];
         var row = new byte[info.Channels * bytesPerSample];
         long samples = 0;
         while (at < data.Length)
         {
+            // Every frame must be what STREAMINFO says the stream is: its
+            // channel count (from the header's channel code, read before the
+            // frame is decoded) and no longer than its largest block. A mono
+            // frame in a stereo stream read channel 1 past its end and threw
+            // IndexOutOfRange, which no caller expected (L2).
+            if (at + 4 > data.Length) throw new FlacDecodeException($"{path}: a frame header is cut off at byte {at}.");
+            var code = data[at + 3] >> 4;
+            if ((code < 8 ? code + 1 : 2) != info.Channels)
+                throw new FlacDecodeException($"{path}: the frame at byte {at} has a different number of channels from STREAMINFO.");
             var used = DecodeFrame(data, at, data.Length, info, ref channels, out var blockSize);
+            if (info.MaxBlockSize > 0 && blockSize > info.MaxBlockSize)
+                throw new FlacDecodeException($"{path}: the frame at byte {at} is longer than STREAMINFO's largest block.");
+            if (pcm.Length + (long)blockSize * row.Length > MaxPcmBytes || (info.TotalSamples > 0 && samples + blockSize > info.TotalSamples))
+                throw new FlacDecodeException($"{path}: more audio than STREAMINFO says, or than Deadwax decodes.");
             at += used;
             for (var i = 0; i < blockSize; i++)
             {
