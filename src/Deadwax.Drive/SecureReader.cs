@@ -114,17 +114,17 @@ public readonly record struct ReadWindow(
     }
 }
 
-/// Reads tracks with the drive's read offset corrected (see ReadWindow):
-/// through libcdio-paranoia, or with DEADWAX_READER=deadwax on a Mac through
-/// Deadwax's own PassReader (step 4, spec §11), which stays off by default
-/// until damaged discs read at least as well with it as with paranoia.
+/// Reads tracks with the drive's read offset corrected (see ReadWindow): on
+/// the Mac through Deadwax's own PassReader (step 4, spec §11; the only reader
+/// there since 0.7.2, after Dido's Life for Rent and Led Zeppelin I read
+/// better with it than with paranoia), elsewhere through libcdio-paranoia
+/// until those systems have their own READ CD transport.
 public sealed class SecureReader : IDisposable
 {
     public const int DefaultMaxRetries = 20;
 
     /// Whether this run reads audio with Deadwax's own reader.
-    public static bool OwnReader =>
-        OperatingSystem.IsMacOS() && Environment.GetEnvironmentVariable("DEADWAX_READER") == "deadwax";
+    public static bool OwnReader => OperatingSystem.IsMacOS();
 
     /// The rip log's extraction engine.
     public static string EngineDescription => OwnReader

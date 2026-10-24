@@ -10,9 +10,10 @@
 #                                      (signed; notarized and stapled too with --notarize)
 #
 # WHAT IS IN IT: the single-file program, in the folder layout macOS expects
-# of an application, with its native libraries (libcdio and libcdio-paranoia
-# from native/osx-<arch>/, Avalonia's and Skia's) beside it in the bundle,
-# each signed with the app's own certificate:
+# of an application, with its native libraries (Avalonia's and Skia's; no
+# libcdio or libcdio-paranoia since 0.7.2, when Deadwax began reading the
+# drive with its own code on the Mac) beside it in the bundle, each signed
+# with the app's own certificate:
 #
 #   Deadwax.app/Contents/Info.plist        name, version, identity, icon
 #   Deadwax.app/Contents/MacOS/Deadwax     the program
@@ -73,12 +74,6 @@ APP="$OUT/Deadwax.app"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
-# Without its own libraries the app has nothing to read a disc with: a Mac
-# has no libcdio. A bundle without them is not worth making.
-for lib in libcdio.19.dylib libcdio_cdda.2.dylib libcdio_paranoia.2.dylib; do
-    [ -f "$ROOT/native/$RID/$lib" ] || {
-        echo "no native/$RID/$lib: fetch the natives first (tools/get-natives.sh)" >&2; exit 1; }
-done
 
 echo "== publish $RID $VERSION"
 # tools/release.sh's flags, but the native libraries stay files of their own,

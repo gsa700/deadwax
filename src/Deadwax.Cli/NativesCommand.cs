@@ -9,6 +9,14 @@ internal static class NativesCommand
 {
     public static Task<int> RunAsync(string[] args)
     {
+        if (OperatingSystem.IsMacOS())
+        {
+            // No libcdio or libcdio-paranoia in the Mac build since 0.7.2 (spec §11, steps 3 and 4).
+            Console.WriteLine("  libraries       none: Deadwax reads the drive with its own code on macOS");
+            Console.WriteLine($"  engine          {SecureReader.EngineDescription}");
+            Console.WriteLine($"  default device  {CdDrive.DefaultDevice}");
+            return Task.FromResult(0);
+        }
         foreach (var name in new[] { "cdio", "cdio_cdda", "cdio_paranoia" })
         {
             var handle = NativeLibraries.Load(name);

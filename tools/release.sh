@@ -122,6 +122,7 @@ gh release download "$NATIVES" -R "$REPO" -D "$WORK/natives" -p "$NATIVES-*.zip"
     || die "could not download $NATIVES from $REPO"
 (cd "$WORK/natives" && sha256sum -c --quiet SHA256SUMS) || die "$NATIVES does not match its SHA256SUMS"
 for rid in "${RIDS[@]}"; do
+    [[ $rid == osx-* ]] && continue   # the Mac build carries no libcdio since 0.7.2
     zip="$WORK/natives/$NATIVES-$rid.zip"
     [ -f "$zip" ] || die "$NATIVES has no $rid build"
     # Each zip's own line: sha256sum -c checks only the lines there are, so a
@@ -217,7 +218,9 @@ if [ -z "$NOTES" ]; then
         else
             echo "Unpack the zip and run Deadwax."
         fi
-        echo "Nothing else to install: libcdio and libcdio-paranoia are built in ($NATIVES; sources on that release)."
+        if printf '%s\n' "${RIDS[@]}" | grep -qv '^osx-'; then
+            echo "Nothing else to install: on Linux and Windows libcdio and libcdio-paranoia are built in ($NATIVES; sources on that release); on the Mac Deadwax reads the drive with its own code."
+        fi
         echo "A running copy offers newer releases from its title bar and updates itself in place."
         if printf '%s\n' "${RIDS[@]}" | grep -q '^win-'; then
             echo
