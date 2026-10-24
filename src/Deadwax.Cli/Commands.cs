@@ -75,6 +75,7 @@ internal static class Commands
 
     public static async Task<int> RunAsync(string[] args)
     {
+        SafeConsole.Install();
         if (args.Length == 0 || args[0] is "-h" or "--help")
         {
             Console.WriteLine(Usage);

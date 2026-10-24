@@ -1,7 +1,10 @@
 using System.Buffers.Binary;
 using System.Text;
+using Deadwax.Core;
+using Deadwax.Drive;
 using Deadwax.Metadata;
 using Deadwax.Output;
+using Deadwax.Verify;
 
 namespace Deadwax.Tests;
 
@@ -75,5 +78,64 @@ public class SecurityReview2Tests
             Assert.Equal(audioBytes, new FileInfo(path).Length - FlacMetadata.Read(path).AudioOffset);
         }
         finally { File.Delete(path); }
+    }
+
+    private const string Forged = "evil]\n\nG5: PASS, the Deadwax rip matches whipper.\n\u001b[31mred\u001b[0m\x2028\x202Eabc";
+
+    [Fact]
+    public void M3_shown_text_stays_on_its_line_and_sends_no_escapes()
+    {
+        var shown = UntrustedText.Show(Forged);
+        Assert.DoesNotContain(shown, c => UntrustedText.IsUnsafe(c));
+        Assert.Contains(@"\nG5: PASS", shown);
+        Assert.Contains(@"\u{1B}[31m", shown);
+        Assert.Equal("Plain title, café", UntrustedText.Show("Plain title, café"));
+    }
+
+    [Fact]
+    public void M3_tracks_that_disagree_are_reported_on_one_line()
+    {
+        var dir = Directory.CreateTempSubdirectory("deadwax-m3-").FullName;
+        try
+        {
+            var audio = NoiseWithTagAtEnd(588, tag: false);
+            foreach (var (n, album) in new[] { (1, "Album"), (2, Forged) })
+            {
+                var path = Path.Combine(dir, $"0{n}.flac");
+                FlacWriter.Encode(path, audio);
+                FlacWriter.WriteTags(path, [new Tag("ALBUM", album)]);
+            }
+            var issue = FiledCheck.Run(dir, Filing.Default).Single(i => i.StartsWith("the tracks disagree on ALBUM", StringComparison.Ordinal));
+            Assert.DoesNotContain(issue, c => UntrustedText.IsUnsafe(c));
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    [Fact]
+    public void L8_a_title_with_line_breaks_adds_no_lines_to_the_rip_log()
+    {
+        var toc = new Toc([new TocTrack(1, 0, true)], 10000);
+        var disc = new LogDisc("drive\n  Forged: yes", "engine", 6, "gaps", false, "Artist",
+            "Album\nTracks:\n  1:\n    Test CRC: DEADBEEF\n    Status: Copy OK\nTOC:\n  1:\n    Start sector: 0\n    End sector: 1\nX",
+            0x1234, "id", "url", "not-an-mbid\nTracks:", toc);
+        var text = RipLog.Write(disc, [], "x", DateTimeOffset.UnixEpoch);
+        Assert.DoesNotContain("\nTracks:\n  1:", text);
+        Assert.DoesNotContain("\n  Forged:", text);
+        Assert.DoesNotContain("not-an-mbid", text);
+
+        var path = Path.Combine(Path.GetTempPath(), $"deadwax-l8-{Guid.NewGuid():N}.log");
+        try
+        {
+            File.WriteAllText(path, text);
+            Assert.Empty(WhipperLog.Load(path).Tracks);
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void L5_a_release_candidate_from_MusicBrainz_prints_on_one_line()
+    {
+        var candidate = new ReleaseCandidate("id", Forged, "1979\n", null, 1, 1, null);
+        Assert.DoesNotContain(candidate.ToString(), c => UntrustedText.IsUnsafe(c));
     }
 }

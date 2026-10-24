@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Deadwax.Drive;
 using Deadwax.Metadata;
 using Deadwax.Verify;
 using static Deadwax.Cli.Commands;
@@ -49,7 +50,7 @@ internal static partial class CompareCommand
             var tb = await TagsAsync(b);
             var diffs = ta.Select(t => t.Key).Union(tb.Select(t => t.Key)).Distinct()
                 .Where(k => !ta.Where(t => t.Key == k).Select(t => t.Value).Order().SequenceEqual(tb.Where(t => t.Key == k).Select(t => t.Value).Order()))
-                .Select(k => $"{k}: [{string.Join(" | ", ta.Where(t => t.Key == k).Select(t => t.Value))}] vs [{string.Join(" | ", tb.Where(t => t.Key == k).Select(t => t.Value))}]")
+                .Select(k => $"{UntrustedText.Show(k)}: [{string.Join(" | ", ta.Where(t => t.Key == k).Select(t => UntrustedText.Show(t.Value)))}] vs [{string.Join(" | ", tb.Where(t => t.Key == k).Select(t => UntrustedText.Show(t.Value)))}]")
                 .ToList();
             Report(diffs.Count == 0, $"track {n} tags", diffs.Count == 0 ? "" : string.Join("; ", diffs));
             var sameName = Path.GetFileName(a) == Path.GetFileName(b);

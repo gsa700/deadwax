@@ -1,3 +1,4 @@
+using Deadwax.Drive;
 using Deadwax.Metadata;
 using Deadwax.Output;
 
@@ -62,7 +63,7 @@ public static class FiledCheck
         }
 
         foreach (var (key, values) in seen.Where(s => s.Value.Count > 1))
-            issues.Add($"the tracks disagree on {key}: {string.Join(" | ", values.Order(StringComparer.Ordinal))}");
+            issues.Add($"the tracks disagree on {key}: {string.Join(" | ", values.Order(StringComparer.Ordinal).Select(UntrustedText.Show))}");
 
         var sorted = numbers.Order().ToList();
         if (sorted.Count > 0 && (sorted.Distinct().Count() != sorted.Count || !sorted.SequenceEqual(Enumerable.Range(1, sorted.Count))))

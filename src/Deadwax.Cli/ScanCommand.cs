@@ -54,7 +54,7 @@ internal static class ScanCommand
         if (cdrdao is not null)
         {
             Console.WriteLine($"Catalog      {CdrdaoToc.Real(cdrdao.Catalog) ?? "(none)"}{(CdrdaoToc.Real(cdrdao.DiscText?.UpcEan) is { } upc ? $", CD-Text {upc}" : "")}");
-            if (cdrdao.DiscText is { } text) Console.WriteLine($"CD-Text      {text.Performer} / {text.Title}");
+            if (cdrdao.DiscText is { } text) Console.WriteLine($"CD-Text      {UntrustedText.Show(text.Performer)} / {UntrustedText.Show(text.Title)}");
         }
         Console.WriteLine();
         Console.WriteLine(cdrdao is null ? "  #   start sector  length" : "  #   start sector  length     pregap  ISRC");

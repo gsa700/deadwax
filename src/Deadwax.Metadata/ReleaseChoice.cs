@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Deadwax.Drive;
 
 namespace Deadwax.Metadata;
 
@@ -18,7 +19,7 @@ public sealed record ReleaseCandidate(
         s is null ? null : new string(s.Where(char.IsAsciiDigit).ToArray()).TrimStart('0');
 
     public override string ToString() =>
-        $"{Title}{(MediaCount > 1 ? $" (disc {DiscPosition} of {MediaCount})" : "")} · {Date ?? "no date"} · {Country ?? "?"} · {Id}";
+        $"{UntrustedText.Show(Title)}{(MediaCount > 1 ? $" (disc {DiscPosition} of {MediaCount})" : "")} · {UntrustedText.Show(Date ?? "no date")} · {UntrustedText.Show(Country ?? "?")} · {UntrustedText.Show(Id)}";
 }
 
 public static class ReleaseChoice

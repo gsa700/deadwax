@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using Deadwax.Drive;
+using Deadwax.Metadata;
 
 namespace Deadwax.Output;
 
@@ -44,7 +45,7 @@ public static class RipLog
         L($"Log creation date: {created.UtcDateTime:yyyy-MM-dd'T'HH:mm:ss'Z'}");
         L();
         L("Ripping phase information:");
-        L($"  Drive: {disc.Drive}");
+        L($"  Drive: {Yaml(disc.Drive)}");
         L($"  Extraction engine: {disc.Engine}");
         L("  Defeat audio cache: false");
         L($"  Read offset correction: {disc.ReadOffset}");
@@ -61,7 +62,7 @@ public static class RipLog
         L($"  CDDB Disc ID: {disc.CddbId:x8}");
         L($"  MusicBrainz Disc ID: {disc.MusicBrainzId}");
         L($"  MusicBrainz lookup URL: {disc.MusicBrainzLookupUrl}");
-        if (disc.ReleaseId is not null) L($"  MusicBrainz Release URL: https://musicbrainz.org/release/{disc.ReleaseId}");
+        if (WebLimits.IsMbid(disc.ReleaseId)) L($"  MusicBrainz Release URL: https://musicbrainz.org/release/{disc.ReleaseId}");
         L();
         L("TOC:");
         foreach (var t in disc.Toc.Tracks)
@@ -138,9 +139,13 @@ public static class RipLog
 
     /// Quote a value the way YAML (and whipper) needs when it could otherwise
     /// be misread: a colon-space, a leading quote or symbol, or an all-digit
-    /// hex string such as the CRC '40010337'.
+    /// hex string such as the CRC '40010337'. Line breaks and other control
+    /// characters become spaces first: a title from the disc or MusicBrainz
+    /// could otherwise add lines of its own, such as a track that was never
+    /// ripped marked "Copy OK" (review 2026-10-24 L8).
     private static string Yaml(string s)
     {
+        s = UntrustedText.OneLine(s);
         var needs = s.Contains(": ") || s.Contains(" #") || s.Length == 0
                     || "'\"&*!|>%@`{}[],?-#".Contains(s[0]) || s.All(char.IsDigit);
         return needs ? "'" + s.Replace("'", "''") + "'" : s;

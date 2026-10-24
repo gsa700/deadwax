@@ -93,7 +93,7 @@ internal static class CheckTagsCommand
                     var have = actual.Where(t => t.Key == key).Select(t => t.Value).Order(StringComparer.Ordinal).ToList();
                     if (want.SequenceEqual(have)) continue;
                     albumDiffs++;
-                    Note(key, $"{Rel(dir)} #{number}: deadwax [{string.Join(" | ", want)}]  library [{string.Join(" | ", have)}]");
+                    Note(UntrustedText.Show(key), $"{Rel(dir)} #{number}: deadwax [{string.Join(" | ", want.Select(UntrustedText.Show))}]  library [{string.Join(" | ", have.Select(UntrustedText.Show))}]");
                 }
             }
             if (albumDiffs == 0) clean++;
