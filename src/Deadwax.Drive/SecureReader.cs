@@ -290,6 +290,7 @@ public sealed class SecureReader : IDisposable
 
     public void Dispose()
     {
+        _own?.RestoreSpeed();
         _transport?.Dispose();
         _transport = null;
         if (_drive == IntPtr.Zero) return;

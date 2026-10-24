@@ -228,4 +228,13 @@ public class PassReaderTests
         new PassReader(capped) { NormalSpeed = 2 }.ReadSectors(0, 100, 0, 100, 5);
         Assert.Empty(capped.Speeds);   // already slower than the retry speed: left alone
     }
+
+    [Fact]
+    public void Damage_at_the_very_end_still_leaves_the_drive_at_its_speed()
+    {
+        var drive = new FakeDrive(100);
+        drive.BadReads[99] = 2;   // the last sector: no clean run after it
+        new PassReader(drive) { NormalSpeed = null }.ReadSectors(0, 100, 0, 100, 5);
+        Assert.Equal([PassReader.RetrySpeed, (int?)null], drive.Speeds);
+    }
 }

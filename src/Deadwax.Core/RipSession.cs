@@ -353,6 +353,13 @@ public sealed class RipSession
             CdDrive.LimitSpeed(disc.Device, speed);
             observer.Say($"Drive speed limited to {speed}x.");
         }
+        else if (SecureReader.OwnReader)
+        {
+            // No cap: the drive's own speed, whatever was left set (Deadwax's own
+            // reader slows down for damaged sectors; so might another program).
+            try { CdDrive.LimitSpeed(disc.Device, null); }
+            catch (DriveException) { }
+        }
 
         using (var reader = SecureReader.Open(disc.Device))
         {

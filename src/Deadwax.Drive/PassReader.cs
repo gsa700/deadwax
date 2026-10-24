@@ -148,8 +148,19 @@ public sealed class PassReader(IAudioSource source)
                 _slowed = !source.SetSpeed(NormalSpeed);
             progress?.Invoke(at + n - readableStart, readableEnd - readableStart);
         }
+        // Back to speed whatever happened: a damaged stretch at the end of the
+        // disc has no clean run after it, and the BDR-209D keeps a speed until
+        // the disc is changed, so the next rip of Damaged Disc Dido read all of
+        // it at 4x (2026-10-24).
+        RestoreSpeed();
         report.Elapsed = clock.Elapsed;
         return (window, report);
+    }
+
+    /// The rip's own speed again, if a damaged stretch slowed the drive.
+    public void RestoreSpeed()
+    {
+        if (_slowed) _slowed = !source.SetSpeed(NormalSpeed);
     }
 
     private int Stride => _c2 == true ? SectorBytes + C2Bytes : SectorBytes;
