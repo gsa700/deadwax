@@ -627,28 +627,21 @@ public static class InstallService
             // FlexPad carries the fix. This installer was ported from Shack Power, which does not.
             lines.AddRange(toDelete.Select(p =>
             {
-                var q = p.Replace("'", "''");
-                return $"for ($i = 0; $i -lt 40 -and (Test-Path -LiteralPath '{q}'); $i++) {{ " +
-                       $"Remove-Item -LiteralPath '{q}' -Recurse -Force -ErrorAction SilentlyContinue; " +
-                       $"if (Test-Path -LiteralPath '{q}') {{ Start-Sleep -Milliseconds 250 }} }}";
+                var q = PowerShell.Quote(p);
+                return $"for ($i = 0; $i -lt 40 -and (Test-Path -LiteralPath {q}); $i++) {{ " +
+                       $"Remove-Item -LiteralPath {q} -Recurse -Force -ErrorAction SilentlyContinue; " +
+                       $"if (Test-Path -LiteralPath {q}) {{ Start-Sleep -Milliseconds 250 }} }}";
             }));
-            lines.Add($"Remove-Item -LiteralPath '{script.Replace("'", "''")}' -Force -ErrorAction SilentlyContinue");
+            lines.Add($"Remove-Item -LiteralPath {PowerShell.Quote(script)} -Force -ErrorAction SilentlyContinue");
             File.WriteAllText(script, string.Join("\n", lines) + "\n");
 
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = "powershell.exe",
-                Arguments = $"-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"{script}\"",
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                // The helper must not inherit this process's working directory: an installed copy
-                // runs with its own folder as the working directory (the shortcut sets it), and
-                // Windows will not remove a directory that is any live process's current directory
-                // — including the one doing the removing. Without this the helper deletes the files
-                // and then fails on the folder itself, every time, from inside it. (LP-100A,
-                // 2026-09-04, by way of FlexPad.)
-                WorkingDirectory = Path.GetTempPath(),
-            });
+            // PowerShell.StartInfo starts it by its full path, and in %TEMP%: the helper must not
+            // inherit this process's working directory. An installed copy runs with its own folder
+            // as the working directory (the shortcut sets it), and Windows will not remove a
+            // directory that is any live process's current directory — including the one doing the
+            // removing. Without this the helper deletes the files and then fails on the folder
+            // itself, every time, from inside it. (LP-100A, 2026-09-04, by way of FlexPad.)
+            Process.Start(PowerShell.StartInfo(script));
         }
         else
         {

@@ -296,13 +296,7 @@ public static class UpdateService
         {
             var ps1 = Path.Combine(helperDir, "apply-update.ps1");
             File.WriteAllText(ps1, WindowsApplyScript(pid, stagedExe, target, marker, Path.GetDirectoryName(target)!, stageRoot, OwnExtractionDir, helperDir, args));
-            Process.Start(new ProcessStartInfo("powershell.exe")
-            {
-                Arguments = $"-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"{ps1}\"",
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                WorkingDirectory = Path.GetTempPath(),
-            });
+            Process.Start(PowerShell.StartInfo(ps1));
         }
         else
         {
@@ -326,8 +320,8 @@ public static class UpdateService
     private static string WindowsApplyScript(int pid, string stagedExe, string targetExe, string failedMarker,
         string workingDirectory, string stageRoot, string? ownExtractionDir, string helperDir, IReadOnlyList<string> relaunchArgs)
     {
-        static string Q(string path) => "'" + path.Replace("'", "''") + "'";
-        var argList = relaunchArgs.Count > 0 ? " -ArgumentList " + string.Join(",", relaunchArgs.Select(Q)) : "";
+        static string Q(string value) => PowerShell.Quote(value);
+        var argList = relaunchArgs.Count > 0 ? " -ArgumentList " + Q(PowerShell.CommandLine(relaunchArgs)) : "";
         return
             $"while (Get-Process -Id {pid} -ErrorAction SilentlyContinue) {{ Start-Sleep -Milliseconds 300 }}\n" +
             "$ok = $false\n" +

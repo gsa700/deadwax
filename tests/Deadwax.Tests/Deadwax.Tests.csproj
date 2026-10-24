@@ -29,6 +29,7 @@
     <ProjectReference Include="..\..\src\Deadwax.Verify\Deadwax.Verify.csproj" />
     <ProjectReference Include="..\..\src\Deadwax.Output\Deadwax.Output.csproj" />
     <ProjectReference Include="..\..\src\Deadwax.Core\Deadwax.Core.csproj" />
+    <ProjectReference Include="..\..\src\Deadwax.App\Deadwax.App.csproj" />
   </ItemGroup>
 
 </Project>
