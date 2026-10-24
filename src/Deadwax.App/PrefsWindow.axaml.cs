@@ -54,7 +54,7 @@ public partial class PrefsWindow : Window
     /// tall as its LONGEST tab and the same height on all of them, so nothing
     /// moves from tab to tab. Each tab is laid out in turn, in one go before
     /// anything is drawn, and the tallest wins; the height in the markup is the
-    /// least it will be, and the screen's working height the most.
+    /// least it will be, and the main window's height and the screen's the most.
     private void SizeToLongestTab()
     {
         var shown = Tabs.SelectedIndex;
@@ -73,16 +73,28 @@ public partial class PrefsWindow : Window
             host.InvalidateMeasure();
         }
         Tabs.SelectedIndex = shown;
-        // The screen's working height is the most, even below the markup's
-        // height. Which screen: this window's, else the main window's, else
-        // the primary. On native Wayland a window just opening has no screen
-        // of its own yet, so on Techbench's 1080 screen nothing capped it and
-        // it opened 1013 high (2026-10-24).
-        var screen = Screens.ScreenFromWindow(this) ?? Screens.ScreenFromWindow(_main) ?? Screens.Primary;
+        // NO TALLER THAN THE MAIN WINDOW, his rule (2026-10-24): it is already
+        // fitted to the screen, so this one cannot run off it, and the two
+        // stand the same height. Its frame (a title bar the main window draws
+        // inside itself) comes off: as the window system gives it, else 32,
+        // GNOME's title bar, since native Wayland gives no frame size (on
+        // Techbench the two windows' bottoms then differed by that bar).
+        // A longer tab scrolls. The screen's working height stays a limit too,
+        // for a main window larger than the screen. Native Wayland gives a new
+        // window no screen of its own and reports the working area as the
+        // whole screen, without GNOME's bar: on Techbench's 1080 screen the
+        // screen limit alone let it open 1013 high, past the bottom.
         var height = tallest;
+        if (_main.Bounds.Height > 0)
+        {
+            var frame = FrameSize is { } f && f.Height > ClientSize.Height ? f.Height - ClientSize.Height
+                : OperatingSystem.IsLinux() ? 32 : 0;
+            height = Math.Min(height, _main.Bounds.Height - frame);
+        }
+        var screen = Screens.ScreenFromWindow(this) ?? Screens.ScreenFromWindow(_main) ?? Screens.Primary;
         if (screen is not null)
             height = Math.Min(height, screen.WorkingArea.Height / screen.Scaling - 48);
-        Console.WriteLine($"[prefs] height {Height:0} -> {height:0} (screen {(screen is null ? "unknown" : $"{screen.WorkingArea.Height / screen.Scaling:0} high")})");
+        Console.WriteLine($"[prefs] height {Height:0} -> {height:0} (main window {_main.Bounds.Height:0} high, screen {(screen is null ? "unknown" : $"{screen.WorkingArea.Height / screen.Scaling:0}")})");
         if (Math.Abs(height - Height) > 0.5) { Height = height; UpdateLayout(); }
     }
 
