@@ -32,6 +32,10 @@ public class PassReaderTests
         private int _guess;
 
         public int AudioEnd => sectors;
+        public IReadOnlyList<int> Boundaries { get; set; } = [];
+        /// The BDR-209D's way (Garfunkel, 2026-10-24): a run read across a track
+        /// start comes back with C2 set on the sectors next to it.
+        public bool FlagsAcrossBoundaries;
 
         public byte[]? ReadAudio(int lsn, int count, bool c2)
         {
@@ -46,7 +50,8 @@ public class PassReaderTests
             for (var i = 0; i < count; i++)
             {
                 var sector = lsn + i;
-                var bad = Dead.Contains(sector) || BadReads.GetValueOrDefault(sector) > 0;
+                var bad = Dead.Contains(sector) || BadReads.GetValueOrDefault(sector) > 0
+                          || FlagsAcrossBoundaries && Boundaries.Any(b => b > lsn && b < lsn + count && Math.Abs(sector - b) <= 2);
                 if (BadReads.TryGetValue(sector, out var left) && left > 0) BadReads[sector] = left - 1;
                 if (bad && Fails.Contains(sector)) return null;
                 Disc.AsSpan(sector * S, S).CopyTo(o.AsSpan(i * per));
@@ -183,5 +188,15 @@ public class PassReaderTests
         Assert.Equal(SectorState.Recovered, statuses[^1].Result);
         Assert.Equal(37, statuses[^1].Sector);
         Assert.Equal(3, statuses[^1].Attempt);   // flagged once more, then two clean reads that agree
+    }
+
+    [Fact]
+    public void No_run_is_read_across_a_track_start()
+    {
+        var drive = new FakeDrive(200) { Boundaries = [0, 50, 130, 200], FlagsAcrossBoundaries = true };
+        var (window, report) = Read(drive, 200);
+        Assert.Equal(drive.Disc, window);
+        Assert.All(report.Sectors, st => Assert.Equal(SectorState.Clean, st));
+        Assert.Empty(drive.SingleReads);   // nothing needed reading again
     }
 }

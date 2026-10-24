@@ -14,6 +14,12 @@ public interface IAudioSource
     /// The disc's last readable audio sector + 1: where a cache-defeating read
     /// may go.
     int AudioEnd { get; }
+
+    /// Where tracks start (and the audio ends): no run is read across one.
+    /// Garfunkel on the BDR-209D (2026-10-24): every sector the drive flagged
+    /// with C2 on that clean disc sat at a track start or the lead-out, a run
+    /// read across the boundary, and each read clean on its own.
+    IReadOnlyList<int> Boundaries => [];
 }
 
 /// A damaged sector being read again, for the window and the command line:
@@ -81,10 +87,13 @@ public sealed class PassReader(IAudioSource source)
         var tries = Math.Clamp(maxRetries, 1, MaxTries);
         var damagedSoFar = 0;
 
-        for (var at = readableStart; at < readableEnd; at += RunSectors)
+        var boundaries = source.Boundaries;
+        for (var at = readableStart; at < readableEnd;)
         {
             ct.ThrowIfCancellationRequested();
             var n = Math.Min(RunSectors, readableEnd - at);
+            foreach (var b in boundaries)
+                if (b > at && b < at + n) { n = b - at; break; }
             var run = ReadRun(at, n);
             for (var i = 0; i < n; i++)
             {
@@ -113,6 +122,7 @@ public sealed class PassReader(IAudioSource source)
                 }
             }
             progress?.Invoke(at + n - readableStart, readableEnd - readableStart);
+            at += n;
         }
         report.Elapsed = clock.Elapsed;
         return (window, report);
