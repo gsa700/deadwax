@@ -73,10 +73,17 @@ public partial class PrefsWindow : Window
             host.InvalidateMeasure();
         }
         Tabs.SelectedIndex = shown;
-        if (Screens.ScreenFromWindow(this) is { } screen)
-            tallest = Math.Min(tallest, screen.WorkingArea.Height / screen.Scaling - 48);
-        Console.WriteLine($"[prefs] height {Height:0} -> {Math.Max(Height, tallest):0}");
-        if (tallest > Height + 0.5) { Height = tallest; UpdateLayout(); }
+        // The screen's working height is the most, even below the markup's
+        // height. Which screen: this window's, else the main window's, else
+        // the primary. On native Wayland a window just opening has no screen
+        // of its own yet, so on Techbench's 1080 screen nothing capped it and
+        // it opened 1013 high (2026-10-24).
+        var screen = Screens.ScreenFromWindow(this) ?? Screens.ScreenFromWindow(_main) ?? Screens.Primary;
+        var height = tallest;
+        if (screen is not null)
+            height = Math.Min(height, screen.WorkingArea.Height / screen.Scaling - 48);
+        Console.WriteLine($"[prefs] height {Height:0} -> {height:0} (screen {(screen is null ? "unknown" : $"{screen.WorkingArea.Height / screen.Scaling:0} high")})");
+        if (Math.Abs(height - Height) > 0.5) { Height = height; UpdateLayout(); }
     }
 
     // ---- library ------------------------------------------------------------
