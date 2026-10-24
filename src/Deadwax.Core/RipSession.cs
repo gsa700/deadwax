@@ -174,6 +174,13 @@ public sealed class RipSession
     /// to 0.2.11 says so whatever version made it (he noticed, 2026-10-10).
     public static string Version => AppVersion.Current;
 
+    /// Three passes, the last two each with sectors that could not be read:
+    /// the damage is permanent, and more passes only add time (on Life for
+    /// Rent's track 11 the fourth and fifth passes cost 12 minutes for 5 ms
+    /// of audio closer to the verified track). The reads go to the vote.
+    private static bool PermanentDamage(List<(byte[] Audio, ReadReport Report)> passes) =>
+        passes.Count >= 3 && passes[^1].Report.Skips > 0 && passes[^2].Report.Skips > 0;
+
     public static async Task<PreparedDisc> PrepareAsync(
         string? device, int? offsetOverride, Action<string> say, bool readSubchannel = true,
         int? speedLimit = null, CancellationToken ct = default)
@@ -356,6 +363,7 @@ public sealed class RipSession
 
         using (var reader = SecureReader.Open(disc.Device))
         {
+            reader.NormalSpeed = disc.SpeedLimit;
             foreach (var track in audioTracks)
             {
                 ct.ThrowIfCancellationRequested();
@@ -414,7 +422,7 @@ public sealed class RipSession
                     // Every pass is kept until two agree, for "Make best copy" (spec §8)
                     // should none: a vote of them, not whichever came last.
                     var passReads = new List<(byte[] Audio, ReadReport Report)> { (audio, report) };
-                    while (passes < maxPasses)
+                    while (passes < maxPasses && !PermanentDamage(passReads))
                     {
                         (audio, report) = reader.ReadTrack(toc, n, disc.Offset, maxRetries, (d, t) => observer.Progress(n, "copy", d, t), ct,
                             (s, state) => observer.SectorDamaged(n, "copy", s, state), st => observer.Retrying(n, "copy", st));

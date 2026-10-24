@@ -14,6 +14,9 @@ public interface IAudioSource
     /// The disc's last readable audio sector + 1: where a cache-defeating read
     /// may go.
     int AudioEnd { get; }
+
+    /// Caps the read speed (null: the drive's own); false if the drive will not.
+    bool SetSpeed(int? multiple) => false;
 }
 
 /// A damaged sector being read again, for the window and the command line:
@@ -65,6 +68,21 @@ public sealed class PassReader(IAudioSource source)
     /// The most reads of one damaged sector.
     public const int MaxTries = 5;
 
+    /// The speed damaged sectors are read again at: a damaged area often reads
+    /// better slowly (EAC and dBpoweramp do the same).
+    public const int RetrySpeed = 4;
+
+    /// The speed the rip reads at otherwise (its cap, or null for the drive's
+    /// own), to go back to once a damaged stretch is behind.
+    public int? NormalSpeed { get; set; }
+
+    /// Sectors a pass of this reader has given up on. A later pass reads each
+    /// of them once, for the vote ("Make best copy"), instead of five times:
+    /// on Life for Rent's track 11 five tries of ~150 hopeless sectors cost six
+    /// minutes a pass (his "that's a long time", 2026-10-24).
+    private readonly HashSet<int> _hopeless = [];
+    private bool _slowed;
+
     private bool? _c2;   // whether the drive gives C2 flags; found on the first read
 
     /// The same contract as SecureReader.ReadSectors: [firstSector, endSector)
@@ -109,7 +127,9 @@ public sealed class PassReader(IAudioSource source)
                 {
                     report.Record((int)ParanoiaEvent.ReadError, Word(sector));
                     damagedSoFar++;
-                    var n2 = clock.Elapsed < budget ? tries : 1;
+                    var n2 = clock.Elapsed < budget && !_hopeless.Contains(sector) ? tries : 1;
+                    if (n2 > 1 && !_slowed && (NormalSpeed is null || NormalSpeed > RetrySpeed))
+                        _slowed = source.SetSpeed(RetrySpeed);
                     var used = 0;
                     var (audio, recovered) = Secure(sector, n2, ct, attempt =>
                     {
@@ -117,11 +137,15 @@ public sealed class PassReader(IAudioSource source)
                         retrying?.Invoke(new RetryStatus(sector, attempt, n2, damagedSoFar, null));
                     });
                     audio.CopyTo(target);
+                    if (!recovered) _hopeless.Add(sector);
                     report.Record((int)(recovered ? ParanoiaEvent.Repair : ParanoiaEvent.Skip), Word(sector));
                     // The try it ended on, not the limit: "recovered after 5 tries" was every one of them.
                     retrying?.Invoke(new RetryStatus(sector, used, n2, damagedSoFar, recovered ? SectorState.Recovered : SectorState.Skipped));
                 }
             }
+            // A run with nothing damaged in it: the stretch is behind, back to speed.
+            if (_slowed && run is not null && Enumerable.Range(0, n).All(i => !HasC2(run, i)))
+                _slowed = !source.SetSpeed(NormalSpeed);
             progress?.Invoke(at + n - readableStart, readableEnd - readableStart);
         }
         report.Elapsed = clock.Elapsed;

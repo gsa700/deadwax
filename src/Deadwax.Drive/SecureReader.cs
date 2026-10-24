@@ -158,8 +158,13 @@ public sealed class SecureReader : IDisposable
     private sealed class Source(IDriveTransport mac) : IAudioSource
     {
         public int AudioEnd { get; set; }
+        public bool SetSpeed(int? multiple) => mac.SetSpeed(multiple);
         public byte[]? ReadAudio(int lsn, int count, bool c2) => mac.ReadAudio(lsn, count, c2);
     }
+
+    /// The rip's speed cap (null: the drive's own), for Deadwax's own reader to
+    /// return to after slowing down for damaged sectors.
+    public int? NormalSpeed { set { if (_own is not null) _own.NormalSpeed = value; } }
 
     public static SecureReader Open(string? device = null)
     {

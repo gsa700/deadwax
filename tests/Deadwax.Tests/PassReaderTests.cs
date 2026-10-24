@@ -32,6 +32,8 @@ public class PassReaderTests
         private int _guess;
 
         public int AudioEnd => sectors;
+        public readonly List<int?> Speeds = [];
+        public bool SetSpeed(int? multiple) { Speeds.Add(multiple); return true; }
         /// The BDR-209D's way (2026-10-24): a read that crosses one of these ends early.
         public readonly List<int> TrackStarts = [];
 
@@ -199,5 +201,31 @@ public class PassReaderTests
         Assert.All(report.Sectors, st => Assert.Equal(SectorState.Clean, st));
         Assert.Equal(0, report.ReadErrors);
         Assert.Empty(statuses);
+    }
+
+    [Fact]
+    public void A_sector_given_up_on_is_read_once_on_later_passes()
+    {
+        var drive = new FakeDrive(100);
+        drive.Dead.Add(10);
+        var reader = new PassReader(drive);
+        reader.ReadSectors(0, 100, 0, 100, 5);
+        Assert.Equal(PassReader.MaxTries, drive.SingleReads[10]);
+        reader.ReadSectors(0, 100, 0, 100, 5);
+        Assert.Equal(PassReader.MaxTries + 1, drive.SingleReads[10]);
+    }
+
+    [Fact]
+    public void Damaged_sectors_are_read_again_slowly_then_back_to_normal_speed()
+    {
+        var drive = new FakeDrive(100);
+        drive.BadReads[37] = 2;
+        new PassReader(drive) { NormalSpeed = 8 }.ReadSectors(0, 100, 0, 100, 5);
+        Assert.Equal([PassReader.RetrySpeed, 8], drive.Speeds);
+
+        var capped = new FakeDrive(100);
+        capped.BadReads[37] = 2;
+        new PassReader(capped) { NormalSpeed = 2 }.ReadSectors(0, 100, 0, 100, 5);
+        Assert.Empty(capped.Speeds);   // already slower than the retry speed: left alone
     }
 }
