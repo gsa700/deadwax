@@ -5,6 +5,9 @@
 #   tools/make-macos-app.sh --install  and copy it to /Applications (replacing one there)
 #   tools/make-macos-app.sh --notarize also have Apple notarize it and staple the ticket
 #                                      (needs the Developer ID; options combine)
+#   tools/make-macos-app.sh --dmg      also dist/Deadwax.dmg, the download for people: a window
+#                                      with the app and an Applications folder to drag it to
+#                                      (signed; notarized and stapled too with --notarize)
 #
 # WHAT IS IN IT: the single-file program, in the folder layout macOS expects
 # of an application, with its native libraries (libcdio and libcdio-paranoia
@@ -48,12 +51,13 @@ set -euo pipefail
 
 [ "$(uname -s)" = Darwin ] || { echo "make-macos-app.sh: on a Mac only" >&2; exit 1; }
 
-INSTALL=no; NOTARIZE=no
+INSTALL=no; NOTARIZE=no; DMG=no
 for arg in "$@"; do
     case "$arg" in
         --install) INSTALL=yes ;;
         --notarize) NOTARIZE=yes ;;
-        *) echo "usage: $0 [--install] [--notarize]" >&2; exit 2 ;;
+        --dmg) DMG=yes ;;
+        *) echo "usage: $0 [--install] [--notarize] [--dmg]" >&2; exit 2 ;;
     esac
 done
 
@@ -204,6 +208,40 @@ if [ "$NOTARIZE" = yes ]; then
     xcrun stapler staple "$APP"
     xcrun stapler validate "$APP"
     spctl --assess --type execute -vv "$APP"
+fi
+
+# THE DMG, for people: opening it shows Deadwax.app beside a link to
+# /Applications, to drag it across. (Run from the disk image or from
+# Downloads, macOS starts it from a randomised read-only copy, App
+# Translocation, which also cannot update itself.)
+# The image is signed like the app, and notarized and stapled with --notarize,
+# so it opens with no Gatekeeper warning even offline.
+if [ "$DMG" = yes ]; then
+    echo "== dmg"
+    DMGSRC="$WORK/dmg"
+    rm -rf "$DMGSRC"; mkdir -p "$DMGSRC"
+    ditto "$APP" "$DMGSRC/Deadwax.app"
+    ln -s /Applications "$DMGSRC/Applications"
+    rm -f "$OUT/Deadwax.dmg"
+    hdiutil create -quiet -volname "Deadwax $VERSION" -srcfolder "$DMGSRC" -fs HFS+ -format UDZO -ov "$OUT/Deadwax.dmg"
+    if [ -n "${LABEL:-}" ]; then
+        codesign --force --timestamp --sign "$SIGN_ID" "$OUT/Deadwax.dmg"
+        codesign --verify --strict "$OUT/Deadwax.dmg"
+    fi
+    if [ "$NOTARIZE" = yes ]; then
+        echo "== notarize the dmg"
+        xcrun notarytool submit "$OUT/Deadwax.dmg" --keychain-profile "${DEADWAX_NOTARY_PROFILE:-notary}" --wait \
+            | tee "$WORK/notary-dmg.txt"
+        if ! grep -q "status: Accepted" "$WORK/notary-dmg.txt"; then
+            id=$(sed -n 's/^ *id: //p' "$WORK/notary-dmg.txt" | head -1)
+            [ -n "$id" ] && xcrun notarytool log "$id" --keychain-profile "${DEADWAX_NOTARY_PROFILE:-notary}" >&2
+            echo "notarization of the dmg was not accepted" >&2; exit 1
+        fi
+        xcrun stapler staple "$OUT/Deadwax.dmg"
+        xcrun stapler validate "$OUT/Deadwax.dmg"
+        spctl --assess --type open --context context:primary-signature -vv "$OUT/Deadwax.dmg"
+    fi
+    du -h "$OUT/Deadwax.dmg" | cut -f1
 fi
 
 echo "== $APP"
