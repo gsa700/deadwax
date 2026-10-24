@@ -62,3 +62,8 @@ catches it at release time; the rules above are for every push.
 
 The design record is `~/Documents/Projects/Deadwax/deadwax-spec.md` (outside
 the repository) and the commit messages.
+
+AlbumWall (`~/Projects/albumwall`) plays FLAC with a copy of this repository's
+FLAC decoder (`src/Deadwax.Output/FlacDecoder.cs` and the reader in
+`FlacBits.cs` -> AlbumWall's `src/AlbumWall.Codecs/Flac.cs`). The frame
+decoding is kept identical in both: a fix to it here goes there too.

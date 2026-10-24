@@ -13,6 +13,12 @@ public sealed record FlacStreamInfo(
 /// 1-32), both Rice codings and escapes, wasted bits, every channel
 /// assignment, fixed or variable block sizes. Both CRCs are checked on every
 /// frame and the MD5 at the end. It decodes; it does not play.
+///
+/// AlbumWall plays FLAC with a COPY of this decoder and of FlacBits' reader
+/// (its src/AlbumWall.Codecs/Flac.cs, taken at 1ba7623, 2026-10-20; a copy,
+/// not a shared library, his call). DecodeFrame, Subframe, Residual,
+/// BitReader and FlacCrc are kept the same there, so a fix to them here
+/// belongs there too, line for line.
 public static class FlacDecoder
 {
     /// The whole file as PCM, interleaved, each sample little-endian in
