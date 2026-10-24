@@ -102,6 +102,7 @@ internal static class Commands
                 "natives" => await NativesCommand.RunAsync(args[1..]),
                 "check-drive" => await CheckDriveCommand.RunAsync(args[1..]),
                 "best-copy" => await BestCopyCommand.RunAsync(args[1..]),
+                "probe-c2" => await ProbeC2Command.RunAsync(args[1..]),
                 "read" => await ReadCommand.RunAsync(args[1..]),
                 "offset" => await OffsetCommand.RunAsync(args[1..]),
                 "check-logs" => await CheckLogsCommand.RunAsync(args[1..]),
