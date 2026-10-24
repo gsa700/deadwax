@@ -98,9 +98,9 @@ public sealed class PassReader(IAudioSource source)
         if (_c2 is null)
         {
             var withC2 = source.ReadAudio(lsn, count, c2: true);
-            if (withC2 is not null) { _c2 = true; return withC2; }
+            if (withC2 is not null) { _c2 = true; Console.Error.WriteLine("[read] the drive gives C2 error flags"); return withC2; }
             var plain = source.ReadAudio(lsn, count, c2: false);
-            if (plain is not null) _c2 = false;
+            if (plain is not null) { _c2 = false; Console.Error.WriteLine("[read] the drive gives no C2 error flags: only failed reads are retried"); }
             return plain;
         }
         return source.ReadAudio(lsn, count, _c2.Value);
