@@ -11,11 +11,18 @@
 #                                              tools/promote.sh X.Y.Z   (flag cleared, latest, notes say so)
 #   tools/release.sh 0.2.0 --dry-run           build and zip only: no tag, no release; the
 #                                              version/tree checks only warn. Leaves the zip in ./dist.
+#   tools/release.sh 0.2.0 --no-mac            without the Mac build, on a machine that is not a Mac
+#
+# RUN ON THE MAC (Control) since 0.7.0: the Mac build is made, signed and
+# notarized there by tools/make-macos-app.sh, and the Linux and Windows builds
+# cross-publish from it as they did from Techbench.
 #
 # WHAT A RELEASE IS, because the updater (src/Deadwax.App/UpdateService.cs) reads
 # exactly this and nothing else: a GitHub release tagged vX.Y.Z, carrying
 # Deadwax-<rid>.zip per platform (the single-file program: Deadwax, or
-# Deadwax.exe on Windows) and SHA256SUMS listing them.
+# Deadwax.exe on Windows; on the Mac, Deadwax.app as a whole, signed and
+# notarized), Deadwax.dmg (the Mac download for people) and SHA256SUMS
+# listing them all.
 # Two channels (Deadwax.Core/ReleaseFeed.cs): Stable reads /releases/latest,
 # which never returns a pre-release; Edge reads the release list and takes the
 # newest version, pre-release or not. Both refuse a download SHA256SUMS does not
@@ -37,16 +44,19 @@ CSPROJ="$ROOT/Directory.Build.props"   # one <Version> for every project
 # it: linux-x64 (Techbench), win-x64 (Hambench, 2026-10-13: natives-2 rip
 # byte-identical to Linux). osx-arm64 joins after the Mac's. All are built
 # here: a win-x64 publish on Linux takes native/win-x64 (native.targets).
-RIDS=(linux-x64 win-x64)
+# osx-arm64 joined in 0.7.0 (Control, 2026-10-24: the notarized bundle with
+# library validation on, proven on a rip).
+RIDS=(linux-x64 win-x64 osx-arm64)
 
-VERSION=${1:?usage: release.sh X.Y.Z [--notes-file FILE] [--edge] [--publish] [--dry-run]}
+VERSION=${1:?usage: release.sh X.Y.Z [--notes-file FILE] [--edge] [--publish] [--dry-run] [--no-mac]}
 shift
-PUBLISH=0; NOTES=""; DRY=0; EDGE=0
+PUBLISH=0; NOTES=""; DRY=0; EDGE=0; MAC=1
 while [ $# -gt 0 ]; do
     case "$1" in
         --publish) PUBLISH=1 ;;
         --edge) EDGE=1 ;;
         --dry-run) DRY=1 ;;
+        --no-mac) MAC=0 ;;
         --notes-file) NOTES=${2:?--notes-file needs a file}; shift ;;
         *) echo "unknown argument: $1" >&2; exit 2 ;;
     esac
@@ -66,6 +76,11 @@ command -v python3 >/dev/null || die "python3 is needed"
 DOTNET=$(command -v dotnet || echo "$HOME/.dotnet/dotnet")
 [ -x "$DOTNET" ] || die "dotnet is not on PATH and not in ~/.dotnet"
 [ -n "$NOTES" ] && [ ! -f "$NOTES" ] && die "no such notes file: $NOTES"
+if [ $MAC -eq 0 ]; then
+    RIDS=(linux-x64 win-x64)
+else
+    [ "$(uname -s)" = Darwin ] || die "the Mac build is made on a Mac: run this on Control, or pass --no-mac"
+fi
 
 cd "$ROOT"
 [ -z "$(git status --porcelain)" ] || must "the working tree is not clean"
@@ -109,6 +124,11 @@ gh release download "$NATIVES" -R "$REPO" -D "$WORK/natives" -p "$NATIVES-*.zip"
 for rid in "${RIDS[@]}"; do
     zip="$WORK/natives/$NATIVES-$rid.zip"
     [ -f "$zip" ] || die "$NATIVES has no $rid build"
+    # Each zip's own line: sha256sum -c checks only the lines there are, so a
+    # zip SHA256SUMS does not list would pass it (security review 2026-10-24, L15).
+    want=$(awk -v f="$NATIVES-$rid.zip" '$2 == f || $2 == "*" f {print $1}' "$WORK/natives/SHA256SUMS")
+    [ -n "$want" ] || die "$NATIVES's SHA256SUMS does not list $NATIVES-$rid.zip"
+    [ "$(sha256sum "$zip" | cut -d' ' -f1)" = "$want" ] || die "$NATIVES-$rid.zip does not match its SHA256SUMS line"
     rm -rf "$ROOT/native/$rid"; mkdir -p "$ROOT/native/$rid"
     unzip -q -o "$zip" -d "$ROOT/native/$rid"
     chmod 755 "$ROOT/native/$rid"/*.so.* "$ROOT/native/$rid"/*.dll "$ROOT/native/$rid"/*.dylib 2>/dev/null || true
@@ -117,6 +137,24 @@ done
 
 # ---- build ------------------------------------------------------------------
 for rid in "${RIDS[@]}"; do
+    if [[ $rid == osx-* ]]; then
+        # The Mac: tools/make-macos-app.sh builds Deadwax.app (its libraries
+        # signed inside it), notarizes it and the dmg, and staples both; a dry
+        # run skips Apple. The updater's zip holds the bundle whole, made with
+        # ditto so the signature and the stapled ticket survive.
+        say "Deadwax.app and Deadwax.dmg ($rid)"
+        macflags=(--dmg); [ $DRY -eq 1 ] || macflags+=(--notarize)
+        PATH="$(dirname "$DOTNET"):$PATH" "$HERE/make-macos-app.sh" "${macflags[@]}" > "$WORK/make-macos-app.log" 2>&1 \
+            || { tail -40 "$WORK/make-macos-app.log" >&2; die "$rid: make-macos-app.sh failed (above)"; }
+        [ -d "$ROOT/dist/Deadwax.app" ] && [ -f "$ROOT/dist/Deadwax.dmg" ] || die "$rid: make-macos-app.sh made no app or dmg"
+        [ "$(defaults read "$ROOT/dist/Deadwax.app/Contents/Info" CFBundleShortVersionString)" = "$VERSION" ] \
+            || die "$rid: the app's CFBundleShortVersionString is not $VERSION"
+        codesign --verify --deep --strict "$ROOT/dist/Deadwax.app" || die "$rid: the app's signature does not verify"
+        ditto -c -k --keepParent "$ROOT/dist/Deadwax.app" "$WORK/Deadwax-$rid.zip"
+        cp "$ROOT/dist/Deadwax.dmg" "$WORK/Deadwax.dmg"
+        echo "   Deadwax-$rid.zip  $(du -h "$WORK/Deadwax-$rid.zip" | cut -f1)    Deadwax.dmg  $(du -h "$WORK/Deadwax.dmg" | cut -f1)"
+        continue
+    fi
     say "publish $rid"
     out="$WORK/pub/$rid"
     "$DOTNET" publish "$ROOT/src/Deadwax.App" -c Release -r "$rid" --self-contained \
@@ -126,7 +164,6 @@ for rid in "${RIDS[@]}"; do
     # them before installing an update: ELF, PE ("MZ"), Mach-O.
     case $rid in
         win-*) exe=Deadwax.exe; magic='^4d5a'; kind=PE ;;
-        osx-*) exe=Deadwax; magic='^(cffaedfe|cafebabe)'; kind=Mach-O ;;
         *)     exe=Deadwax; magic='^7f454c46'; kind=ELF ;;
     esac
     [ -f "$out/$exe" ] || die "$rid: no $exe after publish"
@@ -151,12 +188,12 @@ with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
 PY
     echo "   Deadwax-$rid.zip  $(du -h "$WORK/Deadwax-$rid.zip" | cut -f1)"
 done
-(cd "$WORK" && sha256sum Deadwax-*.zip > SHA256SUMS)
+(cd "$WORK" && sha256sum Deadwax-*.zip $([ -f "$WORK/Deadwax.dmg" ] && echo Deadwax.dmg) > SHA256SUMS)
 cat "$WORK/SHA256SUMS"
 
 if [ $DRY -eq 1 ]; then
     mkdir -p "$ROOT/dist"; rm -f "$ROOT"/dist/Deadwax-*.zip "$ROOT/dist/SHA256SUMS"
-    cp "$WORK"/Deadwax-*.zip "$WORK/SHA256SUMS" "$ROOT/dist/"
+    cp "$WORK"/Deadwax-*.zip "$WORK/SHA256SUMS" "$ROOT/dist/"   # the dmg is there already
     echo; echo "DRY RUN: nothing tagged, nothing released. The zip is in dist/."
     exit 0
 fi
@@ -173,7 +210,14 @@ if [ -z "$NOTES" ]; then
         platforms=$(for rid in "${RIDS[@]}"; do case $rid in (linux-x64) echo "Linux x86-64";; (win-x64) echo "Windows x64";; (osx-arm64) echo "macOS (Apple silicon)";; (*) echo "$rid";; esac; done | paste -sd, - | sed 's/,/, /g')
         echo "Deadwax $VERSION, for $platforms.$([ $EDGE -eq 1 ] && echo " An Edge build: offered to copies set to Edge until it is promoted to Stable.")"
         echo
-        echo "Unpack the zip and run Deadwax. Nothing else to install: libcdio and libcdio-paranoia are built in ($NATIVES; sources on that release)."
+        if printf '%s\n' "${RIDS[@]}" | grep -q '^osx-'; then
+            echo "Mac: open Deadwax.dmg and drag Deadwax to Applications. Signed with a Developer ID and notarized by Apple, so it opens with no warning."
+            echo
+            echo "Linux and Windows: unpack the zip for your system and run Deadwax."
+        else
+            echo "Unpack the zip and run Deadwax."
+        fi
+        echo "Nothing else to install: libcdio and libcdio-paranoia are built in ($NATIVES; sources on that release)."
         echo "A running copy offers newer releases from its title bar and updates itself in place."
         if printf '%s\n' "${RIDS[@]}" | grep -q '^win-'; then
             echo
@@ -188,7 +232,7 @@ fi
 ARGS=(--repo "$REPO" --title "Deadwax $VERSION" --notes-file "$NOTES" --verify-tag)
 [ $PUBLISH -eq 1 ] || ARGS+=(--draft)
 [ $EDGE -eq 1 ] && ARGS+=(--prerelease --latest=false)
-gh release create "$TAG" "${ARGS[@]}" "$WORK"/Deadwax-*.zip "$WORK/SHA256SUMS"
+gh release create "$TAG" "${ARGS[@]}" "$WORK"/Deadwax-*.zip $([ -f "$WORK/Deadwax.dmg" ] && echo "$WORK/Deadwax.dmg") "$WORK/SHA256SUMS"
 echo
 if [ $PUBLISH -eq 1 ]; then
     if [ $EDGE -eq 1 ]; then
