@@ -37,6 +37,9 @@ internal static class Commands
           deadwax natives
               Which libcdio and libcdio-paranoia the program loads and
               from where (its own copies, or the system's). Touches no drive.
+          deadwax best-copy OUT.raw READ1.raw READ2.raw [...]
+              "Make best copy" on raw reads of one track (deadwax read --save):
+              voted sector by sector, then sample by sample. Not verified.
           deadwax check-drive [--device DEV]
               Step 3's proof: the disc's drive list, drive identity, TOC and
               track flags read by libcdio and by Deadwax's own drive access,
@@ -46,7 +49,7 @@ internal static class Commands
               Deadwax would write. --cdrdao runs `cdrdao read-toc` on the same
               disc as well and reports every line that differs (the oracle for
               the reader). --out writes Deadwax's .toc to FILE.
-          deadwax read [--device DEV] [--tracks N,N|all] [--offset N] [--retries N] [--speed N] [--offline] [--against ALBUM_DIR]
+          deadwax read [--device DEV] [--tracks N,N|all] [--offset N] [--retries N] [--speed N] [--offline] [--against ALBUM_DIR] [--save DIR]
               Read tracks securely, twice, with the drive's read offset (from
               drives.json unless given). With --against, check the audio equals
               whipper's rip: logged CRC and the FLAC's stored MD5 (gate G2), and
@@ -98,6 +101,7 @@ internal static class Commands
                 "subchannel" => await SubchannelCommand.RunAsync(args[1..]),
                 "natives" => await NativesCommand.RunAsync(args[1..]),
                 "check-drive" => await CheckDriveCommand.RunAsync(args[1..]),
+                "best-copy" => await BestCopyCommand.RunAsync(args[1..]),
                 "read" => await ReadCommand.RunAsync(args[1..]),
                 "offset" => await OffsetCommand.RunAsync(args[1..]),
                 "check-logs" => await CheckLogsCommand.RunAsync(args[1..]),

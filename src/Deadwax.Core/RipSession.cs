@@ -407,9 +407,13 @@ public sealed class RipSession
                     if (readOnce) edgesReadTwice = string.Join(" and ", edges.Select(e => e.Name)) + " 5 sectors";
                 }
 
+                string? bestCopy = null;
                 if (readOnce) agreed = true;
                 else
                 {
+                    // Every pass is kept until two agree, for "Make best copy" (spec §8)
+                    // should none: a vote of them, not whichever came last.
+                    var passReads = new List<(byte[] Audio, ReadReport Report)> { (audio, report) };
                     while (passes < maxPasses)
                     {
                         (audio, report) = reader.ReadTrack(toc, n, disc.Offset, maxRetries, (d, t) => observer.Progress(n, "copy", d, t), ct,
@@ -423,10 +427,25 @@ public sealed class RipSession
                         if (copyCrc == previousCrc && report.Skips == 0) { agreed = true; break; }
                         observer.Say($"Track {n}: pass {passes} differs from pass {passes - 1}; reading again.");
                         previousCrc = copyCrc.Value;
+                        passReads.Add((audio, report));
                     }
                     if (agreed) testCrc = copyCrc!.Value;   // the pass it agreed with
+                    else if (passReads.Count >= 2)
+                    {
+                        // Each read's sector state, for where no sample has a majority.
+                        var start = ReadWindow.For(toc, track, disc.Offset).TrackStartInWindow;
+                        var best = BestCopy.Vote(passReads.Select(x => x.Audio).ToList(),
+                            (r, at) => passReads[r].Report.Sectors[Math.Min((start + at) / ReadWindow.SectorBytes, passReads[r].Report.Sectors.Length - 1)]);
+                        audio = best.Audio;
+                        copyCrc = AudioChecks.Crc32(audio);
+                        bestCopy = $"the best copy of the {passReads.Count} reads, not verified: {best.Voted + best.NoMajority} of {best.Sectors} sectors differed between them, " +
+                                   $"{best.Voted} decided by a majority, {best.NoMajority} by the best single read";
+                        observer.Say($"Track {n}: no two reads alike; kept {bestCopy}.");
+                    }
                     (v1, v2) = AccurateRipChecksum.Compute(audio, isFirst, isLast);
                     verdict = AccurateRipMatch.For(arBlocks, index, n, v1, v2);
+                    // A best copy AccurateRip confirms is simply right.
+                    if (bestCopy is not null && verdict.IsAccurate) { agreed = true; bestCopy = $"the best copy of {passReads.Count} reads, confirmed by AccurateRip ({verdict.Confidence} rips)"; }
                 }
 
                 var tags = LibraryConventions.Apply(
@@ -450,6 +469,7 @@ public sealed class RipSession
                 var status = agreed ? "Copy OK" : "Copy NOT OK";
                 var reads = readOnce
                     ? $"1 ({OneRead.Proof(verdict)}{(edgesReadTwice is null ? "" : $"; the {edgesReadTwice} read twice alike")})"
+                    : bestCopy is not null ? $"{passes} (no two reads alike; kept {bestCopy})"
                     : !agreed ? $"{passes} (no two reads alike)"
                     : passes == 2 ? "2 (test and copy CRCs match)" : $"{passes} (the last two reads match)";
                 var seconds = sectors / (double)Toc.SectorsPerSecond;

@@ -10,6 +10,22 @@ namespace Deadwax.Cli;
 /// whipper ripped. Writes nothing.
 internal static partial class ReadCommand
 {
+    /// --save DIR: each pass's audio as it was read, raw (16-bit little-endian
+    /// stereo, 44.1 kHz), as DIR/NN-test.raw and NN-copy.raw: for comparing
+    /// reads with a verified copy, and for working on "Make best copy" (§8).
+    private static void Save(string dir, int track, string pass, byte[] audio)
+    {
+        Directory.CreateDirectory(Home(dir));
+        File.WriteAllBytes(Path.Combine(Home(dir), $"{track:D2}-{pass}.raw"), audio);
+    }
+
+    /// Deadwax's own reader's re-reads of damaged sectors, one line each when they end.
+    private static Action<RetryStatus> Retrying(int track, string pass) => st =>
+    {
+        if (st.Result is { } result)
+            Console.Error.WriteLine($"  track {track} {pass}: damaged sector {st.Damaged} (sector {st.Sector}) {(result == SectorState.Recovered ? "recovered" : "skipped")} after {st.Attempt} tr{(st.Attempt == 1 ? "y" : "ies")}");
+    };
+
     public static async Task<int> RunAsync(string[] args)
     {
         var options = new Options(args);
@@ -20,6 +36,7 @@ internal static partial class ReadCommand
         var retriesText = options.Value("--retries");
         var against = options.Value("--against");
         var offline = options.Flag("--offline");
+        var save = options.Value("--save");
         options.Rest();
 
         DriveIdentity? identity;
@@ -91,10 +108,12 @@ internal static partial class ReadCommand
             var sectors = toc.EndLsn(track) - track.StartLsn;
             var seconds = sectors / (double)Toc.SectorsPerSecond;
 
-            var (testAudio, testReport) = reader.ReadTrack(toc, n, offset, retries, Progress($"track {n} test"));
+            var (testAudio, testReport) = reader.ReadTrack(toc, n, offset, retries, Progress($"track {n} test"), retrying: Retrying(n, "test"));
             var testCrc = AudioChecks.Crc32(testAudio);
+            if (save is not null) Save(save, n, "test", testAudio);
             testAudio = null;
-            var (copyAudio, copyReport) = reader.ReadTrack(toc, n, offset, retries, Progress($"track {n} copy"));
+            var (copyAudio, copyReport) = reader.ReadTrack(toc, n, offset, retries, Progress($"track {n} copy"), retrying: Retrying(n, "copy"));
+            if (save is not null) Save(save, n, "copy", copyAudio);
             if (!Console.IsErrorRedirected) Console.Error.Write("\r\x1b[K");
 
             var copyCrc = AudioChecks.Crc32(copyAudio);
