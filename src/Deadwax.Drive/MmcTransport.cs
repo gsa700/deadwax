@@ -97,7 +97,7 @@ public sealed unsafe class MacIoctlTransport : IMmcTransport
     private const uint McnIoctl = 0xC0106462;       // DKIOCCDREADMCN, dk_cd_read_mcn_t (16 bytes)
     private const uint SetSpeedIoctl = 0x80026463;  // DKIOCCDSETSPEED, uint16_t (KB/s)
     private const uint TocIoctl = 0xC0186464;       // DKIOCCDREADTOC, dk_cd_read_toc_t (24 bytes)
-    private const byte AreaUser = 0x10, AreaSubChannelQ = 0x04, TypeCdda = 0x01, FormatText = 0x05;
+    private const byte AreaUser = 0x10, AreaSubChannelQ = 0x04, TypeCdda = 0x01, FormatFullToc = 0x02, FormatText = 0x05;
     private const int SectorBytes = 2352, QBytes = 16;
 
     private int _fd;
@@ -150,8 +150,27 @@ public sealed unsafe class MacIoctlTransport : IMmcTransport
             *(void**)(req + 16) = buf;
             if (ioctl(_fd, TocIoctl, req) != 0) return null;
         }
-        var got = *(ushort*)(req + 14);
+        var got = Math.Min((int)*(ushort*)(req + 14), buffer.Length);   // never past what was handed over
         return got <= 4 ? null : CdTextPacks.FromResponse(buffer.AsSpan(0, got).ToArray());
+    }
+
+    /// READ TOC format 2, the full TOC with times as MSF, from session 1 on,
+    /// as the drive sent it (FullToc reads it). Null when the ioctl failed.
+    public byte[]? ReadFullToc()
+    {
+        var buffer = new byte[4 + 11 * 300];   // far more entries than a disc can hold
+        var req = stackalloc byte[24];
+        req[0] = FormatFullToc;
+        req[1] = 1;                            // formatAsTime: MSF
+        req[7] = 1;                            // address.session: the first session, and those after it
+        *(ushort*)(req + 14) = (ushort)buffer.Length;
+        fixed (byte* buf = buffer)
+        {
+            *(void**)(req + 16) = buf;
+            if (ioctl(_fd, TocIoctl, req) != 0) return null;
+        }
+        var got = Math.Min((int)*(ushort*)(req + 14), buffer.Length);
+        return got < 4 ? null : buffer.AsSpan(0, got).ToArray();
     }
 
     /// DKIOCCDSETSPEED takes KB/s: 176 per 1x. 0xFFFF = the drive's choice.

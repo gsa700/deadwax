@@ -73,31 +73,65 @@ public static unsafe class MacDisc
 
     /// DiskArbitration's media kind for the device's disk (IOCDMedia,
     /// IODVDMedia, IOMedia for a disk image or an ordinary disk), or null.
-    public static string? MediaKind(string device)
+    public static string? MediaKind(string device) => Description(device, "DAMediaKind");   // kDADiskDescriptionMediaKindKey
+
+    /// What the drive told macOS it is (its INQUIRY answer, kept by the
+    /// system): vendor, model and revision, as libcdio's hwinfo read them,
+    /// without a command to the drive. Null when macOS has none of them.
+    public static DriveIdentity? Identity(string device)
     {
-        if (BsdName(device) is not { } bsd) return null;
+        var vendor = Description(device, "DADeviceVendor")?.Trim();      // kDADiskDescriptionDeviceVendorKey
+        var model = Description(device, "DADeviceModel")?.Trim();        // kDADiskDescriptionDeviceModelKey
+        var revision = Description(device, "DADeviceRevision")?.Trim();  // kDADiskDescriptionDeviceRevisionKey
+        return vendor is null && model is null ? null : new DriveIdentity(vendor ?? "", model ?? "", revision ?? "");
+    }
+
+    /// One string from DiskArbitration's description of the device's disk, or null.
+    public static string? Description(string device, string key)
+    {
+        if (!OperatingSystem.IsMacOS() || BsdName(device) is not { } bsd) return null;
         var session = DASessionCreate(IntPtr.Zero);
         if (session == IntPtr.Zero) return null;
-        IntPtr disk = IntPtr.Zero, description = IntPtr.Zero, key = IntPtr.Zero;
+        IntPtr disk = IntPtr.Zero, description = IntPtr.Zero, cfKey = IntPtr.Zero;
         try
         {
             disk = DADiskCreateFromBSDName(IntPtr.Zero, session, bsd);
             if (disk == IntPtr.Zero) return null;
             description = DADiskCopyDescription(disk);
             if (description == IntPtr.Zero) return null;
-            key = CFStringCreateWithCString(IntPtr.Zero, "DAMediaKind", StringEncodingUtf8);   // kDADiskDescriptionMediaKindKey
-            var value = CFDictionaryGetValue(description, key);
+            cfKey = CFStringCreateWithCString(IntPtr.Zero, key, StringEncodingUtf8);
+            var value = CFDictionaryGetValue(description, cfKey);
             if (value == IntPtr.Zero || CFGetTypeID(value) != CFStringGetTypeID()) return null;
-            var buffer = stackalloc byte[128];
-            return CFStringGetCString(value, buffer, 128, StringEncodingUtf8) ? Marshal.PtrToStringUTF8((IntPtr)buffer) : null;
+            var buffer = stackalloc byte[256];
+            return CFStringGetCString(value, buffer, 256, StringEncodingUtf8) ? Marshal.PtrToStringUTF8((IntPtr)buffer) : null;
         }
         finally
         {
-            if (key != IntPtr.Zero) CFRelease(key);
+            if (cfKey != IntPtr.Zero) CFRelease(cfKey);
             if (description != IntPtr.Zero) CFRelease(description);
             if (disk != IntPtr.Zero) CFRelease(disk);
             CFRelease(session);
         }
+    }
+
+    /// Every whole disk macOS says holds a CD, as raw devices (/dev/rdisk5),
+    /// lowest number first: what libcdio's list of drives was, without its
+    /// disk images. Read from /dev and DiskArbitration; the drives get no command.
+    public static IReadOnlyList<string> CdDevices()
+    {
+        if (!OperatingSystem.IsMacOS()) return [];
+        try
+        {
+            return Directory.EnumerateFiles("/dev", "disk*")
+                .Select(Path.GetFileName)
+                .Where(n => n is not null && n.Length > 4 && n[4..].All(char.IsAsciiDigit))   // whole disks only, no "s1"
+                .OrderBy(n => int.Parse(n![4..]))
+                .Where(n => IsCd("/dev/" + n))
+                .Select(n => "/dev/r" + n)
+                .ToList();
+        }
+        catch (IOException) { return []; }
+        catch (UnauthorizedAccessException) { return []; }
     }
 
     /// Unmounts every volume of the disk the device is on and waits for the

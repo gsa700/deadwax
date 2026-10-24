@@ -37,6 +37,10 @@ internal static class Commands
           deadwax natives
               Which libcdio and libcdio-paranoia the program loads and
               from where (its own copies, or the system's). Touches no drive.
+          deadwax check-drive [--device DEV]
+              Step 3's proof: the disc's drive list, drive identity, TOC and
+              track flags read by libcdio and by Deadwax's own drive access,
+              side by side (macOS so far). Reads the TOC; no audio.
           deadwax subchannel [--device DEV] [--speed N] [--cdrdao] [--out FILE]
               Read the disc's subchannel the way a rip does and print the .toc
               Deadwax would write. --cdrdao runs `cdrdao read-toc` on the same
@@ -93,6 +97,7 @@ internal static class Commands
                 "scan" => await ScanCommand.RunAsync(args[1..]),
                 "subchannel" => await SubchannelCommand.RunAsync(args[1..]),
                 "natives" => await NativesCommand.RunAsync(args[1..]),
+                "check-drive" => await CheckDriveCommand.RunAsync(args[1..]),
                 "read" => await ReadCommand.RunAsync(args[1..]),
                 "offset" => await OffsetCommand.RunAsync(args[1..]),
                 "check-logs" => await CheckLogsCommand.RunAsync(args[1..]),

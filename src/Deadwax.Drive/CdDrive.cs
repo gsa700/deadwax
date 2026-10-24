@@ -241,6 +241,9 @@ public sealed class CdDrive : IDisposable
                 LibCdio.cdio_get_track_channels(Handle, n) == 4);
     }
 
+    /// libcdio's own list of drives, for check-drive to compare with ours.
+    public static IReadOnlyList<string> LibCdioDevices() => LibCdio.Devices();
+
     /// "libcdio-paranoia (libcdio 2.3.0)", for the rip log.
     public static string EngineDescription => $"libcdio-paranoia (libcdio {LibCdio.Version() ?? "unknown"})";
 
