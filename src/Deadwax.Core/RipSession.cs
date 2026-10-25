@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Deadwax.Drive;
 using Deadwax.Metadata;
 using Deadwax.Output;
@@ -236,31 +237,30 @@ public sealed class RipSession
         var audio = disc.Toc.IdTracks.Where(t => t.IsAudio).ToList();
         if (description.Titles.Count != audio.Count)
             throw new RipException($"The description has {description.Titles.Count} titles for {audio.Count} audio tracks.");
-        var credit = new[] { new { name = description.Artist, joinphrase = "", artist = new { } } };
-        var release = new
+        // Built as nodes, not serialized from an anonymous type: a Native AOT
+        // build cannot serialize by reflection. A node has one parent, so each
+        // place gets its own credit.
+        JsonArray Credit() => new(new JsonObject { ["name"] = description.Artist, ["joinphrase"] = "", ["artist"] = new JsonObject() });
+        var release = new JsonObject
         {
-            title = description.Album,
-            date = description.Year,
-            status = "Self-described",
-            artistCredit = credit,
-            media = new[]
+            ["title"] = description.Album,
+            ["date"] = description.Year,
+            ["status"] = "Self-described",
+            ["artist-credit"] = Credit(),
+            ["media"] = new JsonArray(new JsonObject
             {
-                new
+                ["position"] = 1,
+                ["track-count"] = audio.Count,
+                ["tracks"] = new JsonArray(audio.Select((t, i) => (JsonNode)new JsonObject
                 {
-                    position = 1,
-                    trackCount = audio.Count,
-                    tracks = audio.Select((t, i) => new
-                    {
-                        position = t.Number,
-                        title = description.Titles[i],
-                        artistCredit = credit,
-                        recording = new { },
-                    }).ToArray(),
-                },
-            },
+                    ["position"] = t.Number,
+                    ["title"] = description.Titles[i],
+                    ["artist-credit"] = Credit(),
+                    ["recording"] = new JsonObject(),
+                }).ToArray()),
+            }),
         };
-        var json = JsonSerializer.Serialize(release, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.KebabCaseLower });
-        var doc = JsonDocument.Parse(json);
+        var doc = JsonDocument.Parse(release.ToJsonString());
         return new ReleasePlan(doc, doc.RootElement.GetProperty("media")[0], null, disc);
     }
 

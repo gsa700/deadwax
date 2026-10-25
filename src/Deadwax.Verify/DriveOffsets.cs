@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Deadwax.Verify;
 
@@ -47,7 +48,7 @@ public static class DriveOffsets
         var map = All(path);
         map[Key(vendor, model, revision)] = offset;
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path + ".part", JsonSerializer.Serialize(map, new JsonSerializerOptions { WriteIndented = true }) + "\n");
+        File.WriteAllText(path + ".part", JsonSerializer.Serialize(map, DriveOffsetsJson.Default.SortedDictionaryStringInt32) + "\n");
         File.Move(path + ".part", path, overwrite: true);
     }
 
@@ -59,3 +60,8 @@ public static class DriveOffsets
         $"{NotMeasured} {Key(vendor, model, revision)} yet. It is measured once per drive, from a well-known commercial CD, "
         + "and then remembered: Measure in the window, or `deadwax offset --save` with the CD in.";
 }
+
+/// The offsets file's writer, made at build time (Native AOT).
+[JsonSourceGenerationOptions(WriteIndented = true)]
+[JsonSerializable(typeof(SortedDictionary<string, int>))]
+internal sealed partial class DriveOffsetsJson : JsonSerializerContext;

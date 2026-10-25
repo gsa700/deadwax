@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Deadwax.Core;
 
@@ -17,7 +18,7 @@ public sealed record DiscDescription(string Artist, string Album, string Year, I
         try
         {
             var p = PathFor(discId);
-            return File.Exists(p) ? JsonSerializer.Deserialize<DiscDescription>(File.ReadAllText(p)) : null;
+            return File.Exists(p) ? JsonSerializer.Deserialize(File.ReadAllText(p), DiscDescriptionJson.Default.DiscDescription) : null;
         }
         catch (Exception e) when (e is IOException or JsonException) { return null; }
     }
@@ -25,7 +26,7 @@ public sealed record DiscDescription(string Artist, string Album, string Year, I
     public void Save(string discId)
     {
         System.IO.Directory.CreateDirectory(Directory);
-        File.WriteAllText(PathFor(discId), JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }) + "\n");
+        File.WriteAllText(PathFor(discId), JsonSerializer.Serialize(this, DiscDescriptionJson.Default.DiscDescription) + "\n");
     }
 
     /// What is wrong with it, or null.
@@ -38,3 +39,8 @@ public sealed record DiscDescription(string Artist, string Album, string Year, I
         return blank.t is null && Titles.Count > 0 ? null : $"Track {blank.i + 1} has no title.";
     }
 }
+
+/// The description file's reader and writer, made at build time (Native AOT).
+[JsonSourceGenerationOptions(WriteIndented = true)]
+[JsonSerializable(typeof(DiscDescription))]
+internal sealed partial class DiscDescriptionJson : JsonSerializerContext;

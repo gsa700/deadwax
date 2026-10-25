@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Deadwax.App;
 
@@ -76,7 +77,7 @@ public sealed class Settings
         try
         {
             if (File.Exists(FilePath))
-                return JsonSerializer.Deserialize<Settings>(File.ReadAllText(FilePath)) ?? new Settings();
+                return JsonSerializer.Deserialize(File.ReadAllText(FilePath), SettingsJson.Default.Settings) ?? new Settings();
         }
         catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException) { }
         return new Settings { EmbedCover = true };   // a fresh install
@@ -87,8 +88,14 @@ public sealed class Settings
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(FilePath, JsonSerializer.Serialize(this, SettingsJson.Default.Settings));
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
     }
 }
+
+/// The settings file's reader and writer, made at build time rather than by
+/// reflection at run time, which a Native AOT build cannot do.
+[JsonSourceGenerationOptions(WriteIndented = true)]
+[JsonSerializable(typeof(Settings))]
+internal sealed partial class SettingsJson : JsonSerializerContext;

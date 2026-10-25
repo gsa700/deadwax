@@ -60,6 +60,10 @@ public static class UpdateService
     /// A bundled assembly has no location on disk, which is the documented
     /// way to tell. A development build is a folder of assemblies and is
     /// never offered an update.
+    /// Native AOT (0.8) answers the same way: its program has no assemblies on
+    /// disk either. The analyzer's warning is for code that wants a path; this
+    /// only wants to know that there is none.
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("SingleFile", "IL3000", Justification = "The empty location is the answer, not a path.")]
     public static bool IsSingleFile => string.IsNullOrEmpty(typeof(UpdateService).Assembly.Location);
 
     /// On macOS since 0.7.0, by replacing Deadwax.app whole (MacUpdate):

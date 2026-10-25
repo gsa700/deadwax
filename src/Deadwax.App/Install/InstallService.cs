@@ -74,8 +74,11 @@ public static class InstallService
 
     /// <summary>
     /// True for a published release: one executable with everything inside it. A bundled assembly
-    /// has no location on disk, which is the documented way to tell.
+    /// has no location on disk, which is the documented way to tell. Native AOT (0.8) answers the
+    /// same way: its program has no assemblies on disk either. The analyzer's warning is for code
+    /// that wants a path; this only wants to know that there is none.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("SingleFile", "IL3000", Justification = "The empty location is the answer, not a path.")]
     public static bool IsSingleFile => string.IsNullOrEmpty(typeof(InstallService).Assembly.Location);
 
     /// <summary>The version this copy reports, without the source-revision suffix.</summary>
