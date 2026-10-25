@@ -15,11 +15,11 @@ public static class FileNames
     {
         TrackStyle.NumberDashTitle => Join($"{number:D2} - ", title, ".flac"),
         TrackStyle.NumberTitle => Join($"{number:D2} ", title, ".flac"),
-        _ => Join($"{Safe(albumArtist)} - {number:D2} - ", title, ".flac"),
+        _ => Join($"{Part(albumArtist)} - {number:D2} - ", title, ".flac"),
     };
 
     /// The base name of the album's .toc, .cue, .m3u and .log: "Artist - Album".
-    public static string Sidecar(string albumArtist, string album) => Join($"{Safe(albumArtist)} - ", album, "");
+    public static string Sidecar(string albumArtist, string album) => Join($"{Part(albumArtist)} - ", album, "");
 
     /// The most a whole file name may be, in UTF-8 bytes, with room under the
     /// 255 every file system Deadwax writes to allows (a ".log" after a
@@ -33,7 +33,7 @@ public static class FileNames
     private static string Join(string prefix, string part, string suffix)
     {
         var room = NameBytes - Encoding.UTF8.GetByteCount(prefix) - Encoding.UTF8.GetByteCount(suffix) - 4;   // ".log"
-        return prefix + Shorten(Safe(part), Math.Max(room, 16)) + suffix;
+        return prefix + Shorten(Part(part), Math.Max(room, 16)) + suffix;
     }
 
     /// At most maxBytes of UTF-8, cut between whole characters (an accented
@@ -62,10 +62,10 @@ public static class FileNames
     /// The album's own folder name, without the artist folder above it.
     public static string AlbumLeaf(FolderStyle style, string albumArtist, string year, string album) => style switch
     {
-        FolderStyle.ArtistAlbumYear => $"{Safe(album)} ({Safe(year)})",
+        FolderStyle.ArtistAlbumYear => $"{Part(album)} ({Safe(year)})",
         FolderStyle.ArtistAlbum => Safe(album),
-        FolderStyle.ArtistDashAlbum => $"{Safe(albumArtist)} - {Safe(album)}",
-        _ => $"{Safe(year)} - {Safe(album)}",
+        FolderStyle.ArtistDashAlbum => $"{Part(albumArtist)} - {Safe(album)}",
+        _ => $"{Part(year)} - {Safe(album)}",
     };
 
     /// Where an album goes in the library.
@@ -84,7 +84,7 @@ public static class FileNames
             ? Path.GetDirectoryName(albumDir)!
             : Path.GetDirectoryName(Path.GetDirectoryName(albumDir)!)!;
 
-    public static string AlbumFolder(string year, string album) => $"{Safe(year)} - {Safe(album)}";
+    public static string AlbumFolder(string year, string album) => $"{Part(year)} - {Safe(album)}";
 
     public static string ArtistFolder(string albumArtist) => Safe(albumArtist);
 
@@ -106,18 +106,30 @@ public static class FileNames
     /// on Linux and macOS keeps its colons ("Live: Volume 2"), as it always has.
     public static string Safe(string s) => Safe(s, OperatingSystem.IsWindows());
 
-    public static string Safe(string s, bool windows)
+    public static string Safe(string s, bool windows) => Safe(s, windows, endsName: true);
+
+    /// Safe for a part that something follows in the same name ("Artist - ",
+    /// a title before ".flac"): Windows forbids a dot or a space only at the
+    /// END of a name, so the part keeps its own. "99 Miles From L.A." is
+    /// "... L.A..flac" on every platform, as in the library; until 0.7.4 a
+    /// Windows rip wrote "... L.A.flac" (Mobilenode, 2026-10-24).
+    public static string Part(string s) => Safe(s, OperatingSystem.IsWindows(), endsName: false);
+
+    public static string Part(string s, bool windows) => Safe(s, windows, endsName: false);
+
+    private static string Safe(string s, bool windows, bool endsName)
     {
         var name = new string(s.Replace('/', '_').Replace('"', '\'').Replace("\0", "")
             .Select(c => char.IsControl(c) || c is '\u2028' or '\u2029' ? ' ' : c).ToArray());
         if (windows)
         {
-            name = new string(name.Select(c => c is '\\' or ':' or '*' or '?' or '<' or '>' or '|' ? '_' : c).ToArray()).TrimEnd('.', ' ');
+            name = new string(name.Select(c => c is '\\' or ':' or '*' or '?' or '<' or '>' or '|' ? '_' : c).ToArray());
+            if (endsName) name = name.TrimEnd('.', ' ');
             var stem = name.Split('.')[0];
             if (WindowsDevices.Contains(stem)) name = "_" + name;
         }
         name = Shorten(name, PartBytes);
-        if (windows) name = name.TrimEnd('.', ' ');
+        if (windows && endsName) name = name.TrimEnd('.', ' ');
         return name is "" or "." or ".." ? "_" : name;
     }
 

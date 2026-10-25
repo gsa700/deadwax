@@ -25,7 +25,7 @@ public static class SetSiblings
         var flat = Filing.Current.Folder == FolderStyle.ArtistDashAlbum;
         var parent = flat ? library : Path.Combine(library, FileNames.ArtistFolder(plan.AlbumArtist));
         if (!Directory.Exists(parent)) return [];
-        var prefix = FileNames.Safe(plan.AlbumArtist) + " - ";
+        var prefix = FileNames.Part(plan.AlbumArtist) + " - ";
 
         var found = new List<Sibling>();
         foreach (var dir in Directory.EnumerateDirectories(parent).Order(StringComparer.Ordinal))

@@ -50,6 +50,30 @@ public class SecurityTests
     public void Windows_names_never_mean_a_place_or_a_device(string name, string expected) =>
         Assert.Equal(expected, FileNames.Safe(name, windows: true));
 
+    /// A part that something follows keeps its trailing dot on Windows too:
+    /// only the end of the whole name may not be a dot or a space.
+    [Theory]
+    [InlineData("99 Miles From L.A.", "99 Miles From L.A.")]
+    [InlineData("R.E.M.", "R.E.M.")]
+    [InlineData("Live: Volume 2", "Live_ Volume 2")]
+    [InlineData("CON", "_CON")]
+    public void Windows_name_parts_keep_their_trailing_dots(string name, string expected) =>
+        Assert.Equal(expected, FileNames.Part(name, windows: true));
+
+    /// The same file name on every platform, as the library has it (a Windows
+    /// rip of Garfunkel wrote "L.A.flac" until 0.7.4); a folder still loses
+    /// its trailing dot on Windows, where it would be an illegal name.
+    [Fact]
+    public void A_title_ending_in_a_dot_keeps_it_before_the_extension()
+    {
+        Assert.Equal("Art Garfunkel - 09 - 99 Miles From L.A..flac",
+            FileNames.Track(TrackStyle.ArtistNumberTitle, "Art Garfunkel", 9, "99 Miles From L.A."));
+        Assert.Equal("R.E.M. - 01 - Radio Free Europe.flac",
+            FileNames.Track(TrackStyle.ArtistNumberTitle, "R.E.M.", 1, "Radio Free Europe"));
+        Assert.Equal("R.E.M. - Murmur", FileNames.Sidecar("R.E.M.", "Murmur"));
+        Assert.Equal(OperatingSystem.IsWindows() ? "R.E.M" : "R.E.M.", FileNames.ArtistFolder("R.E.M."));
+    }
+
     [Fact]
     public void Linux_names_keep_their_colons()
     {
