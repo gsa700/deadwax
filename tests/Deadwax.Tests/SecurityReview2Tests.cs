@@ -438,12 +438,13 @@ public class SecurityReview2Tests
         var cwd = Environment.CurrentDirectory;
         try
         {
-            var planted = Path.Combine(dir, "update-desktop-database");
+            // A name no system has: update-desktop-database, used before, is real on Fedora (desktop-file-utils).
+            var planted = Path.Combine(dir, "deadwax-l16-planted");
             File.WriteAllText(planted, "#!/bin/sh\ntouch PLANTED\n");
             File.SetUnixFileMode(planted, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
             Environment.CurrentDirectory = dir;
             Environment.SetEnvironmentVariable("PATH", ".:" + ":" + "/usr/bin:/bin");
-            Assert.Null(ToolPath.Find("update-desktop-database"));
+            Assert.Null(ToolPath.Find("deadwax-l16-planted"));
             Assert.StartsWith("/", ToolPath.Find("sh"));   // a real one is still found, by its full path
         }
         finally
