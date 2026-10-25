@@ -239,15 +239,18 @@ public sealed class CdDrive : IDisposable
     public void LimitSpeed(int? speed)
     {
         if (speed is < 1) throw new ArgumentOutOfRangeException(nameof(speed));
+        // Deadwax's own transport, the Mac's and Linux's: before 2026-10-24 only
+        // the Mac's was asked here, and a Linux rip with it crashed on libcdio's
+        // (absent) handle the moment it set the speed.
+        if (_own is not null)
+        {
+            if (!_own.SetSpeed(speed)) throw new DriveException($"{Device} did not accept a {speed}x speed limit.");
+            return;
+        }
         if (OperatingSystem.IsMacOS())
         {
             // libcdio's set_speed on macOS passes the value where the ioctl
             // wants a pointer (security scan 2026-10-12, L2); do it directly.
-            if (_own is not null)
-            {
-                if (!_own.SetSpeed(speed)) throw new DriveException($"{Device} did not accept a {speed}x speed limit.");
-                return;
-            }
             using var mac = new MacIoctlTransport(Device);
             if (!mac.SetSpeed(speed)) throw new DriveException($"{Device} did not accept a {speed}x speed limit.");
             return;
