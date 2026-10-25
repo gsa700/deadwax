@@ -52,23 +52,18 @@ public sealed class UpdateInfo
 /// public. Logged loudly when set.
 public static class UpdateService
 {
-    public const string Repo = "gsa700/deadwax";
+    // The program's name, path, kind and version are InstallService's: one
+    // answer for both, so a change to them is made once (code review 2026-10-25).
+    public const string Repo = Install.InstallService.Repo;
     public const string ProjectUrl = "https://github.com/" + Repo;
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(30) };
 
-    public static string ExeFileName => OperatingSystem.IsWindows() ? "Deadwax.exe" : "Deadwax";
-    public static string ExePath => Environment.ProcessPath
-        ?? throw new InvalidOperationException("Cannot determine the current executable path.");
+    public static string ExeFileName => Install.InstallService.ExeFileName;
+    public static string ExePath => Install.InstallService.ExePath;
 
-    /// True for a published build: one executable with everything inside it.
-    /// A bundled assembly has no location on disk, which is the documented
-    /// way to tell. A development build is a folder of assemblies and is
-    /// never offered an update.
-    /// Native AOT (0.8) answers the same way: its program has no assemblies on
-    /// disk either. The analyzer's warning is for code that wants a path; this
-    /// only wants to know that there is none.
-    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("SingleFile", "IL3000", Justification = "The empty location is the answer, not a path.")]
-    public static bool IsSingleFile => string.IsNullOrEmpty(typeof(UpdateService).Assembly.Location);
+    /// True for a published build (single file or Native AOT); a development
+    /// build is a folder of assemblies and is never offered an update.
+    public static bool IsSingleFile => Install.InstallService.IsSingleFile;
 
     /// On macOS since 0.7.0, by replacing Deadwax.app whole (MacUpdate):
     /// the program sits inside it, signed as a whole, and swapping only the
@@ -81,16 +76,7 @@ public static class UpdateService
     public static string? MacBlocker => OperatingSystem.IsMacOS() && IsSingleFile ? MacUpdate.Blocker(ExePath) : null;
 
     /// The version this copy reports, without the source-revision suffix.
-    public static string CurrentVersion
-    {
-        get
-        {
-            var v = Assembly.GetExecutingAssembly()
-                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "0.0.0";
-            var plus = v.IndexOf('+');
-            return plus >= 0 ? v[..plus] : v;
-        }
-    }
+    public static string CurrentVersion => Install.InstallService.CurrentVersion;
 
     /// The Native AOT package for this system: Deadwax-linux-x64-aot.zip.
     public static string AotAssetName => $"Deadwax-{Rid()}-aot.zip";
@@ -225,13 +211,37 @@ public static class UpdateService
         if (info.SumsUrl is null)
             throw new InvalidOperationException("This release publishes no SHA256SUMS, so its download cannot be checked. It has not been installed.");
 
+        // One staging folder at a time, and none left by a download that
+        // failed (code review 2026-10-25: every failure but a bad hash left
+        // its zip in temp, one more per retry).
+        DeleteStage();
         var tmp = Directory.CreateTempSubdirectory("deadwax-update-").FullName;
         _stageRoot = tmp;
+        try
+        {
+            return await StageAsync(info, tmp, progress);
+        }
+        catch
+        {
+            DeleteStage();
+            throw;
+        }
+    }
 
+    private static void DeleteStage()
+    {
+        if (_stageRoot is not { } old) return;
+        _stageRoot = null;
+        try { Directory.Delete(old, recursive: true); } catch { /* gone already, or temp's to tidy */ }
+    }
+
+    /// The download proper; AssetUrl, AssetName and SumsUrl are checked above.
+    private static async Task<string> StageAsync(UpdateInfo info, string tmp, IProgress<double>? progress)
+    {
         // The list first: it is 100 bytes, and without the zip's line there is
         // no point fetching forty megabytes.
         string sums;
-        using (var req = Request(info.SumsUrl, "Deadwax-UpdateInstall"))
+        using (var req = Request(info.SumsUrl!, "Deadwax-UpdateInstall"))
         using (var resp = await Http.SendAsync(req))
         {
             resp.EnsureSuccessStatusCode();
@@ -245,7 +255,7 @@ public static class UpdateService
             ?? throw new InvalidOperationException($"SHA256SUMS does not list {info.AssetName}. Not installed.");
 
         var zip = Path.Combine(tmp, "update.zip");
-        using (var req = Request(info.AssetUrl, "Deadwax-UpdateInstall"))
+        using (var req = Request(info.AssetUrl!, "Deadwax-UpdateInstall"))
         using (var resp = await Http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead))
         {
             resp.EnsureSuccessStatusCode();
@@ -454,8 +464,14 @@ public static class UpdateService
 
     /// The POSIX shell helper for Linux (the Mac has MacUpdate.ApplyScript):
     /// the same steps as the Windows one. Every value is an argument, never
-    /// script text (ApplyScriptArguments). Linux replaces a running program's
-    /// file happily, so the retry is for a busy filesystem, not a lock.
+    /// script text (ApplyScriptArguments). Each file goes in under a
+    /// temporary name and is renamed over the old one, never written in
+    /// place: another copy running from the folder keeps the files it has
+    /// mapped, and a running program could not be overwritten at all (code
+    /// review 2026-10-25). The retry is for a busy filesystem. The program is
+    /// started in a session of its own with no terminal, as
+    /// InstallService.LaunchDetached does, so closing the terminal the old one
+    /// was started from does not take the new one with it.
     public const string ApplyScript = """
         #!/bin/sh
         # $1 pid  $2 staged folder  $3 install folder  $4 program  $5 failure marker
@@ -470,11 +486,20 @@ public static class UpdateService
         while kill -0 "$pid" 2>/dev/null; do sleep 0.3; done
         back="$helper/old"
         mkdir -p "$back"
+        put() { cp -p "$1" "$to/.$2.new" && mv -f "$to/.$2.new" "$to/$2"; }
         restore() {
           for n in $names; do
             if [ -e "$back/$n.absent" ]; then rm -f "$to/$n"
-            elif [ -e "$back/$n" ]; then cp -pf "$back/$n" "$to/$n"; fi
+            elif [ -e "$back/$n" ]; then put "$back/$n" "$n"; fi
+            rm -f "$to/.$n.new"
           done
+        }
+        launch() {
+          if command -v setsid >/dev/null 2>&1; then
+            (cd "$to" && exec setsid -w "$to/$exe" "$@" </dev/null >/dev/null 2>&1) &   # -w: its exit code, for the start check
+          else
+            (cd "$to" && exec "$to/$exe" "$@" </dev/null >/dev/null 2>&1) &
+          fi
         }
         ok=1
         for n in $names; do
@@ -485,7 +510,7 @@ public static class UpdateService
           for n in $names; do
             copied=0
             for i in 1 2 3 4 5; do
-              if cp -f "$from/$n" "$to/$n"; then copied=1; break; fi
+              if put "$from/$n" "$n"; then copied=1; break; fi
               sleep 0.5
             done
             [ "$copied" = 1 ] || { ok=0; break; }
@@ -495,7 +520,7 @@ public static class UpdateService
         if [ "$ok" = 1 ]; then
           # The OLD build's unpacked native libraries; a new single file unpacks into a folder of its own.
           if [ -n "$oldx" ]; then pgrep -x "$exe" >/dev/null 2>&1 || rm -rf "$oldx"; fi
-          (cd "$to" && exec "$to/$exe" "$@") &
+          launch "$@"
           child=$!
           i=0
           while [ "$i" -lt $((secs * 2)) ] && kill -0 "$child" 2>/dev/null; do sleep 0.5; i=$((i + 1)); done
@@ -507,7 +532,7 @@ public static class UpdateService
           rm -f "$marker"
         else
           : > "$marker"
-          (cd "$to" && exec "$to/$exe" "$@") &
+          launch "$@"
         fi
         rm -rf "$stage" "$helper"
         """;

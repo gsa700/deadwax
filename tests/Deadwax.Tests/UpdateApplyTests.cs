@@ -71,6 +71,23 @@ public class UpdateApplyTests
     }
 
     [Fact]
+    public void Linux_files_go_in_by_rename_so_a_running_copy_keeps_what_it_has_open()
+    {
+        if (OperatingSystem.IsWindows()) return;
+        var (root, from, to, marker) = Package(newCode: 0, newSeconds: 3);
+        try
+        {
+            File.WriteAllText(Path.Combine(to, Lib), "old lib");
+            using var held = new FileStream(Path.Combine(to, Lib), FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            RunHelper(root, from, to, marker, Lib);
+            Assert.Equal("new lib", File.ReadAllText(Path.Combine(to, Lib)));
+            Assert.Equal("old lib", new StreamReader(held).ReadToEnd());   // written in place, this would read "new lib"
+            Assert.Empty(Directory.GetFiles(to, ".*.new"));
+        }
+        finally { Thread.Sleep(3000); Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
     public void Linux_a_new_program_that_falls_over_is_taken_out_and_the_old_one_started()
     {
         if (OperatingSystem.IsWindows()) return;

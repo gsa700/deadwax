@@ -95,8 +95,10 @@ public static class MacUpdate
         var version = PlistString(plist, "CFBundleShortVersionString");
         // The version the release claims, and newer than this one: an older
         // build, genuinely signed, must never come back as an "update".
-        if (version is null || version != tag.TrimStart('v', 'V') || !VersionOrder.IsNewer(tag, currentVersion))
+        if (version is null || version != tag.TrimStart('v', 'V'))
             throw new InvalidOperationException($"The downloaded app is version {version ?? "(none)"}, not {tag.TrimStart('v', 'V')}. Nothing was installed.");
+        if (!VersionOrder.IsNewer(tag, currentVersion))
+            throw new InvalidOperationException($"The downloaded app is version {version}, which is not newer than this one ({currentVersion}). Nothing was installed.");
     }
 
     private static string? PlistString(string plist, string key)

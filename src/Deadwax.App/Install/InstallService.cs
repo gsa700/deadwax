@@ -41,8 +41,10 @@ public sealed class InstallBlockedException(string message, Exception? inner = n
 ///
 /// What differs here, and why:
 /// <list type="bullet">
-/// <item>ONLY A SINGLE-FILE BUILD INSTALLS. Install copies the executable and nothing else, which
-/// is the whole program for a published release and a broken fragment of a development build.</item>
+/// <item>ONLY A PUBLISHED BUILD INSTALLS. Install copies the executable and, for a Native AOT
+/// build (0.8), the libraries <see cref="InstallLayout.NativeLibraries(bool)"/> lists beside it,
+/// and nothing else: the whole program for a published release, a broken fragment of a
+/// development build.</item>
 /// <item>Windows shortcuts go through <see cref="WindowsShell"/>, because they must carry the
 /// AppUserModelID that groups the taskbar button.</item>
 /// <item>The Linux layout is tools/install.sh's: the program in ~/.local/share/deadwax and
@@ -208,11 +210,17 @@ public static class InstallService
         var target = InstalledExePath;
         if (!InstallLayout.SamePath(ExeDirectory, InstallDirectory))
         {
+            // Not under another copy: the installed one may be running, and its libraries must
+            // not change beneath it (code review 2026-10-25: on Linux an overwritten library a
+            // program has mapped can crash it).
+            if (Process.GetProcessesByName("Deadwax").Length > 1)
+                throw new InstallBlockedException(
+                    $"Another {DisplayName} is running. Close it and try installing again.");
             try
             {
                 foreach (var lib in InstallLayout.NativeLibrariesIn(ExeDirectory))
-                    File.Copy(Path.Combine(ExeDirectory, lib), Path.Combine(InstallDirectory, lib), overwrite: true);
-                File.Copy(ExePath, target, overwrite: true);
+                    CopyInto(Path.Combine(ExeDirectory, lib), Path.Combine(InstallDirectory, lib));
+                CopyInto(ExePath, target);
             }
             catch (IOException ex)
             {
@@ -230,6 +238,24 @@ public static class InstallService
         if (!OperatingSystem.IsWindows()) MakeExecutable(target);
 
         return new InstallResult(target, Register(target, "install"));
+    }
+
+    /// <summary>
+    /// Copies a file in under a temporary name and renames it over the old one, so nothing ever
+    /// writes into a file a program has open: the old file lives on until it is let go of.
+    /// </summary>
+    private static void CopyInto(string source, string destination)
+    {
+        var temp = Path.Combine(Path.GetDirectoryName(destination)!, "." + Path.GetFileName(destination) + ".new");
+        try
+        {
+            File.Copy(source, temp, overwrite: true);
+            File.Move(temp, destination, overwrite: true);
+        }
+        finally
+        {
+            try { File.Delete(temp); } catch { /* gone already, which is the usual case */ }
+        }
     }
 
     /// <summary>
@@ -550,15 +576,17 @@ public static class InstallService
     /// that has not read a disc yet may have none of them mapped, Windows would let them go, Linux
     /// always would, and that copy breaks the first time it reads.
     /// A lone copy can only be running from its own folder; the next lone start sweeps what a
-    /// second copy kept alive. Nothing for a development build, which unpacks nothing.
+    /// second copy kept alive. A Native AOT build (0.8) unpacks nothing, so everything there is
+    /// an earlier build's and a lone AOT copy sweeps it all (code review 2026-10-25: it returned
+    /// early instead, and the folders stayed for good). Nothing for a development build.
     /// </summary>
     public static void SweepStaleExtractions()
     {
         try
         {
             var mine = OwnExtractionDir;
-            if (mine is null) return;
-            var root = Path.GetDirectoryName(mine)!;
+            if (mine is null && !IsSingleFile) return;
+            var root = mine is null ? ExtractionRoot : Path.GetDirectoryName(mine)!;
             if (!Directory.Exists(root)) return;
             if (Process.GetProcessesByName("Deadwax").Length > 1)
             {
@@ -566,11 +594,11 @@ public static class InstallService
                 return;
             }
             var cmp = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-            var mineName = Path.GetFileName(mine.TrimEnd(Path.DirectorySeparatorChar));
+            var mineName = mine is null ? null : Path.GetFileName(mine.TrimEnd(Path.DirectorySeparatorChar));
             int removed = 0, kept = 0;
             foreach (var dir in Directory.EnumerateDirectories(root))
             {
-                if (cmp.Equals(Path.GetFileName(dir), mineName)) continue;
+                if (mineName is not null && cmp.Equals(Path.GetFileName(dir), mineName)) continue;
                 try { Directory.Delete(dir, recursive: true); removed++; }
                 catch { kept++; }   // in use after all, or not ours to remove: next time
             }
