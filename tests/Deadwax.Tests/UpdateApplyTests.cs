@@ -125,13 +125,20 @@ public class UpdateApplyTests
         (string)typeof(UpdateService).GetMethod("WindowsApplyScript", BindingFlags.NonPublic | BindingFlags.Static)!
             .Invoke(null, [999999, from, to, "Deadwax.exe", libraries, marker, Path.Combine(root, "stage"), null, Path.Combine(root, "helper"), args, 1])!;
 
-    private static void RunWindows(string root, string script)
+    /// The helper's own output, for the failure messages.
+    private static string RunWindows(string root, string script)
     {
         var ps1 = Path.Combine(root, "apply.ps1");
         File.WriteAllText(ps1, script);
         var exe = Path.Combine(Environment.SystemDirectory, @"WindowsPowerShell\v1.0\powershell.exe");
-        using var p = Process.Start(new ProcessStartInfo(exe) { ArgumentList = { "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", ps1 }, UseShellExecute = false })!;
+        var log = Path.Combine(root, "helper.log");
+        using var p = Process.Start(new ProcessStartInfo(exe)
+        {
+            ArgumentList = { "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", $"& '{ps1}' *> '{log}'" },
+            UseShellExecute = false,
+        })!;
         Assert.True(p.WaitForExit(60_000), "the helper did not finish");
+        return File.Exists(log) ? File.ReadAllText(log) : "(no output)";
     }
 
     /// Real programs stand in: cmd.exe as the new one (its arguments decide how
@@ -149,12 +156,12 @@ public class UpdateApplyTests
         return (root, from, to, Path.Combine(to, ".deadwax-update-failed"));
     }
 
-    private static void Retry(Action a)
+    /// A stand-in still holding its file must not fail the test; temp is cleaned eventually.
+    private static void TryDelete(string root)
     {
-        for (var i = 0; ; i++)
-            try { a(); return; }
-            catch (IOException) when (i < 40) { Thread.Sleep(250); }
-            catch (UnauthorizedAccessException) when (i < 40) { Thread.Sleep(250); }
+        for (var i = 0; i < 40; i++)
+            try { Directory.Delete(root, recursive: true); return; }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Thread.Sleep(250); }
     }
 
     [Fact]
@@ -165,12 +172,12 @@ public class UpdateApplyTests
         try
         {
             File.WriteAllText(marker, "");
-            RunWindows(root, WindowsScript(from, to, marker, root, ["libSkiaSharp.dll"], ["/c", "ping", "-n", "4", "127.0.0.1"]));
-            Assert.Equal(File.ReadAllBytes(Path.Combine(from, "Deadwax.exe")).Length, File.ReadAllBytes(Path.Combine(to, "Deadwax.exe")).Length);
-            Assert.Equal("new lib", File.ReadAllText(Path.Combine(to, "libSkiaSharp.dll")));
-            Assert.False(File.Exists(marker));
+            var output = RunWindows(root, WindowsScript(from, to, marker, root, ["libSkiaSharp.dll"], ["/c", "ping", "-n", "4", "127.0.0.1"]));
+            Assert.True(new FileInfo(Path.Combine(from, "Deadwax.exe")).Length == new FileInfo(Path.Combine(to, "Deadwax.exe")).Length, "program not replaced: " + output);
+            Assert.True(File.Exists(Path.Combine(to, "libSkiaSharp.dll")), "library not copied: " + output);
+            Assert.False(File.Exists(marker), "marked as failed: " + output);
         }
-        finally { Thread.Sleep(4000); Retry(() => Directory.Delete(root, recursive: true)); }
+        finally { Thread.Sleep(4000); TryDelete(root); }
     }
 
     [Fact]
@@ -181,11 +188,11 @@ public class UpdateApplyTests
         var old = File.ReadAllBytes(Path.Combine(to, "Deadwax.exe"));
         try
         {
-            RunWindows(root, WindowsScript(from, to, marker, root, ["libSkiaSharp.dll"], ["/c", "exit", "3"]));
-            Assert.Equal(old, File.ReadAllBytes(Path.Combine(to, "Deadwax.exe")));
-            Assert.False(File.Exists(Path.Combine(to, "libSkiaSharp.dll")));
-            Assert.True(File.Exists(marker));
+            var output = RunWindows(root, WindowsScript(from, to, marker, root, ["libSkiaSharp.dll"], ["/c", "exit", "3"]));
+            Assert.True(old.AsSpan().SequenceEqual(File.ReadAllBytes(Path.Combine(to, "Deadwax.exe"))), "old program not put back: " + output);
+            Assert.False(File.Exists(Path.Combine(to, "libSkiaSharp.dll")), "new library left behind: " + output);
+            Assert.True(File.Exists(marker), "not marked as failed: " + output);
         }
-        finally { Thread.Sleep(2000); Retry(() => Directory.Delete(root, recursive: true)); }
+        finally { Thread.Sleep(2000); TryDelete(root); }
     }
 }

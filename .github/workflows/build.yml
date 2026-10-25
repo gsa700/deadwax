@@ -43,7 +43,7 @@ jobs:
         run: dotnet build Deadwax.slnx -c Release -nologo -v quiet
 
       - name: Test
-        run: dotnet test tests/Deadwax.Tests -c Release --no-build -nologo -v quiet
+        run: dotnet test tests/Deadwax.Tests -c Release --no-build -nologo -v quiet --logger "console;verbosity=normal"
 
       - name: Publish ${{ matrix.rid }} single file
         run: dotnet publish src/Deadwax.App -c Release -r ${{ matrix.rid }} --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o out -nologo -v quiet
