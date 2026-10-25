@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Install Deadwax for this user: a self-contained build (no dotnet needed to run
-# it), its icon, and an app-menu entry. Rerun after pulling changes.
+# Install Deadwax for this user: a Native AOT build (no dotnet needed to run
+# it; the program with its two graphics libraries beside it, as a release has
+# since 0.8.0), its icon, and an app-menu entry. Rerun after pulling changes.
 #
 #   tools/install.sh            build and install
 #   tools/install.sh --remove   take it all out again
@@ -22,10 +23,31 @@ fi
 dotnet="$(command -v dotnet || echo "$HOME/.dotnet/dotnet")"
 [[ -x "$dotnet" ]] || { echo "No .NET SDK found (looked on PATH and in ~/.dotnet)." >&2; exit 1; }
 
-echo "Building Deadwax..."
+# Native AOT links with the system's C toolchain: clang, and zlib's headers.
+if ! command -v clang >/dev/null; then
+    echo "Native AOT needs clang and zlib's development files:" >&2
+    echo "  Fedora: sudo dnf install clang zlib-ng-compat-devel" >&2
+    echo "  Debian, Ubuntu: sudo apt install clang zlib1g-dev" >&2
+    exit 1
+fi
+
+echo "Building Deadwax (Native AOT, a minute or two)..."
+pub="$(mktemp -d)"
+trap 'rm -rf "$pub"' EXIT
 "$dotnet" publish "$repo/src/Deadwax.App/Deadwax.App.csproj" -c Release -r linux-x64 \
-    --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
-    -o "$dest" -v q --nologo
+    -p:PublishAot=true -o "$pub" -v q --nologo
+
+# The program and its libraries only (InstallLayout.NativeLibraries), not the
+# debug files beside them. Each goes in under a temporary name and is renamed
+# over the old one: a running Deadwax keeps its file, and copying over a
+# running program would fail. Debug files of earlier builds go.
+mkdir -p "$dest"
+for f in "$pub"/Deadwax "$pub"/*.so; do
+    cp "$f" "$dest/.$(basename "$f").new"
+    mv -f "$dest/.$(basename "$f").new" "$dest/$(basename "$f")"
+done
+chmod +x "$dest/Deadwax"
+rm -f "$dest"/*.pdb "$dest"/*.dbg
 
 # The 256px PNG only, the icon the app itself writes and its uninstall removes.
 mkdir -p "$apps" "$icons/256x256/apps"

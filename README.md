@@ -246,7 +246,8 @@ touched. An installed copy updates itself in place.
 To run it from a folder or a USB stick and register nothing with the system,
 put an empty file named `portable.txt` beside it.
 
-From source: `tools/install.sh` builds a self-contained Deadwax into
+From source: `tools/install.sh` builds Deadwax ahead of time (Native AOT, as
+releases are; it needs clang and zlib's development files) into
 `~/.local/share/deadwax/` and adds it to the app menu with its icon (the app
 then counts as installed); rerun it after changes, and `tools/install.sh
 --remove` takes it out.
