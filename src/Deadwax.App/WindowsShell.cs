@@ -42,9 +42,11 @@ public static class WindowsShell
     }
 
     /// %AppData%\Microsoft\Windows\Start Menu\Programs\Deadwax.lnk — per user,
-    /// no elevation, and where the Start Menu's own search looks.
+    /// no elevation, and where the Start Menu's own search looks. DoNotVerify, as in
+    /// InstallService.ProgramsDirectory: a missing folder must not become "" (the current directory).
     public static string ShortcutPath => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.Programs), App.DisplayName + ".lnk");
+        Environment.GetFolderPath(Environment.SpecialFolder.Programs, Environment.SpecialFolderOption.DoNotVerify),
+        App.DisplayName + ".lnk");
 
     public static bool HasShortcut => OperatingSystem.IsWindows() && File.Exists(ShortcutPath);
 

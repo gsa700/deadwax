@@ -101,13 +101,15 @@ public static class InstallService
 
     /// <summary>
     /// Per-user programs directory: <c>%LOCALAPPDATA%\Programs</c> on Windows,
-    /// <c>~/.local/share</c> on Linux.
+    /// <c>~/.local/share</c> on Linux. DoNotVerify: by default the BCL returns "" for a folder
+    /// that does not exist yet (a fresh account), and install would land in the current directory.
     /// </summary>
     public static string ProgramsDirectory
     {
         get
         {
-            var b = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var b = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData,
+                Environment.SpecialFolderOption.DoNotVerify);
             return OperatingSystem.IsWindows() ? Path.Combine(b, "Programs") : b;
         }
     }
