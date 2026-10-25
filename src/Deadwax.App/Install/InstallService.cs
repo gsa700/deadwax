@@ -187,9 +187,11 @@ public static class InstallService
 
     /// <summary>
     /// Copy this executable into the install directory and register it. Returns the path of the
-    /// installed copy, which the caller should launch before exiting. Copying only the executable
-    /// is sufficient BECAUSE the published build is a self-contained single file with its native
-    /// libraries inside it; settings live in <see cref="DataDir"/> either way.
+    /// installed copy, which the caller should launch before exiting. A single-file build has its
+    /// native libraries inside it; a Native AOT build (0.8) has them beside it, and those named in
+    /// <see cref="InstallLayout.NativeLibraries(bool)"/> go first, then the program. Nothing else
+    /// beside it is copied: a loose copy may be sitting in Downloads. Settings live in
+    /// <see cref="DataDir"/> either way.
     /// </summary>
     public static InstallResult Install()
     {
@@ -208,6 +210,8 @@ public static class InstallService
         {
             try
             {
+                foreach (var lib in InstallLayout.NativeLibrariesIn(ExeDirectory))
+                    File.Copy(Path.Combine(ExeDirectory, lib), Path.Combine(InstallDirectory, lib), overwrite: true);
                 File.Copy(ExePath, target, overwrite: true);
             }
             catch (IOException ex)

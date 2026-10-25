@@ -160,4 +160,18 @@ public static class InstallLayout
             yield return System.IO.Path.Combine(programsDirectory, legacy);
         }
     }
+
+    /// <summary>
+    /// The native libraries a Native AOT build (0.8) has beside its program on Linux and Windows;
+    /// a single-file build keeps them inside itself, so none of these are beside it. Install and
+    /// update copy these and nothing else of what sits beside the program, since a loose copy may
+    /// be sitting in Downloads. tools/release.sh checks a release carries exactly these.
+    /// </summary>
+    public static IReadOnlyList<string> NativeLibraries(bool windows) => windows
+        ? ["libSkiaSharp.dll", "libHarfBuzzSharp.dll", "av_libglesv2.dll"]
+        : ["libSkiaSharp.so", "libHarfBuzzSharp.so"];
+
+    /// <summary>Those of <see cref="NativeLibraries(bool)"/> present in <paramref name="directory"/>.</summary>
+    public static IReadOnlyList<string> NativeLibrariesIn(string directory) =>
+        NativeLibraries(OperatingSystem.IsWindows()).Where(n => File.Exists(System.IO.Path.Combine(directory, n))).ToList();
 }

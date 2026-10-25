@@ -184,12 +184,14 @@ public class SecurityReview2Tests
         {
             var dir = Path.Combine(root, "Dave\x2019s Apps");
             Directory.CreateDirectory(dir);
-            var staged = Path.Combine(root, "staged.exe"); File.WriteAllText(staged, "new");
+            var stagedDir = Path.Combine(root, "stage", "ex"); Directory.CreateDirectory(stagedDir);
+            File.WriteAllText(Path.Combine(stagedDir, "Deadwax.exe"), "new");
             var target = Path.Combine(dir, "Deadwax.exe"); File.WriteAllText(target, "old");
             var pwned = Path.Combine(root, "PWNED");
             string[] args = [$"x\x2019; Set-Content -Path \"{pwned}\" -Value injected; #"];
             var script = Call<string>(typeof(Deadwax.App.UpdateService), "WindowsApplyScript",
-                999999, staged, target, Path.Combine(root, "failed"), root, Path.Combine(root, "stage"), null, Path.Combine(root, "helper"), args);
+                999999, stagedDir, dir, "Deadwax.exe", Array.Empty<string>(), Path.Combine(root, "failed"), Path.Combine(root, "stage"), null,
+                Path.Combine(root, "helper"), args, 1);
             var ps1 = Path.Combine(root, "apply.ps1");
             File.WriteAllText(ps1, script);
 

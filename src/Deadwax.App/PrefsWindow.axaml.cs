@@ -243,7 +243,7 @@ public partial class PrefsWindow : Window
             ?? (!UpdateService.CanUpdate ? (UpdateService.MacBlocker is { } why
                     ? $"This is version {have}. {why}"
                     : "This is a development build, so updates are not offered.")
-              : _main.LastUpdateFailed ? $"The last update could not be put in place, so this is still {have}. Try it again."
+              : _main.LastUpdateFailed ? $"The last update could not be put in place, or did not start, so this is still {have}."
               : info is null ? $"This is version {have}."
               : info.Error is { } error ? error
               : info.NothingPublished ? $"No release has been published yet. This is version {have}."

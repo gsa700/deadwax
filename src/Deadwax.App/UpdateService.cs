@@ -39,7 +39,11 @@ public sealed class UpdateInfo
 ///
 /// A release, as this reads it (tools/release.sh writes exactly this): a
 /// normal, non-pre-release GitHub release tagged vX.Y.Z carrying
-/// Deadwax-linux-x64.zip (the single-file program) and SHA256SUMS.
+/// Deadwax-linux-x64.zip (the single-file program) and SHA256SUMS. From 0.8
+/// Linux and Windows carry Deadwax-<rid>-aot.zip instead: the Native AOT
+/// program with its native libraries beside it. Copies before 0.7.6 install
+/// only the program and do not look for that name, so they are told the
+/// release has no build for them rather than left with one that cannot start.
 /// /releases/latest never returns drafts or pre-releases, and answers 404 for a
 /// private repository.
 ///
@@ -87,6 +91,9 @@ public static class UpdateService
             return plus >= 0 ? v[..plus] : v;
         }
     }
+
+    /// The Native AOT package for this system: Deadwax-linux-x64-aot.zip.
+    public static string AotAssetName => $"Deadwax-{Rid()}-aot.zip";
 
     /// The runtime identifier in the asset name: linux-x64, linux-arm64.
     public static string Rid()
@@ -170,20 +177,25 @@ public static class UpdateService
             info.LatestTag = root.GetProperty("tag_name").GetString() ?? "";
             if (root.TryGetProperty("html_url", out var hu) && hu.GetString() is { Length: > 0 } url) info.ReleaseUrl = url;
 
-            var wanted = $"Deadwax-{Rid()}.zip";
+            // The Native AOT package (0.8 on) before the single file: it is the
+            // program with its native libraries beside it, which copies before
+            // 0.7.6 cannot install, so it has a name they do not look for.
+            string[] wanted = [AotAssetName, $"Deadwax-{Rid()}.zip"];
             if (root.TryGetProperty("assets", out var assets))
                 foreach (var a in assets.EnumerateArray())
                 {
                     var name = a.GetProperty("name").GetString();
                     var link = a.GetProperty("browser_download_url").GetString();
-                    if (name == wanted) { info.AssetUrl = link; info.AssetName = name; }
+                    var rank = Array.IndexOf(wanted, name);
+                    if (rank >= 0 && (info.AssetName is null || rank < Array.IndexOf(wanted, info.AssetName)))
+                    { info.AssetUrl = link; info.AssetName = name; }
                     else if (name == "SHA256SUMS") info.SumsUrl = link;
                 }
 
             // Unparseable on either side is "not newer", never "newer" (VersionOrder).
             info.UpdateAvailable = VersionOrder.IsNewer(info.LatestTag, CurrentVersion);
             Console.WriteLine($"[update] {(edge ? "edge" : "stable")}: latest {info.LatestTag}{(info.IsPrerelease ? " (edge build)" : "")}, have {CurrentVersion}, newer={info.UpdateAvailable}, "
-                            + $"asset={(info.AssetUrl is null ? "none for " + Rid() : wanted)}");
+                            + $"asset={info.AssetName ?? "none for " + Rid()}");
         }
         catch (Exception ex)
         {
@@ -276,15 +288,23 @@ public static class UpdateService
             ?? throw new FileNotFoundException($"{ExeFileName} is not in the downloaded package.");
 
         // A last look before it is given the keys: an executable for this
-        // system (ELF, PE or Mach-O by its first bytes), and not a stub.
+        // system (ELF, PE or Mach-O by its first bytes), and not a stub; and
+        // the same for each native library a Native AOT build has beside it.
+        if (!await IsBinaryForThisSystemAsync(staged) || new FileInfo(staged).Length < 1_000_000)
+            throw new InvalidOperationException("The downloaded program is not an executable for this system.");
+        foreach (var lib in Install.InstallLayout.NativeLibrariesIn(Path.GetDirectoryName(staged)!))
+            if (!await IsBinaryForThisSystemAsync(Path.Combine(Path.GetDirectoryName(staged)!, lib)))
+                throw new InvalidOperationException($"The downloaded {lib} is not a library for this system.");
+        return staged;
+    }
+
+    private static async Task<bool> IsBinaryForThisSystemAsync(string path)
+    {
         var head = new byte[4];
-        await using (var fs = File.OpenRead(staged)) _ = await fs.ReadAsync(head);
-        var isExe = OperatingSystem.IsWindows() ? head[0] == 'M' && head[1] == 'Z'
+        await using (var fs = File.OpenRead(path)) _ = await fs.ReadAsync(head);
+        return OperatingSystem.IsWindows() ? head[0] == 'M' && head[1] == 'Z'
             : OperatingSystem.IsMacOS() ? (head[0] == 0xCF && head[1] == 0xFA && head[2] == 0xED && head[3] == 0xFE) || (head[0] == 0xCA && head[1] == 0xFE && head[2] == 0xBA && head[3] == 0xBE)
             : head[0] == 0x7F && head[1] == 'E' && head[2] == 'L' && head[3] == 'F';
-        if (!isExe || new FileInfo(staged).Length < 1_000_000)
-            throw new InvalidOperationException("The downloaded program is not an executable for this system.");
-        return staged;
     }
 
     private static HttpRequestMessage Request(string url, string agent)
@@ -295,8 +315,16 @@ public static class UpdateService
     }
 
     /// Launches the detached helper that waits for this process to exit,
-    /// replaces the executable (on the Mac, the bundle) with the staged one
-    /// and relaunches it. THE CALLER MUST THEN EXIT THE APP.
+    /// replaces the program (on the Mac, the bundle) with the staged one and
+    /// relaunches it. THE CALLER MUST THEN EXIT THE APP.
+    ///
+    /// On Linux and Windows since 0.7.6 the helper installs a package, not
+    /// just a program: a Native AOT build (0.8) has its native libraries
+    /// beside it (InstallLayout.NativeLibraries), and a copy that took only
+    /// the program would not start. Whatever it replaces is backed up first;
+    /// the libraries go in before the program; and the new program must still
+    /// be running after a few seconds (or have ended cleanly), or the old
+    /// files go back, the old program is started, and the marker says so.
     public static void ApplyAndRestart(string stagedExe)
     {
         var target = ExePath;
@@ -315,90 +343,170 @@ public static class UpdateService
             Console.WriteLine($"[update] helper started; replacing {app} once pid {pid} has gone");
             return;
         }
+        var from = Path.GetDirectoryName(stagedExe)!;
+        var to = Path.GetDirectoryName(target)!;
+        var libraries = Install.InstallLayout.NativeLibrariesIn(from);
         if (OperatingSystem.IsWindows())
         {
             var ps1 = Path.Combine(helperDir, "apply-update.ps1");
-            File.WriteAllText(ps1, WindowsApplyScript(pid, stagedExe, target, marker, Path.GetDirectoryName(target)!, stageRoot, OwnExtractionDir, helperDir, args));
+            File.WriteAllText(ps1, WindowsApplyScript(pid, from, to, ExeFileName, libraries, marker, stageRoot, OwnExtractionDir, helperDir, args, StartCheckSeconds));
             Process.Start(PowerShell.StartInfo(ps1));
         }
         else
         {
             var sh = Path.Combine(helperDir, "apply-update.sh");
-            File.WriteAllText(sh, ApplyScript(pid, stagedExe, target, marker, Path.GetDirectoryName(target)!, stageRoot, OwnExtractionDir, helperDir, args));
-            Process.Start(new ProcessStartInfo("/bin/sh")
+            File.WriteAllText(sh, ApplyScript + "\n");
+            var start = new ProcessStartInfo("/bin/sh")
             {
-                ArgumentList = { sh },
                 UseShellExecute = false,
                 WorkingDirectory = Path.GetTempPath(),   // not ours: see _stageRoot
-            });
+            };
+            foreach (var a in ApplyScriptArguments(sh, pid, from, to, ExeFileName, libraries, marker, stageRoot, OwnExtractionDir, helperDir, args))
+                start.ArgumentList.Add(a);
+            Process.Start(start);
         }
-        Console.WriteLine($"[update] helper started; swapping {target} once pid {pid} has gone; then removing {OwnExtractionDir ?? "(nothing unpacked)"}");
+        Console.WriteLine($"[update] helper started; installing {ExeFileName}{(libraries.Count > 0 ? " and " + string.Join(", ", libraries) : "")} "
+                        + $"into {to} once pid {pid} has gone; then removing {OwnExtractionDir ?? "(nothing unpacked)"}");
     }
 
-    /// The PowerShell helper (AlbumWall's UpdateApplyScript.Windows): wait
-    /// for this process to end, copy the staged exe over the installed one
-    /// (forty tries, since Windows keeps a just-exited exe locked a moment),
-    /// drop the old build's unpacked libraries unless another copy still has
-    /// them loaded, relaunch, tidy up.
-    private static string WindowsApplyScript(int pid, string stagedExe, string targetExe, string failedMarker,
-        string workingDirectory, string stageRoot, string? ownExtractionDir, string helperDir, IReadOnlyList<string> relaunchArgs)
+    /// How long the new program must stay up (or end with 0) to count as started.
+    private const int StartCheckSeconds = 5;
+
+    /// The PowerShell helper (AlbumWall's UpdateApplyScript.Windows, grown in
+    /// 0.7.6): wait for this process to end; back up what will be replaced;
+    /// copy the libraries, then the program (forty tries each, since Windows
+    /// keeps a just-exited exe locked a moment); drop the old build's unpacked
+    /// libraries unless another copy still has them loaded; start the new
+    /// program and, if it falls over within startCheckSeconds, put the old
+    /// files back and start the old one; tidy up.
+    private static string WindowsApplyScript(int pid, string from, string to, string exeName, IReadOnlyList<string> libraries,
+        string failedMarker, string stageRoot, string? ownExtractionDir, string helperDir, IReadOnlyList<string> relaunchArgs,
+        int startCheckSeconds)
     {
         static string Q(string value) => PowerShell.Quote(value);
         var argList = relaunchArgs.Count > 0 ? " -ArgumentList " + Q(PowerShell.CommandLine(relaunchArgs)) : "";
+        var names = "@(" + string.Join(", ", libraries.Append(exeName).Select(Q)) + ")";   // the program last
+        var exe = Path.Combine(to, exeName);
         return
+            $"$from = {Q(from)}; $to = {Q(to)}; $back = {Q(Path.Combine(helperDir, "old"))}; $names = {names}\n" +
             $"while (Get-Process -Id {pid} -ErrorAction SilentlyContinue) {{ Start-Sleep -Milliseconds 300 }}\n" +
-            "$ok = $false\n" +
-            "for ($i = 0; $i -lt 40 -and -not $ok; $i++) {\n" +
-            $"  try {{ Copy-Item -LiteralPath {Q(stagedExe)} -Destination {Q(targetExe)} -Force -ErrorAction Stop; $ok = $true }}\n" +
-            "  catch { Start-Sleep -Milliseconds 250 }\n" +
+            "New-Item -ItemType Directory -Path $back -Force | Out-Null\n" +
+            "$ok = $true\n" +
+            "foreach ($n in $names) {\n" +
+            "  $t = Join-Path $to $n\n" +
+            "  if (Test-Path -LiteralPath $t) {\n" +
+            "    try { Copy-Item -LiteralPath $t -Destination (Join-Path $back $n) -Force -ErrorAction Stop } catch { $ok = $false; break }\n" +
+            "  } else { New-Item -ItemType File -Path (Join-Path $back \"$n.absent\") -Force | Out-Null }\n" +
+            "}\n" +
+            "function Restore {\n" +
+            "  foreach ($n in $names) {\n" +
+            "    $t = Join-Path $to $n\n" +
+            "    if (Test-Path -LiteralPath (Join-Path $back \"$n.absent\")) { Remove-Item -LiteralPath $t -Force -ErrorAction SilentlyContinue }\n" +
+            "    elseif (Test-Path -LiteralPath (Join-Path $back $n)) {\n" +
+            "      for ($i = 0; $i -lt 40; $i++) { try { Copy-Item -LiteralPath (Join-Path $back $n) -Destination $t -Force -ErrorAction Stop; break } catch { Start-Sleep -Milliseconds 250 } }\n" +
+            "    }\n" +
+            "  }\n" +
             "}\n" +
             "if ($ok) {\n" +
-            $"  Remove-Item -LiteralPath {Q(failedMarker)} -ErrorAction SilentlyContinue\n" +
+            "  foreach ($n in $names) {\n" +
+            "    $copied = $false\n" +
+            "    for ($i = 0; $i -lt 40 -and -not $copied; $i++) {\n" +
+            "      try { Copy-Item -LiteralPath (Join-Path $from $n) -Destination (Join-Path $to $n) -Force -ErrorAction Stop; $copied = $true }\n" +
+            "      catch { Start-Sleep -Milliseconds 250 }\n" +
+            "    }\n" +
+            "    if (-not $copied) { $ok = $false; break }\n" +
+            "  }\n" +
+            "  if (-not $ok) { Restore }\n" +
+            "}\n" +
+            "if ($ok) {\n" +
             (ownExtractionDir is null ? "" :
             $"  $mine = {Q("*\\" + ownExtractionDir.TrimEnd('\\', '/').Split('\\', '/')[^1] + "\\*")}\n" +
             "  $inUse = Get-Process -Name Deadwax -ErrorAction SilentlyContinue | Where-Object { $_.Modules | Where-Object { $_.FileName -like $mine } }\n" +
             "  if (-not $inUse) {\n" +
             $"    Remove-Item -LiteralPath {Q(ownExtractionDir)} -Recurse -Force -ErrorAction SilentlyContinue\n" +
             "  }\n") +
+            $"  $p = Start-Process -FilePath {Q(exe)}{argList} -WorkingDirectory $to -PassThru\n" +
+            "  $null = $p.Handle   # keeps the exit code readable once it has gone\n" +
+            $"  for ($i = 0; $i -lt {startCheckSeconds * 2} -and -not $p.HasExited; $i++) {{ Start-Sleep -Milliseconds 500 }}\n" +
+            "  if ($p.HasExited -and $p.ExitCode -ne 0) { $ok = $false; Restore }\n" +
+            "}\n" +
+            "if ($ok) {\n" +
+            $"  Remove-Item -LiteralPath {Q(failedMarker)} -ErrorAction SilentlyContinue\n" +
             "} else {\n" +
             $"  New-Item -ItemType File -Path {Q(failedMarker)} -Force | Out-Null\n" +
+            $"  Start-Process -FilePath {Q(exe)}{argList} -WorkingDirectory $to\n" +
             "}\n" +
-            $"Start-Process -FilePath {Q(targetExe)}{argList} -WorkingDirectory {Q(workingDirectory)}\n" +
             $"Remove-Item -LiteralPath {Q(stageRoot)} -Recurse -Force -ErrorAction SilentlyContinue\n" +
             $"Remove-Item -LiteralPath {Q(helperDir)} -Recurse -Force -ErrorAction SilentlyContinue\n";
     }
 
-    /// The POSIX shell helper (AlbumWall's UpdateApplyScript.Unix, without
-    /// the supervised branch), for Linux and macOS alike. Both replace a
-    /// running program's file happily, so the retry is for a busy
-    /// filesystem, not a lock.
-    private static string ApplyScript(int pid, string stagedExe, string targetExe, string failedMarker,
-        string workingDirectory, string stageRoot, string? ownExtractionDir, string helperDir, IReadOnlyList<string> relaunchArgs)
-    {
-        // Inside single quotes the shell reads everything literally, so an
-        // apostrophe is written by closing the quotes, escaping one, and opening them again.
-        static string Q(string path) => "'" + path.Replace("'", "'\\''") + "'";
-        var args = relaunchArgs.Count > 0 ? " " + string.Join(" ", relaunchArgs.Select(Q)) : "";
-        return
-            "#!/bin/sh\n" +
-            $"while kill -0 {pid} 2>/dev/null; do sleep 0.3; done\n" +
-            "ok=0\n" +
-            "for i in 1 2 3 4 5; do\n" +
-            $"  if cp -f {Q(stagedExe)} {Q(targetExe)}; then ok=1; break; fi\n" +
-            "  sleep 0.5\n" +
-            "done\n" +
-            "if [ \"$ok\" = 1 ]; then\n" +
-            $"  chmod +x {Q(targetExe)}\n" +
-            $"  rm -f {Q(failedMarker)}\n" +
-            // The OLD build's unpacked native libraries; the new one unpacks into a folder of its own.
-            (ownExtractionDir is null ? "" : $"  pgrep -x {ExeFileName} >/dev/null 2>&1 || rm -rf {Q(ownExtractionDir)}\n") +
-            "else\n" +
-            $"  : > {Q(failedMarker)}\n" +
-            "fi\n" +
-            $"(cd {Q(workingDirectory)} && {Q(targetExe)}{args} &)\n" +
-            $"rm -rf {Q(stageRoot)}\n" +
-            $"rm -rf {Q(helperDir)}\n";
-    }
+    /// The POSIX shell helper for Linux (the Mac has MacUpdate.ApplyScript):
+    /// the same steps as the Windows one. Every value is an argument, never
+    /// script text (ApplyScriptArguments). Linux replaces a running program's
+    /// file happily, so the retry is for a busy filesystem, not a lock.
+    public const string ApplyScript = """
+        #!/bin/sh
+        # $1 pid  $2 staged folder  $3 install folder  $4 program  $5 failure marker
+        # $6 staging folder  $7 own folder  $8 old build's unpacked libraries, or ""
+        # $9 seconds the new program must last; then the libraries, "--", the relaunch arguments
+        pid=$1 from=$2 to=$3 exe=$4 marker=$5 stage=$6 helper=$7 oldx=$8 secs=$9
+        shift 9
+        names=""
+        while [ $# -gt 0 ] && [ "$1" != "--" ]; do names="$names $1"; shift; done
+        [ "$1" = "--" ] && shift
+        names="$names $exe"
+        while kill -0 "$pid" 2>/dev/null; do sleep 0.3; done
+        back="$helper/old"
+        mkdir -p "$back"
+        restore() {
+          for n in $names; do
+            if [ -e "$back/$n.absent" ]; then rm -f "$to/$n"
+            elif [ -e "$back/$n" ]; then cp -pf "$back/$n" "$to/$n"; fi
+          done
+        }
+        ok=1
+        for n in $names; do
+          if [ -e "$to/$n" ]; then cp -p "$to/$n" "$back/$n" || { ok=0; break; }
+          else : > "$back/$n.absent"; fi
+        done
+        if [ "$ok" = 1 ]; then
+          for n in $names; do
+            copied=0
+            for i in 1 2 3 4 5; do
+              if cp -f "$from/$n" "$to/$n"; then copied=1; break; fi
+              sleep 0.5
+            done
+            [ "$copied" = 1 ] || { ok=0; break; }
+          done
+          if [ "$ok" = 1 ]; then chmod +x "$to/$exe"; else restore; fi
+        fi
+        if [ "$ok" = 1 ]; then
+          # The OLD build's unpacked native libraries; a new single file unpacks into a folder of its own.
+          if [ -n "$oldx" ]; then pgrep -x "$exe" >/dev/null 2>&1 || rm -rf "$oldx"; fi
+          (cd "$to" && exec "$to/$exe" "$@") &
+          child=$!
+          i=0
+          while [ "$i" -lt $((secs * 2)) ] && kill -0 "$child" 2>/dev/null; do sleep 0.5; i=$((i + 1)); done
+          if ! kill -0 "$child" 2>/dev/null; then
+            wait "$child" || { ok=0; restore; }
+          fi
+        fi
+        if [ "$ok" = 1 ]; then
+          rm -f "$marker"
+        else
+          : > "$marker"
+          (cd "$to" && exec "$to/$exe" "$@") &
+        fi
+        rm -rf "$stage" "$helper"
+        """;
+
+    /// The arguments ApplyScript reads, in its order, after the script's own path.
+    private static IEnumerable<string> ApplyScriptArguments(string script, int pid, string from, string to, string exeName,
+        IReadOnlyList<string> libraries, string failedMarker, string stageRoot, string? ownExtractionDir, string helperDir,
+        IReadOnlyList<string> relaunchArgs) =>
+        [script, pid.ToString(System.Globalization.CultureInfo.InvariantCulture), from, to, exeName, failedMarker, stageRoot,
+         helperDir, ownExtractionDir ?? "", StartCheckSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture),
+         .. libraries, "--", .. relaunchArgs];
 
     /// Beside the program; on the Mac beside the settings instead, since a
     /// file put inside the signed bundle would break its seal.
@@ -406,8 +514,9 @@ public static class UpdateService
         ? Path.Combine(Path.GetDirectoryName(Settings.FilePath)!, ".update-failed")
         : Path.Combine(Path.GetDirectoryName(targetExe) ?? ".", ".deadwax-update-failed");
 
-    /// True, once, if the last helper could not swap the executable (it
-    /// relaunched the old one). Clears the marker, so the warning shows on the
+    /// True, once, if the last helper could not put the new build in place,
+    /// or the new program fell over at once (it put the old one back and
+    /// relaunched that). Clears the marker, so the warning shows on the
     /// next start only.
     public static bool ConsumeUpdateFailed()
     {
