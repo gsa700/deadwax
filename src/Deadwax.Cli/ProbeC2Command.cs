@@ -7,23 +7,22 @@ namespace Deadwax.Cli;
 /// (a run ending there, one crossing it, one starting there, single sectors
 /// either side, and a control run well inside the track), with a read far
 /// away between, and for every flagged sector compares its audio with a clean
-/// single read of it. Development only; macOS only.
+/// single read of it. Development only; wherever Deadwax has its own drive access.
 internal static class ProbeC2Command
 {
     private const int S = 2352, C2 = 294, Per = S + C2;
 
     public static Task<int> RunAsync(string[] args)
     {
-        if (!OperatingSystem.IsMacOS()) return Task.FromResult(Commands.Fail("probe-c2 is macOS only."));
         var device = CdDrive.DefaultDevice;
         var around = args.Select(int.Parse).ToList();
-        using var mac = new MacIoctlTransport(device);
+        using var io = IDriveTransport.Open(device);
         var away = 1000;
 
         byte[]? Read(int lsn, int count)
         {
-            _ = mac.ReadAudio(lsn + 3000 < 190000 ? lsn + 3000 : lsn - 3000, 1, false);   // out of the cache
-            return mac.ReadAudio(lsn, count, c2: true);
+            _ = io.ReadAudio(lsn + 3000 < 190000 ? lsn + 3000 : lsn - 3000, 1, false);   // out of the cache
+            return io.ReadAudio(lsn, count, c2: true);
         }
         byte[] Clean(int lsn)
         {
@@ -55,12 +54,12 @@ internal static class ProbeC2Command
             // track start (split there), then on into the next track.
             for (var rep = 1; rep <= 3; rep++)
             {
-                _ = mac.ReadAudio(b - 2400 - 3000, 1, false);
+                _ = io.ReadAudio(b - 2400 - 3000, 1, false);
                 var flagged = new List<(int Lsn, byte[] Audio, int Bits)>();
                 for (var at = b - 2400; at < b + 240;)
                 {
                     var n = Math.Min(24, (at < b ? b : b + 240) - at);
-                    var r = mac.ReadAudio(at, n, c2: true);
+                    var r = io.ReadAudio(at, n, c2: true);
                     if (r is null) { Console.WriteLine($"  streamed #{rep}: READ FAILED at {at - b}"); break; }
                     for (var i = 0; i < n; i++)
                     {

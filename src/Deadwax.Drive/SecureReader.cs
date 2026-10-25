@@ -118,17 +118,18 @@ public readonly record struct ReadWindow(
 /// the Mac and Linux through Deadwax's own PassReader (step 4, spec §11; the
 /// only reader on the Mac since 0.7.2 and on Linux since 0.7.3, after Dido's
 /// Life for Rent and Led Zeppelin I read better with it than with paranoia),
-/// on Windows through libcdio-paranoia until its own READ CD transport exists.
+/// on Windows through libcdio-paranoia until its own (SPTI) is proven.
 public sealed class SecureReader : IDisposable
 {
     public const int DefaultMaxRetries = 20;
 
     /// Whether this run reads audio with Deadwax's own reader.
-    public static bool OwnReader => OperatingSystem.IsMacOS() || OperatingSystem.IsLinux();
+    public static bool OwnReader => OperatingSystem.IsMacOS() || OperatingSystem.IsLinux()
+        || OperatingSystem.IsWindows() && Environment.GetEnvironmentVariable("DEADWAX_READER") == "deadwax";   // Windows: SPTI, being proven
 
     /// The rip log's extraction engine.
     public static string EngineDescription => OwnReader
-        ? $"Deadwax {typeof(SecureReader).Assembly.GetName().Version?.ToString(3)} secure read ({(OperatingSystem.IsMacOS() ? "DKIOCCDREAD" : "SG_IO")}, C2)"
+        ? $"Deadwax {typeof(SecureReader).Assembly.GetName().Version?.ToString(3)} secure read ({IDriveTransport.Kind}, C2)"
         : CdDrive.EngineDescription;
 
     private IntPtr _drive;

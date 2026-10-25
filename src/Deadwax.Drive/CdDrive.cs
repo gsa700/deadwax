@@ -62,6 +62,7 @@ public sealed class CdDrive : IDisposable
                     return OwnDriveAccess ? MacDisc.CdDevices().FirstOrDefault()
                         : LibCdio.Devices().FirstOrDefault(MacDisc.IsCd)
                           ?? (LibCdio.DefaultDevice() is { } d && MacDisc.IsCd(d) ? d : null);
+                if (OperatingSystem.IsWindows() && OwnDriveAccess) return WindowsSptiTransport.Drives().FirstOrDefault();
                 return LibCdio.Devices().FirstOrDefault() ?? LibCdio.DefaultDevice();
             }
             catch (DllNotFoundException)
@@ -95,9 +96,9 @@ public sealed class CdDrive : IDisposable
         // did nothing with the drive empty; DefaultDevice was only a guess).
         // The window passes DefaultDevice, which is that same guess when nothing is found.
         if (OperatingSystem.IsMacOS() && (OwnDriveAccess || FoundDevice is null && (device is null || device == DefaultDevice))) return MacTray();
-        if (OperatingSystem.IsLinux() && OwnDriveAccess)
+        if (!OperatingSystem.IsMacOS() && OwnDriveAccess)
         {
-            try { using var sg = new LinuxSgTransport(device ?? DefaultDevice); return sg.Eject(); }
+            try { using var own = (PassThroughTransport)IDriveTransport.Open(device ?? DefaultDevice); return own.Eject(); }
             catch (DriveException) { return false; }
         }
         try { return LibCdio.cdio_eject_media_drive(device ?? DefaultDevice) == 0; }
@@ -126,9 +127,10 @@ public sealed class CdDrive : IDisposable
     /// only one on the Mac since 0.7.2 and on Linux (SG_IO) since 0.7.3, where
     /// the builds carry no libcdio (proven the same by check-drive on Control
     /// and Techbench, 2026-10-24; his call to take libcdio and paranoia out at
-    /// once rather than a release later). Windows keeps libcdio until its own
-    /// READ CD transport (SPTI) exists.
-    public static bool OwnDriveAccess => OperatingSystem.IsMacOS() || OperatingSystem.IsLinux();
+    /// once rather than a release later). Windows (SPTI) with DEADWAX_DRIVE=deadwax
+    /// while it is proven; libcdio there otherwise.
+    public static bool OwnDriveAccess => OperatingSystem.IsMacOS() || OperatingSystem.IsLinux()
+        || OperatingSystem.IsWindows() && Environment.GetEnvironmentVariable("DEADWAX_DRIVE") == "deadwax";   // Windows: SPTI, being proven
 
     private IntPtr _cdio;
     private IDriveTransport? _own;
@@ -210,7 +212,7 @@ public sealed class CdDrive : IDisposable
 
     public unsafe DriveIdentity? ReadIdentity()
     {
-        if (_own is not null) return OperatingSystem.IsMacOS() ? MacDisc.Identity(Device) : DriveIdentity.FromSysfs(Device);
+        if (_own is not null) return OwnIdentity(Device, _own);
         var buffer = stackalloc byte[LibCdio.HwInfoSize];
         if (!LibCdio.cdio_get_hwinfo(Handle, buffer)) return null;
 
@@ -270,6 +272,13 @@ public sealed class CdDrive : IDisposable
 
     /// libcdio's handle, for the subchannel reader's MMC commands.
     internal IntPtr NativeHandle => Handle;
+
+    /// The drive's identity by Deadwax's own means: DiskArbitration on the Mac,
+    /// sysfs on Linux (no command sent), INQUIRY through the transport on Windows.
+    public static DriveIdentity? OwnIdentity(string device, IDriveTransport transport) =>
+        OperatingSystem.IsMacOS() ? MacDisc.Identity(device)
+        : OperatingSystem.IsLinux() ? DriveIdentity.FromSysfs(device)
+        : (transport as PassThroughTransport)?.Inquiry();
 
     /// Deadwax's own transport when it is the one in use, for the subchannel reader.
     internal IDriveTransport? OwnTransport => _own;

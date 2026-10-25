@@ -94,7 +94,7 @@ public static class SubchannelReader
                 trackTexts.TryGetValue(t.Number, out var text) ? text : null));
         }
         var result = CdrdaoToc.Build(mcn is null ? null : CdrdaoToc.CatalogNumber(mcn), discText, list);
-        return new Cdrdao.Result(result.Write(), result, drive.OwnTransport is not null ? $"Deadwax ({(OperatingSystem.IsMacOS() ? "DKIOCCDREAD" : "SG_IO")})" : $"Deadwax (libcdio {LibCdio.Version() ?? "unknown"})");
+        return new Cdrdao.Result(result.Write(), result, drive.OwnTransport is not null ? $"Deadwax ({IDriveTransport.Kind})" : $"Deadwax (libcdio {LibCdio.Version() ?? "unknown"})");
     }
 
     /// Formatted Q if the drive gives it, else raw P-W, else nothing.
