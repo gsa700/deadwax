@@ -17,7 +17,7 @@ it happens with a read map of the disc surface, and the post-rip filing steps.
 
 ![The Disc screen: a disc from a five-album box set, the three MusicBrainz releases that carry its disc ID, and the choice to file it as the album it originally was](docs/images/disc.png)
 
-Linux and Windows, with a macOS app built from source. All of it is Deadwax's
+Linux, Windows and macOS (Apple silicon). All of it is Deadwax's
 own code, the drive layer included (since 0.7.4; libcdio and libcdio-paranoia
 read the disc before): the drive commands (the system's own SCSI interface on
 each platform), the secure read (C2 error flags, re-reads, a best copy of a
@@ -30,19 +30,29 @@ already in the library.
 
 ## Download
 
-Each [release](https://github.com/gsa700/deadwax/releases) carries one zip per
+Each [release](https://github.com/gsa700/deadwax/releases) carries one file per
 platform:
 
 | your machine | the file |
 |---|---|
 | Windows 10 or 11 (64-bit) | `Deadwax-win-x64.zip` |
 | a Linux PC | `Deadwax-linux-x64.zip` |
+| a Mac with Apple silicon, macOS 13 or later | `Deadwax.dmg` |
 
-Each is one self-contained program, no .NET needed. Unpack it and run `Deadwax`
-(`Deadwax.exe` on Windows); it offers to install itself (see [Install](#install)).
-Windows may say "Windows protected your PC" on the first run, because the
-program is not signed: More info, then Run anyway. There is no Mac download
-yet: build the app as described under [Install](#install).
+Each is one self-contained program, no .NET needed.
+
+- **Windows and Linux:** unpack the zip and run `Deadwax` (`Deadwax.exe` on
+  Windows); it offers to install itself (see [Install](#install)). Windows may
+  say "Windows protected your PC" on the first run, because the program is not
+  signed: More info, then Run anyway.
+- **Mac:** open `Deadwax.dmg` and drag Deadwax to Applications. It is signed
+  with a Developer ID and notarized by Apple, so it opens with no warning; on
+  its first start it offers to eject the installer image. macOS then asks once
+  for the CD drive and once for the Music folder. (`Deadwax-osx-arm64.zip`
+  holds the same app, for the updater.)
+
+The Mac download came with 0.7.0, so for now it is on the Edge channel only
+(see below): a Stable release before 0.7.0 has none.
 
 Nothing needs installing. Since 0.7.4 Deadwax carries no native libraries of
 its own at all: it talks to the drive and reads the audio with its own code.
@@ -232,8 +242,10 @@ From source: `tools/install.sh` builds a self-contained Deadwax into
 then counts as installed); rerun it after changes, and `tools/install.sh
 --remove` takes it out.
 
-On a Mac, `tools/make-macos-app.sh --install` builds `Deadwax.app` into
-Applications. It does not update itself yet: rebuild it after pulling.
+On a Mac, the app installs the Mac way: drag it from `Deadwax.dmg` into
+Applications, and it updates itself in place from there (since 0.7.0; not
+while it runs from the disk image). From source, `tools/make-macos-app.sh
+--install` builds `Deadwax.app` into Applications.
 
 ## Build and run
 
