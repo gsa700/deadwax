@@ -101,17 +101,19 @@ jobs:
       - name: Publish ${{ matrix.rid }} Native AOT
         shell: bash
         run: |
-          for p in Deadwax.App Deadwax.Cli; do
-            dotnet publish src/$p -c Release -r ${{ matrix.rid }} -p:PublishAot=true -o out-aot -nologo -v minimal 2>&1 | tee -a aot.log
+          # Two folders: Deadwax (the app) and deadwax (the CLI) are one name
+          # on Windows and macOS, and the second build would replace the first.
+          for p in App:out-aot Cli:out-aot-cli; do
+            dotnet publish src/Deadwax.${p%%:*} -c Release -r ${{ matrix.rid }} -p:PublishAot=true -o ${p#*:} -nologo -v minimal 2>&1 | tee -a aot.log
             test "${PIPESTATUS[0]}" -eq 0
           done
           if grep -E "warning IL[0-9]+" aot.log; then echo "trim/AOT warnings above"; exit 1; fi
-          ls -la out-aot
+          ls -la out-aot out-aot-cli
 
       - name: Smoke test Native AOT (macOS)
         if: runner.os == 'macOS'
         run: |
-          ./out-aot/deadwax 2>&1 | grep -q "^usage:"
+          ./out-aot-cli/deadwax 2>&1 | grep -q "^usage:"
           set +e
           perl -e 'alarm 10; exec @ARGV' ./out-aot/Deadwax > smoke-aot.log 2>&1
           rc=$?
@@ -124,7 +126,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $usage = & .\out-aot\deadwax.exe 2>&1 | Out-String
+          $usage = & .\out-aot-cli\deadwax.exe 2>&1 | Out-String
           if ($usage -notmatch '(?m)^usage:') { Write-Host $usage; exit 1 }
           $global:LASTEXITCODE = 0   # usage exits 2; the step's wrapper would take that as a failure
           $p = Start-Process -FilePath .\out-aot\Deadwax.exe -PassThru
@@ -135,13 +137,16 @@ jobs:
 
       - name: Smoke test Native AOT CLI (Linux)
         if: runner.os == 'Linux'
-        run: ./out-aot/deadwax 2>&1 | grep -q "^usage:"
+        run: ./out-aot-cli/deadwax 2>&1 | grep -q "^usage:"
 
       - name: Package Native AOT
         shell: bash
         run: |
+          # The app, and the CLI in a folder of its own (for testing; releases
+          # do not carry it).
+          rm -rf out-aot/*.pdb out-aot/*.dbg out-aot/*.dSYM out-aot-cli/*.pdb out-aot-cli/*.dbg out-aot-cli/*.dSYM
+          mv out-aot-cli out-aot/cli
           cd out-aot
-          rm -rf *.pdb *.dbg *.dSYM
           if [ "${{ runner.os }}" = "Windows" ]; then 7z a -bd ../Deadwax-aot-${{ matrix.rid }}.zip . >/dev/null; else zip -9 -q -r ../Deadwax-aot-${{ matrix.rid }}.zip .; fi
           cd ..
           ls -la Deadwax-aot-${{ matrix.rid }}.zip
