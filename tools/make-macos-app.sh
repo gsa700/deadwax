@@ -9,8 +9,9 @@
 #                                      with the app and an Applications folder to drag it to
 #                                      (signed; notarized and stapled too with --notarize)
 #
-# WHAT IS IN IT: the single-file program, in the folder layout macOS expects
-# of an application, with its native libraries (Avalonia's and Skia's; no
+# WHAT IS IN IT: the program, compiled ahead of time (Native AOT, since 0.8;
+# the single-file build before), in the folder layout macOS expects of an
+# application, with its native libraries (Avalonia's and Skia's; no
 # libcdio or libcdio-paranoia since 0.7.2, when Deadwax began reading the
 # drive with its own code on the Mac) beside it in the bundle, each signed
 # with the app's own certificate:
@@ -75,11 +76,11 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
 
-echo "== publish $RID $VERSION"
-# tools/release.sh's flags, but the native libraries stay files of their own,
-# for the bundle (above).
-dotnet publish "$PROJECT" -c Release -r "$RID" --self-contained \
-    -p:PublishSingleFile=true -o "$WORK/pub" -nologo -v quiet
+echo "== publish $RID $VERSION (Native AOT)"
+# Compiled ahead of time: one native program, no runtime inside it and no JIT
+# (the road to 0.8). The native libraries are files of their own, for the
+# bundle (above), exactly as the single file left them.
+dotnet publish "$PROJECT" -c Release -r "$RID" -p:PublishAot=true -o "$WORK/pub" -nologo -v quiet
 ls "$WORK/pub"/*.dylib >/dev/null 2>&1 || { echo "the publish left no .dylib beside the program" >&2; exit 1; }
 
 echo "== icon"
@@ -160,9 +161,10 @@ else
     esac
 fi
 # A Developer ID signature gets the hardened runtime, which notarization
-# requires, with the one exception .NET needs (tools/macos/Deadwax.entitlements:
-# JIT; without it CoreCLR does not start), and Apple's timestamp. Each library
-# is signed first, the same way, and the bundle last, which seals them in.
+# requires, and Apple's timestamp. No exception to it since 0.8: the single
+# file needed JIT (an allow-jit entitlement; without it CoreCLR did not start),
+# and a Native AOT program generates no code at run time. Each library is
+# signed first, the same way, and the bundle last, which seals them in.
 if security find-identity -p codesigning | grep -qF -e "\"$SIGN_ID\"" -e ") $SIGN_ID "; then
     LABEL=$(security find-identity -p codesigning | grep -F -e "\"$SIGN_ID\"" -e ") $SIGN_ID " | head -1 | sed 's/^[^"]*"\([^"]*\)".*/\1/')
     echo "== sign ($LABEL)"
@@ -171,8 +173,7 @@ if security find-identity -p codesigning | grep -qF -e "\"$SIGN_ID\"" -e ") $SIG
             for lib in "$APP/Contents/MacOS/"*.dylib; do
                 codesign --force --options runtime --timestamp --sign "$SIGN_ID" "$lib"
             done
-            codesign --force --options runtime --timestamp \
-                --entitlements "$ROOT/tools/macos/Deadwax.entitlements" --sign "$SIGN_ID" "$APP" ;;
+            codesign --force --options runtime --timestamp --sign "$SIGN_ID" "$APP" ;;
         *)
             [ "$NOTARIZE" = yes ] && { echo "--notarize needs a Developer ID certificate, not \"$LABEL\"" >&2; exit 1; }
             for lib in "$APP/Contents/MacOS/"*.dylib; do codesign --force --sign "$SIGN_ID" "$lib"; done
