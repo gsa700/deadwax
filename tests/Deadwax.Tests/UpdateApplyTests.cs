@@ -119,6 +119,24 @@ public class UpdateApplyTests
         finally { Directory.Delete(dir, recursive: true); }
     }
 
+    [Fact]
+    public void The_program_is_the_one_at_the_top_of_the_package_not_the_cli()
+    {
+        var dir = Directory.CreateTempSubdirectory("deadwax-find-").FullName;
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(dir, "cli"));
+            File.WriteAllText(Path.Combine(dir, "cli", "deadwax.exe"), "cli");      // sorts first, and matches when case is ignored
+            Assert.Null(UpdateService.FindProgram(dir, "Deadwax.exe"));
+            File.WriteAllText(Path.Combine(dir, "Deadwax.exe"), "app");
+            Assert.Equal("app", File.ReadAllText(UpdateService.FindProgram(dir, "Deadwax.exe")!));
+            Directory.CreateDirectory(Path.Combine(dir, "a"));
+            File.Move(Path.Combine(dir, "Deadwax.exe"), Path.Combine(dir, "a", "Deadwax.exe"));
+            Assert.Equal("app", File.ReadAllText(UpdateService.FindProgram(dir, "Deadwax.exe")!));   // a folder below, named exactly
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
     // ---- Windows: the PowerShell helper, on Windows only -------------------------
 
     private static string WindowsScript(string from, string to, string marker, string root, string[] libraries, string[] args) =>

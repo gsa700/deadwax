@@ -284,7 +284,7 @@ public static class UpdateService
         }
         ZipFile.ExtractToDirectory(zip, unpacked, overwriteFiles: true);
         File.Delete(zip);
-        var staged = Directory.GetFiles(unpacked, ExeFileName, SearchOption.AllDirectories).FirstOrDefault()
+        var staged = FindProgram(unpacked, ExeFileName)
             ?? throw new FileNotFoundException($"{ExeFileName} is not in the downloaded package.");
 
         // A last look before it is given the keys: an executable for this
@@ -296,6 +296,18 @@ public static class UpdateService
             if (!await IsBinaryForThisSystemAsync(Path.Combine(Path.GetDirectoryName(staged)!, lib)))
                 throw new InvalidOperationException($"The downloaded {lib} is not a library for this system.");
         return staged;
+    }
+
+    /// The program in an unpacked package: the one at its top, where
+    /// release.sh puts it; else, in a folder below, only a file named exactly
+    /// so. A search through every folder ignores case on Windows and macOS,
+    /// and would take a cli\deadwax.exe for Deadwax.exe (Mobilenode,
+    /// 2026-10-25: CI's artifacts carry the CLI in cli\).
+    public static string? FindProgram(string unpacked, string exeName)
+    {
+        bool Named(string f) => Path.GetFileName(f) == exeName;   // the name as it is on disk
+        return Directory.GetFiles(unpacked, exeName).FirstOrDefault(Named)
+            ?? Directory.GetFiles(unpacked, exeName, SearchOption.AllDirectories).FirstOrDefault(Named);
     }
 
     private static async Task<bool> IsBinaryForThisSystemAsync(string path)
