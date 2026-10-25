@@ -132,16 +132,25 @@ trap 'rm -rf "$WORK"' EXIT
 # ---- CI's run of this commit -------------------------------------------------
 # The Linux and Windows builds come from it (above). Found by the commit, not
 # by "the latest run": a run of any other commit is not this release's build.
+# And only a run of a push or a manual start: a pull request from a fork can
+# carry the same commit, and its run is not one we started (code review
+# 2026-10-25).
 # build.yml runs on a push touching the source or Directory.Build.props, so the
 # version commit has one; if not, one is started here and waited for.
 CI_RUN=""
 ci_run_line() {
     gh run list -R "$REPO" --workflow build.yml --commit "$(git rev-parse HEAD)" -L 20 \
-        --json databaseId,headSha,status,conclusion \
-        -q '[.[] | select(.headSha=="'"$(git rev-parse HEAD)"'")][0] | select(. != null) | "\(.databaseId) \(.status)"'
+        --json databaseId,headSha,status,conclusion,event \
+        -q '[.[] | select(.headSha=="'"$(git rev-parse HEAD)"'" and (.event=="push" or .event=="workflow_dispatch"))][0] | select(. != null) | "\(.databaseId) \(.status)"'
 }
 ci_run() {
     [ -n "$CI_RUN" ] && return
+    # CI builds what GitHub has. A dry run lets HEAD differ (must only warns),
+    # but then there is no run to take: say so now, not after waiting.
+    [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ] \
+        || die "CI builds only what is pushed, and HEAD is not origin/main: push first (a dry run too)"
+    [ -z "$(git status --porcelain)" ] \
+        || say "note: the tree has changes; the Mac build will have them, CI's builds will not"
     local line; line=$(ci_run_line)
     if [ -z "$line" ]; then
         say "no CI run of $(git rev-parse --short HEAD) yet: starting one"

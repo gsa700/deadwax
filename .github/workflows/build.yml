@@ -1,8 +1,8 @@
-# Deadwax on the three platforms it is heading for: build, test, and publish
-# the single-file program for each, and its Native AOT build (the road to 0.8). Linux is where it rips today; the Windows
-# and macOS builds prove the managed code and the per-platform library names
-# compile and start, ahead of the native bundles and the subchannel reader that
-# make them rip. Artifacts, not releases (tools/release.sh cuts those).
+# Deadwax on its three platforms: build, test, and the Native AOT build of the
+# app and the CLI on each system's own runner (AOT cannot build for another
+# system). tools/release.sh ships the Linux and Windows builds of a release
+# commit's run (artifact Deadwax-aot-<rid>); the Mac's is made on a Mac, where
+# it is signed and notarized. Single-file builds went with 0.8.0.
 name: Build
 
 on:
@@ -49,59 +49,13 @@ jobs:
       - name: Test
         run: dotnet test tests/Deadwax.Tests -c Release --no-build -nologo -v quiet --logger "console;verbosity=normal"
 
-      - name: Publish ${{ matrix.rid }} single file
-        run: dotnet publish src/Deadwax.App -c Release -r ${{ matrix.rid }} --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o out -nologo -v quiet
-
-      - name: Smoke test, ten seconds alive (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          # No headless mode; the runner has a window server, so the window
-          # opens and says "Put a CD in the drive". Alive after ten seconds =
-          # Avalonia and its native libraries loaded. The timer's own exit code is the pass.
-          set +e
-          perl -e 'alarm 10; exec @ARGV' ./out/Deadwax > smoke.log 2>&1
-          rc=$?
-          set -e
-          echo "exit code $rc (124, 137 or 142 = killed by the timer = alive = pass)"
-          cat smoke.log
-          test "$rc" -eq 142 -o "$rc" -eq 124 -o "$rc" -eq 137
-
-      - name: Smoke test, ten seconds alive (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $p = Start-Process -FilePath .\out\Deadwax.exe -PassThru
-          Start-Sleep -Seconds 10
-          if ($p.HasExited) { Write-Host "exited early with $($p.ExitCode)"; exit 1 }
-          Write-Host "alive after ten seconds = pass"
-          Stop-Process -Id $p.Id -Force
-
-      - name: Package
-        shell: bash
-        run: |
-          cd out
-          if [ "${{ runner.os }}" = "Windows" ]; then 7z a -bd ../Deadwax-${{ matrix.rid }}.zip Deadwax.exe >/dev/null; else zip -9 -q ../Deadwax-${{ matrix.rid }}.zip Deadwax; fi
-          cd ..
-          ls -la Deadwax-${{ matrix.rid }}.zip
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: Deadwax-${{ matrix.rid }}
-          path: |
-            Deadwax-${{ matrix.rid }}.zip
-            smoke.log
-          if-no-files-found: ignore
-          retention-days: 30
-
-      # Native AOT (the road to 0.8): the app and the CLI compiled ahead of
-      # time, on the runner of their own system, because AOT cannot build for
-      # another one. Not shipped yet; the single file above still is. Fails on
-      # any trim or AOT warning (IL2xxx/IL3xxx): such code may break only in
-      # the compiled build, where no test runs it.
+      # clang and zlib for the AOT link; Xvfb, a display for the smoke test.
       - name: Native AOT tools (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get install -y -q clang zlib1g-dev
+        run: sudo apt-get install -y -q clang zlib1g-dev xvfb
 
+      # Fails on any trim or AOT warning (IL2xxx/IL3xxx): such code may break
+      # only in the compiled build, where no test runs it.
       - name: Publish ${{ matrix.rid }} Native AOT
         shell: bash
         run: |
@@ -114,18 +68,37 @@ jobs:
           if grep -E "warning IL[0-9]+" aot.log; then echo "trim/AOT warnings above"; exit 1; fi
           ls -la out-aot out-aot-cli
           if [ "${{ runner.os }}" = "Linux" ]; then
-            # The newest glibc the program asks for is the oldest Linux it runs on.
-            floor=$(objdump -T out-aot/Deadwax | grep -oE 'GLIBC_2\.[0-9]+' | sort -t. -k2 -n -u | tail -1)
-            echo "Linux floor: $floor"
-            [ "${floor#GLIBC_2.}" -le 35 ] || { echo "the AOT program needs $floor; Ubuntu 22.04 has 2.35"; exit 1; }
+            # The newest glibc any shipped file asks for is the oldest Linux it
+            # runs on: the program and the libraries beside it alike.
+            for f in out-aot/Deadwax out-aot/*.so; do
+              floor=$(objdump -T "$f" | grep -oE 'GLIBC_2\.[0-9]+' | sort -t. -k2 -n -u | tail -1)
+              echo "glibc floor of $(basename "$f"): $floor"
+              [ "${floor#GLIBC_2.}" -le 35 ] || { echo "$(basename "$f") needs $floor; Ubuntu 22.04 has 2.35"; exit 1; }
+            done
           fi
 
+      # Alive after ten seconds = the compiled program, Avalonia and its native
+      # libraries all loaded, and the window up ("Put a CD in the drive"). The
+      # timer's own exit code is the pass. The CLI prints its usage.
       - name: Smoke test Native AOT (macOS)
         if: runner.os == 'macOS'
         run: |
           ./out-aot-cli/deadwax 2>&1 | grep -q "^usage:"
           set +e
           perl -e 'alarm 10; exec @ARGV' ./out-aot/Deadwax > smoke-aot.log 2>&1
+          rc=$?
+          set -e
+          echo "exit code $rc (124, 137 or 142 = killed by the timer = alive = pass)"
+          cat smoke-aot.log
+          test "$rc" -eq 142 -o "$rc" -eq 124 -o "$rc" -eq 137
+
+      - name: Smoke test Native AOT (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          ./out-aot-cli/deadwax 2>&1 | grep -q "^usage:"
+          # No Wayland here: under Xvfb Avalonia takes X11.
+          set +e
+          xvfb-run -a perl -e 'alarm 10; exec @ARGV' ./out-aot/Deadwax > smoke-aot.log 2>&1
           rc=$?
           set -e
           echo "exit code $rc (124, 137 or 142 = killed by the timer = alive = pass)"
@@ -144,10 +117,6 @@ jobs:
           if ($p.HasExited) { Write-Host "exited early with $($p.ExitCode)"; exit 1 }
           Write-Host "alive after ten seconds = pass"
           Stop-Process -Id $p.Id -Force
-
-      - name: Smoke test Native AOT CLI (Linux)
-        if: runner.os == 'Linux'
-        run: ./out-aot-cli/deadwax 2>&1 | grep -q "^usage:"
 
       - name: Package Native AOT
         shell: bash
