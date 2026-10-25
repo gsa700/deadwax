@@ -1,5 +1,5 @@
 # Deadwax on the three platforms it is heading for: build, test, and publish
-# the single-file program for each. Linux is where it rips today; the Windows
+# the single-file program for each, and its Native AOT build (the road to 0.8). Linux is where it rips today; the Windows
 # and macOS builds prove the managed code and the per-platform library names
 # compile and start, ahead of the native bundles and the subchannel reader that
 # make them rip. Artifacts, not releases (tools/release.sh cuts those).
@@ -29,7 +29,7 @@ jobs:
           - os: macos-15
             rid: osx-arm64
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -86,5 +86,71 @@ jobs:
           path: |
             Deadwax-${{ matrix.rid }}.zip
             smoke.log
+          if-no-files-found: ignore
+          retention-days: 30
+
+      # Native AOT (the road to 0.8): the app and the CLI compiled ahead of
+      # time, on the runner of their own system, because AOT cannot build for
+      # another one. Not shipped yet; the single file above still is. Fails on
+      # any trim or AOT warning (IL2xxx/IL3xxx): such code may break only in
+      # the compiled build, where no test runs it.
+      - name: Native AOT tools (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y -q clang zlib1g-dev
+
+      - name: Publish ${{ matrix.rid }} Native AOT
+        shell: bash
+        run: |
+          for p in Deadwax.App Deadwax.Cli; do
+            dotnet publish src/$p -c Release -r ${{ matrix.rid }} -p:PublishAot=true -o out-aot -nologo -v minimal 2>&1 | tee -a aot.log
+            test "${PIPESTATUS[0]}" -eq 0
+          done
+          if grep -E "warning IL[0-9]+" aot.log; then echo "trim/AOT warnings above"; exit 1; fi
+          ls -la out-aot
+
+      - name: Smoke test Native AOT (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          ./out-aot/deadwax 2>&1 | grep -q "^usage:"
+          set +e
+          perl -e 'alarm 10; exec @ARGV' ./out-aot/Deadwax > smoke-aot.log 2>&1
+          rc=$?
+          set -e
+          echo "exit code $rc (124, 137 or 142 = killed by the timer = alive = pass)"
+          cat smoke-aot.log
+          test "$rc" -eq 142 -o "$rc" -eq 124 -o "$rc" -eq 137
+
+      - name: Smoke test Native AOT (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $usage = & .\out-aot\deadwax.exe 2>&1 | Out-String
+          if ($usage -notmatch '(?m)^usage:') { Write-Host $usage; exit 1 }
+          $global:LASTEXITCODE = 0   # usage exits 2; the step's wrapper would take that as a failure
+          $p = Start-Process -FilePath .\out-aot\Deadwax.exe -PassThru
+          Start-Sleep -Seconds 10
+          if ($p.HasExited) { Write-Host "exited early with $($p.ExitCode)"; exit 1 }
+          Write-Host "alive after ten seconds = pass"
+          Stop-Process -Id $p.Id -Force
+
+      - name: Smoke test Native AOT CLI (Linux)
+        if: runner.os == 'Linux'
+        run: ./out-aot/deadwax 2>&1 | grep -q "^usage:"
+
+      - name: Package Native AOT
+        shell: bash
+        run: |
+          cd out-aot
+          rm -rf *.pdb *.dbg *.dSYM
+          if [ "${{ runner.os }}" = "Windows" ]; then 7z a -bd ../Deadwax-aot-${{ matrix.rid }}.zip . >/dev/null; else zip -9 -q -r ../Deadwax-aot-${{ matrix.rid }}.zip .; fi
+          cd ..
+          ls -la Deadwax-aot-${{ matrix.rid }}.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Deadwax-aot-${{ matrix.rid }}
+          path: |
+            Deadwax-aot-${{ matrix.rid }}.zip
+            smoke-aot.log
           if-no-files-found: ignore
           retention-days: 30
