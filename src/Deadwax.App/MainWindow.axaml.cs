@@ -122,7 +122,16 @@ public sealed partial class MainWindow : Window
         // then reads as "no disc", so the same CD looked new when it ended and
         // was measured again (2026-10-20, his screenshots).
         if (_vm.IsScanning || _vm.IsRipping || _vm.MeasuringOffset) return;
-        var (present, audio) = await MediaAsync(CdDrive.DefaultDevice);
+        // Not while the tray is being opened either, and an eject waits for a
+        // look already under way (2026-10-25, 0.8.1, Dark Side: the eject after
+        // the rip did not happen, and the summary gave way to the Disc screen
+        // reading the same disc again; the look met the eject, saw no disc,
+        // and the disc it then found counted as a new one).
+        if (!_driveGate.Wait(0)) return;
+        (bool present, int audio) media;
+        try { media = await MediaAsync(CdDrive.DefaultDevice); }
+        finally { _driveGate.Release(); }
+        var (present, audio) = media;
         _vm.HasDisc = present;
         if (!present) _vm.DriveText = NoDisc;
         if (_vm.NeedsOffset)
@@ -752,7 +761,19 @@ public sealed partial class MainWindow : Window
         await EjectAsync();
     }
 
-    private static Task EjectAsync() => Task.Run(() => CdDrive.Eject(CdDrive.DefaultDevice));
+    /// The watcher's look at the drive and an eject, one at a time.
+    private readonly SemaphoreSlim _driveGate = new(1, 1);
+
+    private async Task EjectAsync()
+    {
+        await _driveGate.WaitAsync();
+        try
+        {
+            if (!await Task.Run(() => CdDrive.Eject(CdDrive.DefaultDevice)))
+                Console.WriteLine("[drive] the tray would not open");
+        }
+        finally { _driveGate.Release(); }
+    }
 
     private void ClearDisc()
     {

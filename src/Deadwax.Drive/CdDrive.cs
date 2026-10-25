@@ -86,14 +86,22 @@ public sealed class CdDrive : IDisposable
         // On a Mac an empty drive has no disk to send a command to, so the tray
         // is opened through macOS's own drutil (2026-10-20: "Open tray" did
         // nothing with the drive empty; DefaultDevice was only a guess).
-        if (OperatingSystem.IsMacOS()) return MacTray();
+        if (OperatingSystem.IsMacOS()) return MacTray(MacDisc.IsCd(device ?? DefaultDevice));
         try { using var own = (PassThroughTransport)IDriveTransport.Open(device ?? DefaultDevice); return own.Eject(); }
         catch (DriveException) { return false; }
     }
 
-    private static bool MacTray()
+    /// drutil by what is in the drive. With a CD in, "tray eject": "tray open"
+    /// then reports success and does nothing, so the tray never opened after a
+    /// rip (found 2026-10-25 on Dark Side and a two-disc set; it tried "tray
+    /// open" first since 2026-10-20). With the drive empty, "tray open", as
+    /// the empty drive needs; the other one is the fallback either way.
+    private static bool MacTray(bool discIn)
     {
-        foreach (var args in new[] { new[] { "tray", "open" }, new[] { "tray", "eject" } })
+        string[][] order = discIn
+            ? [["tray", "eject"], ["tray", "open"]]
+            : [["tray", "open"], ["tray", "eject"]];
+        foreach (var args in order)
         {
             try
             {
