@@ -172,8 +172,9 @@ public class UpdateApplyTests
         try
         {
             File.WriteAllText(marker, "");
+            var fresh = File.ReadAllBytes(Path.Combine(from, "Deadwax.exe"));   // the helper deletes the staging folder
             var output = RunWindows(root, WindowsScript(from, to, marker, root, ["libSkiaSharp.dll"], ["/c", "ping", "-n", "4", "127.0.0.1"]));
-            Assert.True(new FileInfo(Path.Combine(from, "Deadwax.exe")).Length == new FileInfo(Path.Combine(to, "Deadwax.exe")).Length, "program not replaced: " + output);
+            Assert.True(fresh.AsSpan().SequenceEqual(File.ReadAllBytes(Path.Combine(to, "Deadwax.exe"))), "program not replaced: " + output);
             Assert.True(File.Exists(Path.Combine(to, "libSkiaSharp.dll")), "library not copied: " + output);
             Assert.False(File.Exists(marker), "marked as failed: " + output);
         }
