@@ -35,24 +35,28 @@ platform:
 
 | your machine | the file |
 |---|---|
-| Windows 10 or 11 (64-bit) | `Deadwax-win-x64.zip` |
-| a Linux PC | `Deadwax-linux-x64.zip` |
+| Windows 10 or 11 (64-bit) | `Deadwax-win-x64-aot.zip` |
+| a Linux PC with glibc 2.34 or later (Ubuntu 22.04, Debian 12, RHEL 9, Fedora 35 and newer) | `Deadwax-linux-x64-aot.zip` |
 | a Mac with Apple silicon, macOS 13 or later | `Deadwax.dmg` |
 
-Each is one self-contained program, no .NET needed.
+Since 0.8.0 Deadwax is compiled ahead of time (.NET Native AOT): a native
+program, no .NET needed, and under half the size of the single-file builds
+before it (18-19 MB). On Windows and Linux the zip holds the program with
+Avalonia's graphics libraries beside it (the single file kept them inside);
+keep them together. Up to 0.7.6 the download was `Deadwax-<system>.zip`,
+one file.
 
-- **Windows and Linux:** unpack the zip and run `Deadwax` (`Deadwax.exe` on
-  Windows); it offers to install itself (see [Install](#install)). Windows may
-  say "Windows protected your PC" on the first run, because the program is not
-  signed: More info, then Run anyway.
+- **Windows and Linux:** unpack the zip into a folder and run `Deadwax`
+  (`Deadwax.exe` on Windows); it offers to install itself (see
+  [Install](#install)). Windows may say "Windows protected your PC" on the
+  first run, because the program is not signed: More info, then Run anyway.
 - **Mac:** open `Deadwax.dmg` and drag Deadwax to Applications. It is signed
   with a Developer ID and notarized by Apple, so it opens with no warning; on
   its first start it offers to eject the installer image. macOS then asks once
   for the CD drive and once for the Music folder. (`Deadwax-osx-arm64.zip`
   holds the same app, for the updater.)
 
-The Mac download came with 0.7.0, so for now it is on the Edge channel only
-(see below): a Stable release before 0.7.0 has none.
+The Mac download came with 0.7.0; Stable has had it since 0.7.6.
 
 Nothing needs installing. Since 0.7.4 Deadwax carries no native libraries of
 its own at all: it talks to the drive and reads the audio with its own code.
@@ -64,7 +68,12 @@ encoder makes the FLACs; libFLAC, which made them before, left the program in 0.
 
 A running copy checks GitHub for a newer release a few seconds after launch
 and, if there is one, offers it in the title bar. The update is verified against
-the release's `SHA256SUMS` before it is installed, and Deadwax restarts into it.
+the release's `SHA256SUMS` before it is installed, and Deadwax restarts into it;
+if the new version does not start, the old one is put back and says so (Windows
+and Linux, since 0.7.6). On Windows and Linux a copy older than 0.7.6 cannot
+install 0.8.0 or later itself, because it would take the program without its
+libraries: it says the release has no build for it, and the zip is downloaded
+from the release page instead.
 
 There are two channels, chosen in Preferences > About. **Edge** gets every build
 as it is released (published as GitHub pre-releases). **Stable**, the default,
@@ -251,6 +260,14 @@ while it runs from the disk image). From source, `tools/make-macos-app.sh
 
 Needs the .NET 10 SDK, nothing else. cdrdao is only needed by
 `deadwax subchannel --cdrdao`, which compares Deadwax's reading with it.
+
+A release build is compiled ahead of time on the system it is for, since
+Native AOT cannot build for another one:
+`dotnet publish src/Deadwax.App -c Release -r linux-x64 -p:PublishAot=true`
+(`win-x64`, `osx-arm64`). Linux needs clang and zlib's development files for
+that, Windows the Visual Studio C++ build tools. Releases take the Linux and
+Windows builds from CI (Linux on Ubuntu 22.04, which sets the glibc it needs)
+and make the Mac's on a Mac (`tools/release.sh`).
 
 ```
 dotnet build

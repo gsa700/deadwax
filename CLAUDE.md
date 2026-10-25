@@ -43,6 +43,12 @@ catches it at release time; the rules above are for every push.
   once it has run on Edge without trouble: `tools/promote.sh X.Y.Z`, which
   also marks it latest and changes the first line of its notes to "Promoted to
   Stable." His call, every time. A security fix may go straight to Stable.
+- **Native AOT since 0.8.0.** `tools/release.sh` runs on Control: it makes
+  the Mac build there and takes the Linux and Windows builds from CI's run of
+  the release commit (artifact `Deadwax-aot-<rid>`; started and waited for if
+  missing), checks them and packs `Deadwax-<rid>-aot.zip`. The program's
+  libraries are listed in `InstallLayout.NativeLibraries` and in release.sh's
+  `native_libraries`; keep the two in step.
 - `tools/release.sh X.Y.Z` without `--publish` makes a DRAFT (`--dry-run` to
   build only). Bump `<Version>` in `Directory.Build.props` (every project shares it) in its
   own commit first.
