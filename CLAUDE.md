@@ -47,8 +47,8 @@ catches it at release time; the rules above are for every push.
   the Mac build there and takes the Linux and Windows builds from CI's run of
   the release commit (artifact `Deadwax-aot-<rid>`; started and waited for if
   missing), checks them and packs `Deadwax-<rid>-aot.zip`. The program's
-  libraries are listed in `InstallLayout.NativeLibraries` and in release.sh's
-  `native_libraries`; keep the two in step.
+  libraries are listed in `InstallLayout.NativeLibraries`, release.sh's
+  `native_libraries` and install.sh's `libs`; keep the three in step.
 - `tools/release.sh X.Y.Z` without `--publish` makes a DRAFT (`--dry-run` to
   build only). Bump `<Version>` in `Directory.Build.props` (every project shares it) in its
   own commit first.
