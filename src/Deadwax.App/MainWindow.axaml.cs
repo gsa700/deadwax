@@ -209,8 +209,16 @@ public sealed partial class MainWindow : Window
             _libraryMatch = await Task.Run(() => LibraryIndex.FindDisc(Library, disc.DiscId), ct);
             ShowDisc(disc);
             _vm.Stage = Stage.Disc;
+            // The cover box shows StatusText until a cover comes, which was
+            // still "Reading the disc..." when no release was chosen (2026-10-25).
+            _vm.StatusText = _vm.Releases.Count > 1 ? "Pick a release to see its cover." : "No cover yet.";
             if (_libraryMatch is not null)
+            {
                 _vm.ErrorText = $"Already in your library: {Path.GetRelativePath(Library, _libraryMatch)}";
+                // No subchannel pass for a disc that will not be ripped, so
+                // nothing would replace "Reading..." (found 2026-10-25).
+                _vm.GapText = _vm.CatalogText = "Not read: already ripped";
+            }
 
             var first = _vm.Releases.FirstOrDefault();
             if (first is not null && _vm.Releases.Count == 1) _ = ChooseAsync(first);
@@ -448,6 +456,7 @@ public sealed partial class MainWindow : Window
         catch (Exception e)
         {
             _vm.SubchannelText = "";
+            _vm.GapText = _vm.CatalogText = "Not read";
             _vm.ErrorText = "Reading the subchannel failed: " + e.Message;
         }
         finally
@@ -641,6 +650,7 @@ public sealed partial class MainWindow : Window
         var version = ++_planVersion;
         _vm.CanRip = false;
         _vm.ErrorText = "";
+        _vm.StatusText = "Fetching the cover...";
         try
         {
             var disc = _disc;
@@ -681,10 +691,13 @@ public sealed partial class MainWindow : Window
             if (version != _planVersion) return;
             _coverBytes = cover;
             _vm.Cover = cover is null ? null : new Bitmap(new MemoryStream(cover));
+            if (cover is null) _vm.StatusText = "The Cover Art Archive has no cover for this release.";
         }
         catch (Exception ex)
         {
-            if (version == _planVersion) _vm.ErrorText = ex.Message;
+            if (version != _planVersion) return;
+            _vm.ErrorText = ex.Message;
+            _vm.StatusText = "No cover.";
         }
     }
 
