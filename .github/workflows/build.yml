@@ -8,9 +8,9 @@ name: Build
 on:
   push:
     branches: [main]
-    paths: ["src/**", "tests/**", "Deadwax.slnx", ".github/workflows/build.yml"]
+    paths: ["src/**", "tests/**", "Deadwax.slnx", "Directory.Build.props", ".github/workflows/build.yml"]
   pull_request:
-    paths: ["src/**", "tests/**", "Deadwax.slnx", ".github/workflows/build.yml"]
+    paths: ["src/**", "tests/**", "Deadwax.slnx", "Directory.Build.props", ".github/workflows/build.yml"]
   workflow_dispatch:
 
 permissions:
@@ -22,7 +22,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          # 22.04, not latest: a Native AOT program needs the glibc of the
+          # machine that built it (24.04's made it 2.38; the single file
+          # needed 2.27), so the oldest runner keeps Ubuntu 22.04, Debian 12
+          # and RHEL 9 able to run it. The AOT step below checks the floor.
+          - os: ubuntu-22.04
             rid: linux-x64
           - os: windows-latest
             rid: win-x64
@@ -109,6 +113,12 @@ jobs:
           done
           if grep -E "warning IL[0-9]+" aot.log; then echo "trim/AOT warnings above"; exit 1; fi
           ls -la out-aot out-aot-cli
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            # The newest glibc the program asks for is the oldest Linux it runs on.
+            floor=$(objdump -T out-aot/Deadwax | grep -oE 'GLIBC_2\.[0-9]+' | sort -t. -k2 -n -u | tail -1)
+            echo "Linux floor: $floor"
+            [ "${floor#GLIBC_2.}" -le 35 ] || { echo "the AOT program needs $floor; Ubuntu 22.04 has 2.35"; exit 1; }
+          fi
 
       - name: Smoke test Native AOT (macOS)
         if: runner.os == 'macOS'

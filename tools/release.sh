@@ -14,15 +14,26 @@
 #   tools/release.sh 0.2.0 --no-mac            without the Mac build, on a machine that is not a Mac
 #
 # RUN ON THE MAC (Control) since 0.7.0: the Mac build is made, signed and
-# notarized there by tools/make-macos-app.sh, and the Linux and Windows builds
-# cross-publish from it as they did from Techbench.
+# notarized there by tools/make-macos-app.sh.
+#
+# NATIVE AOT SINCE 0.8: every build is compiled ahead of time, and AOT cannot
+# build for another system. So the Linux and Windows builds are the ones CI
+# made on their own systems' runners (.github/workflows/build.yml, artifact
+# Deadwax-aot-<rid>) from THIS commit: the run must have passed and be for
+# HEAD exactly, and if there is none yet one is started and waited for. CI
+# builds Linux on Ubuntu 22.04 so the program runs on glibc 2.35 and up. Each
+# is checked (its files exactly, its program and libraries by their first
+# bytes, and "X.Y.Z+<commit>" inside the program) before it is packed.
 #
 # WHAT A RELEASE IS, because the updater (src/Deadwax.App/UpdateService.cs) reads
 # exactly this and nothing else: a GitHub release tagged vX.Y.Z, carrying
-# Deadwax-<rid>.zip per platform (the single-file program: Deadwax, or
-# Deadwax.exe on Windows; on the Mac, Deadwax.app as a whole, signed and
-# notarized), Deadwax.dmg (the Mac download for people) and SHA256SUMS
-# listing them all.
+# Deadwax-<rid>-aot.zip for Linux and Windows (the program with its native
+# libraries beside it, InstallLayout.NativeLibraries), Deadwax-osx-arm64.zip
+# (Deadwax.app as a whole, signed and notarized), Deadwax.dmg (the Mac
+# download for people) and SHA256SUMS listing them all. Until 0.7.5 Linux
+# and Windows were Deadwax-<rid>.zip, one single file; copies before 0.7.6
+# install only the program and do not look for the -aot name, so they are
+# told there is no build for them rather than left with one that cannot start.
 # Two channels (Deadwax.Core/ReleaseFeed.cs): Stable reads /releases/latest,
 # which never returns a pre-release; Edge reads the release list and takes the
 # newest version, pre-release or not. Both refuse a download SHA256SUMS does not
@@ -42,11 +53,21 @@ REPO=gsa700/deadwax
 CSPROJ="$ROOT/Directory.Build.props"   # one <Version> for every project
 # The platforms an app release carries. Each joined once a rip was proven on
 # it: linux-x64 (Techbench), win-x64 (Hambench, 2026-10-13: natives-2 rip
-# byte-identical to Linux). osx-arm64 joins after the Mac's. All are built
-# here; none carries native libraries since 0.7.4.
-# osx-arm64 joined in 0.7.0 (Control, 2026-10-24: the notarized bundle with
-# library validation on, proven on a rip).
+# byte-identical to Linux), osx-arm64 in 0.7.0 (Control, 2026-10-24: the
+# notarized bundle with library validation on, proven on a rip). The Native
+# AOT builds of all three were proven on rips on 2026-10-25.
 RIDS=(linux-x64 win-x64 osx-arm64)
+
+# What a Native AOT build has beside its program, per system: the same list as
+# src/Deadwax.App/Install/InstallLayout.cs NativeLibraries, which installs and
+# updates them. A build with anything more or less beside its program is
+# refused, so a library Avalonia adds is noticed here, not on someone's computer.
+native_libraries() {
+    case $1 in
+        win-*) echo "libSkiaSharp.dll libHarfBuzzSharp.dll av_libglesv2.dll" ;;
+        linux-*) echo "libSkiaSharp.so libHarfBuzzSharp.so" ;;
+    esac
+}
 
 VERSION=${1:?usage: release.sh X.Y.Z [--notes-file FILE] [--edge] [--publish] [--dry-run] [--no-mac]}
 shift
@@ -108,6 +129,43 @@ fi
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 
+# ---- CI's run of this commit -------------------------------------------------
+# The Linux and Windows builds come from it (above). Found by the commit, not
+# by "the latest run": a run of any other commit is not this release's build.
+# build.yml runs on a push touching the source or Directory.Build.props, so the
+# version commit has one; if not, one is started here and waited for.
+CI_RUN=""
+ci_run_line() {
+    gh run list -R "$REPO" --workflow build.yml --commit "$(git rev-parse HEAD)" -L 20 \
+        --json databaseId,headSha,status,conclusion \
+        -q '[.[] | select(.headSha=="'"$(git rev-parse HEAD)"'")][0] | select(. != null) | "\(.databaseId) \(.status)"'
+}
+ci_run() {
+    [ -n "$CI_RUN" ] && return
+    local line; line=$(ci_run_line)
+    if [ -z "$line" ]; then
+        say "no CI run of $(git rev-parse --short HEAD) yet: starting one"
+        gh workflow run build.yml -R "$REPO" --ref main
+        for _ in $(seq 1 36); do sleep 5; line=$(ci_run_line); [ -n "$line" ] && break; done
+        [ -n "$line" ] || die "the CI run did not appear: https://github.com/$REPO/actions"
+    fi
+    CI_RUN=${line%% *}
+    if [ "${line#* }" != completed ]; then
+        say "waiting for CI run $CI_RUN (the Native AOT builds take about ten minutes)"
+        gh run watch "$CI_RUN" -R "$REPO" --interval 30 >/dev/null 2>&1 || true
+    fi
+    local conclusion; conclusion=$(gh run view "$CI_RUN" -R "$REPO" --json conclusion -q .conclusion)
+    [ "$conclusion" = success ] || die "CI run $CI_RUN did not pass ($conclusion): https://github.com/$REPO/actions/runs/$CI_RUN"
+}
+# ci_build RID DIR: that run's Deadwax-aot-RID, unpacked into DIR/x.
+ci_build() {
+    ci_run
+    mkdir -p "$2"
+    gh run download "$CI_RUN" -R "$REPO" -n "Deadwax-aot-$1" -D "$2" >/dev/null \
+        || die "$1: CI run $CI_RUN has no artifact Deadwax-aot-$1 (kept 30 days)"
+    unzip -q "$2/Deadwax-aot-$1.zip" -d "$2/x"
+}
+
 # ---- no native libraries ----------------------------------------------------
 # None since 0.7.4: Deadwax reads the drive with its own code on every platform
 # (macOS since 0.7.2, Linux 0.7.3, Windows 0.7.4), and nothing in the build
@@ -133,38 +191,45 @@ for rid in "${RIDS[@]}"; do
         echo "   Deadwax-$rid.zip  $(du -h "$WORK/Deadwax-$rid.zip" | cut -f1)    Deadwax.dmg  $(du -h "$WORK/Deadwax.dmg" | cut -f1)"
         continue
     fi
-    say "publish $rid"
-    out="$WORK/pub/$rid"
-    "$DOTNET" publish "$ROOT/src/Deadwax.App" -c Release -r "$rid" --self-contained \
-        -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o "$out" -v quiet -nologo \
-        | grep -E ' error |warning CS' || true
+    say "$rid: the Native AOT build CI made of $(git rev-parse --short HEAD)"
+    ci_build "$rid" "$WORK/ci/$rid"
+    from="$WORK/ci/$rid/x"
     # The program's name and first bytes per platform, as UpdateService checks
-    # them before installing an update: ELF, PE ("MZ"), Mach-O.
+    # them before installing an update: ELF or PE ("MZ"); the libraries too.
     case $rid in
         win-*) exe=Deadwax.exe; magic='^4d5a'; kind=PE ;;
         *)     exe=Deadwax; magic='^7f454c46'; kind=ELF ;;
     esac
-    [ -f "$out/$exe" ] || die "$rid: no $exe after publish"
-    head -c 4 "$out/$exe" | od -An -tx1 | tr -d ' \n' | grep -qE "$magic" || die "$rid: $exe is not a $kind executable"
-    [ "$(wc -c < "$out/$exe")" -gt 50000000 ] || die "$rid: $exe is too small to be the single-file build"
-    # The program, and beside it its license, the third-party notices and the
-    # license texts (tools/fetch-licenses.py): what the licenses ask to travel
-    # with it. UpdateService takes only the program out of the zip.
+    libs=$(native_libraries "$rid")
+    want=$(printf '%s\n' $exe $libs | sort | paste -sd' ' -)
+    have=$(cd "$from" && find . -maxdepth 1 -type f ! -name '*.pdb' ! -name '*.dbg' | sed 's:^\./::' | sort | paste -sd' ' -)
+    [ "$have" = "$want" ] || die "$rid: CI's build holds [$have], expected [$want] (a library added or gone? update native_libraries here and InstallLayout.NativeLibraries)"
+    for f in $exe $libs; do
+        head -c 4 "$from/$f" | od -An -tx1 | tr -d ' \n' | grep -qE "$magic" || die "$rid: $f is not a $kind binary"
+    done
+    # Built from this commit as this version: the informational version
+    # (X.Y.Z+<commit>) is in the program as plain text.
+    grep -qaF "$VERSION+$(git rev-parse HEAD)" "$from/$exe" || die "$rid: $exe does not say it is $VERSION+$(git rev-parse HEAD)"
+    # The program, its libraries, and beside them its license, the third-party
+    # notices and the license texts (tools/fetch-licenses.py): what the
+    # licenses ask to travel with it. UpdateService takes the program and the
+    # libraries out of the zip.
     [ -f "$ROOT/licenses/README.md" ] || die "licenses/ is missing: run tools/fetch-licenses.py"
-    python3 - "$WORK/Deadwax-$rid.zip" "$out/$exe" "$ROOT" <<'PY'
+    python3 - "$WORK/Deadwax-$rid-aot.zip" "$from" "$ROOT" $exe $libs <<'PY'
 import sys, zipfile, os
-out, exe, root = sys.argv[1:]
+out, src, root, *files = sys.argv[1:]
 with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
-    info = zipfile.ZipInfo.from_file(exe, os.path.basename(exe))
-    info.external_attr = 0o755 << 16          # executable when unpacked
-    info.compress_type = zipfile.ZIP_DEFLATED
-    with open(exe, "rb") as f: z.writestr(info, f.read())
+    for name in files:                          # the program first, then its libraries
+        info = zipfile.ZipInfo.from_file(os.path.join(src, name), name)
+        info.external_attr = 0o755 << 16        # executable when unpacked
+        info.compress_type = zipfile.ZIP_DEFLATED
+        with open(os.path.join(src, name), "rb") as f: z.writestr(info, f.read())
     for name in ["LICENSE", "THIRD-PARTY-NOTICES.md"]:
         z.write(os.path.join(root, name), name)
     for name in sorted(os.listdir(os.path.join(root, "licenses"))):
         z.write(os.path.join(root, "licenses", name), "licenses/" + name)
 PY
-    echo "   Deadwax-$rid.zip  $(du -h "$WORK/Deadwax-$rid.zip" | cut -f1)"
+    echo "   Deadwax-$rid-aot.zip  $(du -h "$WORK/Deadwax-$rid-aot.zip" | cut -f1)"
 done
 (cd "$WORK" && sha256sum Deadwax-*.zip $([ -f "$WORK/Deadwax.dmg" ] && echo Deadwax.dmg) > SHA256SUMS)
 cat "$WORK/SHA256SUMS"
@@ -191,12 +256,13 @@ if [ -z "$NOTES" ]; then
         if printf '%s\n' "${RIDS[@]}" | grep -q '^osx-'; then
             echo "Mac: open Deadwax.dmg and drag Deadwax to Applications. Signed with a Developer ID and notarized by Apple, so it opens with no warning."
             echo
-            echo "Linux and Windows: unpack the zip for your system and run Deadwax."
+            echo "Linux and Windows: unpack the zip for your system into a folder and run Deadwax; the library files beside it are part of it."
         else
-            echo "Unpack the zip and run Deadwax."
+            echo "Unpack the zip into a folder and run Deadwax; the library files beside it are part of it."
         fi
         echo "Nothing else to install: Deadwax reads the drive with its own code."
         echo "A running copy offers newer releases from its title bar and updates itself in place."
+        echo "On Linux and Windows a copy older than 0.7.6 cannot install this build itself, and says there is no build for it: download it here."
         if printf '%s\n' "${RIDS[@]}" | grep -q '^win-'; then
             echo
             echo "Windows: Deadwax.exe is not signed, so the first run may show \"Windows protected your PC\": More info, then Run anyway."
