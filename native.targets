@@ -16,9 +16,9 @@
     <NativeRid Condition="'$(NativeRid)' == '' and $([MSBuild]::IsOSPlatform('OSX'))">osx-$(HostArch)</NativeRid>
     <NativeDir>$(MSBuildThisFileDirectory)native/$(NativeRid)</NativeDir>
   </PropertyGroup>
-  <!-- None for macOS since 0.7.2: Deadwax reads the drive with its own code
-       there (spec §11, steps 3 and 4). -->
-  <ItemGroup Condition="'$(NativeRid)' != '' and !$(NativeRid.StartsWith('osx')) and Exists('$(NativeDir)')">
+  <!-- None for macOS since 0.7.2 or Linux since 0.7.3: Deadwax reads the
+       drive with its own code there (spec §11, steps 3 and 4). -->
+  <ItemGroup Condition="'$(NativeRid)' != '' and $(NativeRid.StartsWith('win')) and Exists('$(NativeDir)')">
     <None Include="$(NativeDir)/*.dll;$(NativeDir)/*.so.*;$(NativeDir)/*.dylib;$(NativeDir)/natives-build-info*.txt"
           Exclude="$(NativeDir)/*FLAC*" Link="%(Filename)%(Extension)"
           CopyToOutputDirectory="PreserveNewest" />

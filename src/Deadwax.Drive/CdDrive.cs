@@ -123,12 +123,12 @@ public sealed class CdDrive : IDisposable
     }
 
     /// Deadwax's own drive access instead of libcdio's (step 3, spec §11): the
-    /// only one on the Mac since 0.7.2, where the build carries no libcdio
-    /// (proven the same by check-drive on Control, 2026-10-24; his call to take
-    /// libcdio and paranoia out at once rather than a release later). Linux
-    /// and Windows keep libcdio until their own READ CD transport exists.
-    public static bool OwnDriveAccess => OperatingSystem.IsMacOS()
-        || OperatingSystem.IsLinux() && Environment.GetEnvironmentVariable("DEADWAX_DRIVE") == "deadwax";   // Linux: SG_IO, being proven
+    /// only one on the Mac since 0.7.2 and on Linux (SG_IO) since 0.7.3, where
+    /// the builds carry no libcdio (proven the same by check-drive on Control
+    /// and Techbench, 2026-10-24; his call to take libcdio and paranoia out at
+    /// once rather than a release later). Windows keeps libcdio until its own
+    /// READ CD transport (SPTI) exists.
+    public static bool OwnDriveAccess => OperatingSystem.IsMacOS() || OperatingSystem.IsLinux();
 
     private IntPtr _cdio;
     private IDriveTransport? _own;
@@ -291,7 +291,7 @@ public sealed class CdDrive : IDisposable
     public static IReadOnlyList<string> LibCdioDevices() => LibCdio.Devices();
 
     /// "libcdio-paranoia (libcdio 2.3.0)", for the rip log.
-    public static string EngineDescription => OperatingSystem.IsMacOS()
+    public static string EngineDescription => SecureReader.OwnReader
         ? SecureReader.EngineDescription
         : $"libcdio-paranoia (libcdio {LibCdio.Version() ?? "unknown"})";
 
