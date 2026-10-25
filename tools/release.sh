@@ -43,7 +43,7 @@ CSPROJ="$ROOT/Directory.Build.props"   # one <Version> for every project
 # The platforms an app release carries. Each joined once a rip was proven on
 # it: linux-x64 (Techbench), win-x64 (Hambench, 2026-10-13: natives-2 rip
 # byte-identical to Linux). osx-arm64 joins after the Mac's. All are built
-# here: a win-x64 publish on Linux takes native/win-x64 (native.targets).
+# here; none carries native libraries since 0.7.4.
 # osx-arm64 joined in 0.7.0 (Control, 2026-10-24: the notarized bundle with
 # library validation on, proven on a rip).
 RIDS=(linux-x64 win-x64 osx-arm64)
@@ -108,33 +108,10 @@ fi
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 
-# ---- the native libraries, by tag -------------------------------------------
-# THE LIBRARIES ARE FETCHED, NOT TAKEN FROM WHATEVER IS IN native/. The release
-# named in tools/NATIVES_RELEASE is downloaded, checked against its SHA256SUMS,
-# and unpacked into native/<rid>/ for every platform being built; the publish
-# then folds them into the single file. A release is reproducible from its two
-# tags. Same arrangement as AlbumWall's audio engine.
-NATIVES=$(tr -d '[:space:]' < "$HERE/NATIVES_RELEASE")
-[ -n "$NATIVES" ] || die "tools/NATIVES_RELEASE is empty"
-say "native libraries: $NATIVES"
-mkdir -p "$WORK/natives"
-gh release download "$NATIVES" -R "$REPO" -D "$WORK/natives" -p "$NATIVES-*.zip" -p SHA256SUMS \
-    || die "could not download $NATIVES from $REPO"
-(cd "$WORK/natives" && sha256sum -c --quiet SHA256SUMS) || die "$NATIVES does not match its SHA256SUMS"
-for rid in "${RIDS[@]}"; do
-    [[ $rid == win-* ]] || continue   # no libcdio in the Mac build since 0.7.2, nor the Linux one since 0.7.3
-    zip="$WORK/natives/$NATIVES-$rid.zip"
-    [ -f "$zip" ] || die "$NATIVES has no $rid build"
-    # Each zip's own line: sha256sum -c checks only the lines there are, so a
-    # zip SHA256SUMS does not list would pass it (security review 2026-10-24, L15).
-    want=$(awk -v f="$NATIVES-$rid.zip" '$2 == f || $2 == "*" f {print $1}' "$WORK/natives/SHA256SUMS")
-    [ -n "$want" ] || die "$NATIVES's SHA256SUMS does not list $NATIVES-$rid.zip"
-    [ "$(sha256sum "$zip" | cut -d' ' -f1)" = "$want" ] || die "$NATIVES-$rid.zip does not match its SHA256SUMS line"
-    rm -rf "$ROOT/native/$rid"; mkdir -p "$ROOT/native/$rid"
-    unzip -q -o "$zip" -d "$ROOT/native/$rid"
-    chmod 755 "$ROOT/native/$rid"/*.so.* "$ROOT/native/$rid"/*.dll "$ROOT/native/$rid"/*.dylib 2>/dev/null || true
-    echo "   native/$rid <- $(head -1 "$ROOT/native/$rid/natives-build-info.txt")"
-done
+# ---- no native libraries ----------------------------------------------------
+# None since 0.7.4: Deadwax reads the drive with its own code on every platform
+# (macOS since 0.7.2, Linux 0.7.3, Windows 0.7.4). native.targets ignores a
+# native/ folder unless DeadwaxNatives=true, which this script never sets.
 
 # ---- build ------------------------------------------------------------------
 for rid in "${RIDS[@]}"; do
@@ -218,11 +195,7 @@ if [ -z "$NOTES" ]; then
         else
             echo "Unpack the zip and run Deadwax."
         fi
-        if printf '%s\n' "${RIDS[@]}" | grep -q '^win-'; then
-            echo "Nothing else to install: on Windows libcdio and libcdio-paranoia are built in ($NATIVES; sources on that release); on Linux and the Mac Deadwax reads the drive with its own code."
-        else
-            echo "Nothing else to install: Deadwax reads the drive with its own code."
-        fi
+        echo "Nothing else to install: Deadwax reads the drive with its own code."
         echo "A running copy offers newer releases from its title bar and updates itself in place."
         if printf '%s\n' "${RIDS[@]}" | grep -q '^win-'; then
             echo

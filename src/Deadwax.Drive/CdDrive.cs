@@ -32,8 +32,8 @@ public sealed class CdDrive : IDisposable
     /// Linux: /dev/cdrom if udev made that link, otherwise the first /dev/srN.
     /// Not a fixed /dev/sr0: after a USB reset with the old device still held
     /// open, the BDR-209D came back as sr1 and no /dev/cdrom link existed
-    /// (2026-09-24). Elsewhere libcdio's own list of drives (a drive letter on
-    /// Windows, /dev/diskN on macOS), or its default when the list is empty.
+    /// (2026-09-24). Windows: the first drive letter Windows calls a CD drive.
+    /// macOS: the first disk DiskArbitration says holds a CD.
     public static string DefaultDevice =>
         FoundDevice ?? (OperatingSystem.IsLinux() ? "/dev/sr0" : OperatingSystem.IsWindows() ? "D:" : "/dev/disk2");
 
@@ -124,13 +124,12 @@ public sealed class CdDrive : IDisposable
     }
 
     /// Deadwax's own drive access instead of libcdio's (step 3, spec §11): the
-    /// only one on the Mac since 0.7.2 and on Linux (SG_IO) since 0.7.3, where
-    /// the builds carry no libcdio (proven the same by check-drive on Control
-    /// and Techbench, 2026-10-24; his call to take libcdio and paranoia out at
-    /// once rather than a release later). Windows (SPTI) with DEADWAX_DRIVE=deadwax
-    /// while it is proven; libcdio there otherwise.
-    public static bool OwnDriveAccess => OperatingSystem.IsMacOS() || OperatingSystem.IsLinux()
-        || OperatingSystem.IsWindows() && Environment.GetEnvironmentVariable("DEADWAX_DRIVE") == "deadwax";   // Windows: SPTI, being proven
+    /// only one on the Mac since 0.7.2, on Linux (SG_IO) since 0.7.3 and on
+    /// Windows (SPTI) since 0.7.4, where the builds carry no libcdio (proven
+    /// the same by check-drive on Control, Techbench and Mobilenode,
+    /// 2026-10-24; his call to take libcdio and paranoia out at once rather
+    /// than a release later).
+    public static bool OwnDriveAccess => OperatingSystem.IsMacOS() || OperatingSystem.IsLinux() || OperatingSystem.IsWindows();
 
     private IntPtr _cdio;
     private IDriveTransport? _own;

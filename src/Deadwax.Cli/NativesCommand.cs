@@ -9,10 +9,10 @@ internal static class NativesCommand
 {
     public static Task<int> RunAsync(string[] args)
     {
-        if (OperatingSystem.IsMacOS() || OperatingSystem.IsLinux())
+        if (SecureReader.OwnReader)
         {
-            // No libcdio or libcdio-paranoia in the Mac build since 0.7.2, nor the Linux one since 0.7.3 (spec §11, steps 3 and 4).
-            Console.WriteLine($"  libraries       none: Deadwax reads the drive with its own code on {(OperatingSystem.IsMacOS() ? "macOS" : "Linux")}");
+            // No libcdio or libcdio-paranoia in the Mac build since 0.7.2, the Linux one since 0.7.3, nor the Windows one since 0.7.4 (spec §11, steps 3 and 4).
+            Console.WriteLine($"  libraries       none: Deadwax reads the drive with its own code on {(OperatingSystem.IsMacOS() ? "macOS" : OperatingSystem.IsWindows() ? "Windows" : "Linux")}");
             Console.WriteLine($"  engine          {SecureReader.EngineDescription}");
             Console.WriteLine($"  default device  {CdDrive.DefaultDevice}");
             return Task.FromResult(0);
