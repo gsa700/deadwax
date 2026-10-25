@@ -204,7 +204,7 @@ public class PassReaderTests
     }
 
     [Fact]
-    public void A_sector_given_up_on_is_read_once_on_later_passes()
+    public void A_sector_given_up_on_gets_its_full_tries_on_later_passes()
     {
         var drive = new FakeDrive(100);
         drive.Dead.Add(10);
@@ -212,7 +212,7 @@ public class PassReaderTests
         reader.ReadSectors(0, 100, 0, 100, 5);
         Assert.Equal(PassReader.MaxTries, drive.SingleReads[10]);
         reader.ReadSectors(0, 100, 0, 100, 5);
-        Assert.Equal(PassReader.MaxTries + 1, drive.SingleReads[10]);
+        Assert.Equal(2 * PassReader.MaxTries, drive.SingleReads[10]);
     }
 
     [Fact]
