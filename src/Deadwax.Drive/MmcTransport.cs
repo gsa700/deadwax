@@ -3,11 +3,9 @@ using System.Runtime.InteropServices;
 namespace Deadwax.Drive;
 
 /// The three things the subchannel reader asks a drive for, behind whatever
-/// each platform offers. Linux and Windows: libcdio's MMC pass-through
-/// (SG_IO, SPTI). macOS: libcdio's pass-through is compiled out there
-/// (security scan 2026-10-12, L2: `GET_SCSI_FIXED` is never defined), so
-/// the CD ioctls of the raw disk device do the same work, and need neither
-/// exclusive access nor an unmounted disc.
+/// each platform offers. Linux and Windows: Deadwax's own MMC pass-through
+/// (SG_IO, SPTI; PassThroughTransport). macOS: the CD ioctls of the raw disk
+/// device, which need neither exclusive access nor an unmounted disc.
 public interface IMmcTransport : IDisposable
 {
     /// Audio plus subchannel for `count` sectors from `lsn`: 2352 bytes of
@@ -25,65 +23,6 @@ public interface IMmcTransport : IDisposable
     /// The CD-Text packs (18 bytes each), without the four-byte header; null
     /// when there is no CD-Text.
     byte[]? ReadCdTextPacks();
-}
-
-/// libcdio's mmc_run_cmd, with the CDBs Deadwax builds itself.
-public sealed unsafe class LibCdioTransport(IntPtr handle) : IMmcTransport
-{
-    private const uint TimeoutMs = 30_000;
-
-    public bool SupportsRawSubchannel => true;
-
-    public byte[]? ReadCd(int lsn, int count, bool rawSubchannel)
-    {
-        var block = 2352 + (rawSubchannel ? 96 : 16);
-        var buffer = new byte[count * block];
-        var cdb = stackalloc byte[16];
-        cdb[0] = 0xBE;
-        cdb[2] = (byte)(lsn >> 24); cdb[3] = (byte)(lsn >> 16); cdb[4] = (byte)(lsn >> 8); cdb[5] = (byte)lsn;
-        cdb[6] = (byte)(count >> 16); cdb[7] = (byte)(count >> 8); cdb[8] = (byte)count;
-        cdb[9] = 0xF8;
-        cdb[10] = rawSubchannel ? (byte)0x01 : (byte)0x02;
-        var rc = -1;
-        for (var attempt = 0; attempt < 6 && rc != 0; attempt++)
-            fixed (byte* buf = buffer) rc = LibCdio.mmc_run_cmd(handle, TimeoutMs, cdb, LibCdio.MmcDataRead, (uint)buffer.Length, buf);
-        return rc == 0 ? buffer : null;
-    }
-
-    public string? ReadCode(bool isrc, byte track)
-    {
-        var cdb = stackalloc byte[16];
-        cdb[0] = 0x42;
-        cdb[2] = 0x40;
-        cdb[3] = isrc ? (byte)0x03 : (byte)0x02;
-        cdb[6] = track;
-        cdb[8] = 24;
-        var data = stackalloc byte[24];
-        if (LibCdio.mmc_run_cmd(handle, TimeoutMs, cdb, LibCdio.MmcDataRead, 24, data) != 0) return null;
-        if ((data[8] & 0x80) == 0) return null;
-        var length = isrc ? 12 : 13;
-        var code = System.Text.Encoding.ASCII.GetString(data + 9, length).TrimEnd('\0');
-        return code.Length == length ? code : null;
-    }
-
-    public byte[]? ReadCdTextPacks()
-    {
-        var cdb = stackalloc byte[16];
-        cdb[0] = 0x43;
-        cdb[2] = 0x05;
-        cdb[8] = 4;
-        var head = stackalloc byte[4];
-        if (LibCdio.mmc_run_cmd(handle, TimeoutMs, cdb, LibCdio.MmcDataRead, 4, head) != 0) return null;
-        var length = (head[0] << 8 | head[1]) + 2;
-        if (length <= 4 || length > 36_864 + 4) return null;
-        var buffer = new byte[length];
-        cdb[7] = (byte)(length >> 8); cdb[8] = (byte)length;
-        fixed (byte* buf = buffer)
-            if (LibCdio.mmc_run_cmd(handle, TimeoutMs, cdb, LibCdio.MmcDataRead, (uint)length, buf) != 0) return null;
-        return CdTextPacks.FromResponse(buffer);
-    }
-
-    public void Dispose() { }
 }
 
 /// macOS: the CD ioctls of /dev/rdiskN (IOCDMediaBSDClient.h). Offsets are

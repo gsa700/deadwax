@@ -183,8 +183,8 @@ public static class InstallService
     /// <summary>
     /// Copy this executable into the install directory and register it. Returns the path of the
     /// installed copy, which the caller should launch before exiting. Copying only the executable
-    /// is sufficient BECAUSE the published build is a self-contained single file with libcdio and
-    /// paranoia inside it; settings live in <see cref="DataDir"/> either way.
+    /// is sufficient BECAUSE the published build is a self-contained single file with its native
+    /// libraries inside it; settings live in <see cref="DataDir"/> either way.
     /// </summary>
     public static InstallResult Install()
     {
@@ -490,7 +490,7 @@ public static class InstallService
         : File.Exists(DesktopFilePath);
 
     /// <summary>
-    /// Where the .NET single-file host unpacks this app's native libraries — libcdio and paranoia, here. It is
+    /// Where the .NET single-file host unpacks this app's native libraries (Avalonia's graphics libraries; libcdio and paranoia too until 0.7.4). It is
     /// the host's choice, not ours, and it differs by platform: <c>%TEMP%\.net\Deadwax</c> on
     /// Windows, <c>~/.net/Deadwax</c> on Linux, or under <c>DOTNET_BUNDLE_EXTRACT_BASE_DIR</c> if
     /// that is set. This used to be the Linux path on both, so on Windows the uninstall looked in
@@ -537,7 +537,7 @@ public static class InstallService
     ///
     /// Only when this is the ONLY copy running. A folder is unsafe to touch while a copy runs
     /// from it, and the guard is deliberately blunter than asking which folder each copy uses:
-    /// the native libraries (libcdio, libcdio-paranoia) load on first use, so a copy
+    /// a native library may load only on first use (libcdio did, until 0.7.4), so a copy
     /// that has not read a disc yet may have none of them mapped, Windows would let them go, Linux
     /// always would, and that copy breaks the first time it reads.
     /// A lone copy can only be running from its own folder; the next lone start sweeps what a

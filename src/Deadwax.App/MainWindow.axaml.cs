@@ -183,7 +183,7 @@ public sealed partial class MainWindow : Window
         Surface.CornerRadius = new CornerRadius(
             WindowState == WindowState.Normal && !OperatingSystem.IsMacOS() ? 12 : 0);   // macOS rounds its own
 
-    /// Asks the drive (libcdio: open, TOC, count), off the UI thread. Until
+    /// Asks the drive (open, TOC, count), off the UI thread. Until
     /// 0.2.16 this asked udev, which exists only on Linux.
     private static Task<(bool Present, int Audio)> MediaAsync(string device) =>
         Task.Run(() => CdDrive.Media(device));

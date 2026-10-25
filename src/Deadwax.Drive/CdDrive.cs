@@ -6,8 +6,8 @@ public sealed record DriveIdentity(string Vendor, string Model, string Revision)
 
     /// What the drive told the kernel when it was attached (its INQUIRY
     /// answer, kept in /sys/block/srN/device): the same vendor, model and
-    /// revision libcdio reads, but known with no disc in and without sending
-    /// the drive a single command. Null if the device is not an sr drive.
+    /// revision an INQUIRY returns, but known with no disc in and without
+    /// sending the drive a single command. Null if the device is not an sr drive.
     public static DriveIdentity? FromSysfs(string device)
     {
         try
@@ -24,7 +24,10 @@ public sealed record DriveIdentity(string Vendor, string Model, string Revision)
 
 public sealed class DriveException(string message) : Exception(message);
 
-/// A CD drive with a disc in it. Holds libcdio's handle; dispose to release it.
+/// A CD drive with a disc in it, through Deadwax's own drive access (spec
+/// §11, step 3): DKIOCCDREAD and DiskArbitration on the Mac, SG_IO on Linux,
+/// SPTI on Windows. libcdio did this until 0.7.4 (the last build carrying it
+/// was 0.7.3 on Windows). Dispose to release the device.
 public sealed class CdDrive : IDisposable
 {
     /// The drive to use when none is named.
@@ -38,8 +41,9 @@ public sealed class CdDrive : IDisposable
         FoundDevice ?? (OperatingSystem.IsLinux() ? "/dev/sr0" : OperatingSystem.IsWindows() ? "D:" : "/dev/disk2");
 
     /// The drive the system reports, or null when it reports none and
-    /// DefaultDevice is only a guess. On a Mac, libcdio lists a drive only
-    /// while a disc is in it, so an empty or open drive is null here too.
+    /// DefaultDevice is only a guess. On a Mac only a disk holding a CD is
+    /// listed (a mounted Deadwax.dmg was once taken for the drive), so an
+    /// empty or open drive is null there too.
     public static string? FoundDevice
     {
         get
@@ -54,28 +58,16 @@ public sealed class CdDrive : IDisposable
                         .FirstOrDefault()
                     : null;
             }
-            try
-            {
-                // On a Mac only a disk macOS says holds a CD: libcdio lists disk
-                // images too, and a mounted Deadwax.dmg came first (MacDisc.IsCd).
-                if (OperatingSystem.IsMacOS())
-                    return OwnDriveAccess ? MacDisc.CdDevices().FirstOrDefault()
-                        : LibCdio.Devices().FirstOrDefault(MacDisc.IsCd)
-                          ?? (LibCdio.DefaultDevice() is { } d && MacDisc.IsCd(d) ? d : null);
-                if (OperatingSystem.IsWindows() && OwnDriveAccess) return WindowsSptiTransport.Drives().FirstOrDefault();
-                return LibCdio.Devices().FirstOrDefault() ?? LibCdio.DefaultDevice();
-            }
-            catch (DllNotFoundException)
-            {
-                return null;
-            }
+            if (OperatingSystem.IsMacOS()) return MacDisc.CdDevices().FirstOrDefault();
+            if (OperatingSystem.IsWindows()) return WindowsSptiTransport.Drives().FirstOrDefault();
+            return null;
         }
     }
 
     /// Whether a disc is in the drive and how many audio tracks it has, from
     /// the drive itself: open, read the TOC, count. (false, 0) for an empty or
-    /// absent drive, or no libcdio. Used by the window's three-second watch,
-    /// which until 0.2.16 asked udev instead and so only worked on Linux.
+    /// absent drive. Used by the window's three-second watch, which until
+    /// 0.2.16 asked udev instead and so only worked on Linux.
     public static (bool Present, int Audio) Media(string? device = null)
     {
         try
@@ -91,18 +83,12 @@ public sealed class CdDrive : IDisposable
     /// must not be held open by this process (dispose any CdDrive first).
     public static bool Eject(string? device = null)
     {
-        // On a Mac libcdio sees a drive only while a disc is in it, so an empty
-        // drive is opened through macOS's own drutil (2026-10-20: "Open tray"
-        // did nothing with the drive empty; DefaultDevice was only a guess).
-        // The window passes DefaultDevice, which is that same guess when nothing is found.
-        if (OperatingSystem.IsMacOS() && (OwnDriveAccess || FoundDevice is null && (device is null || device == DefaultDevice))) return MacTray();
-        if (!OperatingSystem.IsMacOS() && OwnDriveAccess)
-        {
-            try { using var own = (PassThroughTransport)IDriveTransport.Open(device ?? DefaultDevice); return own.Eject(); }
-            catch (DriveException) { return false; }
-        }
-        try { return LibCdio.cdio_eject_media_drive(device ?? DefaultDevice) == 0; }
-        catch (DllNotFoundException) { return false; }
+        // On a Mac an empty drive has no disk to send a command to, so the tray
+        // is opened through macOS's own drutil (2026-10-20: "Open tray" did
+        // nothing with the drive empty; DefaultDevice was only a guess).
+        if (OperatingSystem.IsMacOS()) return MacTray();
+        try { using var own = (PassThroughTransport)IDriveTransport.Open(device ?? DefaultDevice); return own.Eject(); }
+        catch (DriveException) { return false; }
     }
 
     private static bool MacTray()
@@ -123,34 +109,18 @@ public sealed class CdDrive : IDisposable
         return false;
     }
 
-    /// Deadwax's own drive access instead of libcdio's (step 3, spec §11): the
-    /// only one on the Mac since 0.7.2, on Linux (SG_IO) since 0.7.3 and on
-    /// Windows (SPTI) since 0.7.4, where the builds carry no libcdio (proven
-    /// the same by check-drive on Control, Techbench and Mobilenode,
-    /// 2026-10-24; his call to take libcdio and paranoia out at once rather
-    /// than a release later).
-    public static bool OwnDriveAccess => OperatingSystem.IsMacOS() || OperatingSystem.IsLinux() || OperatingSystem.IsWindows();
-
-    private IntPtr _cdio;
-    private IDriveTransport? _own;
+    private IDriveTransport? _transport;
     private IReadOnlyDictionary<int, byte>? _control;
 
     public string Device { get; }
 
-    private CdDrive(string device, IDriveTransport mac)
+    private CdDrive(string device, IDriveTransport transport)
     {
         Device = device;
-        _own = mac;
+        _transport = transport;
     }
 
-    private CdDrive(string device, IntPtr cdio)
-    {
-        Device = device;
-        _cdio = cdio;
-    }
-
-    /// libcdio forces libcdio's drive access whatever OwnDriveAccess says, for check-drive.
-    public static CdDrive Open(string? device = null, bool libcdio = false)
+    public static CdDrive Open(string? device = null)
     {
         device ??= DefaultDevice;
         // macOS mounts the disc on insertion; rippers unmount it so the
@@ -166,69 +136,18 @@ public sealed class CdDrive : IDisposable
             if (!MacDisc.Unmount(device, out var why))
                 Console.Error.WriteLine($"[drive] could not unmount {device}: {why}");
         }
-        if (OwnDriveAccess && !libcdio) return new CdDrive(device, IDriveTransport.Open(device));
-        IntPtr cdio;
-        try
-        {
-            cdio = LibCdio.cdio_open_cd(device);
-        }
-        catch (DllNotFoundException)
-        {
-            throw new DriveException($"libcdio is not installed (looked for {NativeLibraries.Expected("cdio")}).");
-        }
-        if (cdio == IntPtr.Zero)
-            throw new DriveException($"Could not open {device}. Is there a disc in the drive?");
-        return new CdDrive(device, cdio);
+        return new CdDrive(device, IDriveTransport.Open(device));
     }
 
     public Toc ReadToc()
     {
-        if (_own is not null)
-        {
-            var answer = _own.ReadFullToc() ?? throw new DriveException($"No disc in {Device}, or the disc has no table of contents.");
-            var (toc, control) = FullToc.Parse(answer);
-            _control = control;
-            return toc;
-        }
-        var handle = Handle;
-        var first = LibCdio.cdio_get_first_track_num(handle);
-        var count = LibCdio.cdio_get_num_tracks(handle);
-        if (first == LibCdio.InvalidTrack || count == LibCdio.InvalidTrack || count == 0)
-            throw new DriveException($"No disc in {Device}, or the disc has no table of contents.");
-
-        var tracks = new List<TocTrack>(count);
-        for (var n = first; n < first + count; n++)
-        {
-            var lsn = LibCdio.cdio_get_track_lsn(handle, n);
-            if (lsn == LibCdio.InvalidLsn) throw new DriveException($"The drive gave no start for track {n}.");
-            tracks.Add(new TocTrack(n, lsn, LibCdio.cdio_get_track_format(handle, n) == LibCdio.TrackFormatAudio));
-        }
-
-        var leadout = LibCdio.cdio_get_track_lsn(handle, LibCdio.LeadoutTrack);
-        if (leadout == LibCdio.InvalidLsn) throw new DriveException("The drive gave no lead-out position.");
-        return new Toc(tracks, leadout);
+        var answer = Transport.ReadFullToc() ?? throw new DriveException($"No disc in {Device}, or the disc has no table of contents.");
+        var (toc, control) = FullToc.Parse(answer);
+        _control = control;
+        return toc;
     }
 
-    public unsafe DriveIdentity? ReadIdentity()
-    {
-        if (_own is not null) return OwnIdentity(Device, _own);
-        var buffer = stackalloc byte[LibCdio.HwInfoSize];
-        if (!LibCdio.cdio_get_hwinfo(Handle, buffer)) return null;
-
-        var span = new ReadOnlySpan<byte>(buffer, LibCdio.HwInfoSize);
-        var vendor = Field(span, 0, LibCdio.HwVendorLength);
-        var model = Field(span, LibCdio.HwVendorLength + 1, LibCdio.HwModelLength);
-        var revision = Field(span, LibCdio.HwVendorLength + 1 + LibCdio.HwModelLength + 1, LibCdio.HwRevisionLength);
-        return new DriveIdentity(vendor, model, revision);
-
-        static string Field(ReadOnlySpan<byte> all, int start, int length)
-        {
-            var field = all.Slice(start, length);
-            var nul = field.IndexOf((byte)0);
-            if (nul >= 0) field = field[..nul];
-            return System.Text.Encoding.ASCII.GetString(field).Trim();
-        }
-    }
+    public DriveIdentity? ReadIdentity() => OwnIdentity(Device, Transport);
 
     /// Caps the drive's read speed at `speed` times 1x. For a disc that is out
     /// of balance: Now and Zen (2026-10-05) vibrated at full speed and the
@@ -236,28 +155,11 @@ public sealed class CdDrive : IDisposable
     /// at 4x it scanned and ripped 13/13 accurate. The drive holds the cap
     /// until the disc is changed, so it is set once before the scan and once
     /// more before the rip, in case the disc was reinserted between.
-    /// Null lifts the cap (CDROM_SELECT_SPEED 0: the drive chooses again).
+    /// Null lifts the cap (the drive chooses again).
     public void LimitSpeed(int? speed)
     {
         if (speed is < 1) throw new ArgumentOutOfRangeException(nameof(speed));
-        // Deadwax's own transport, the Mac's and Linux's: before 2026-10-24 only
-        // the Mac's was asked here, and a Linux rip with it crashed on libcdio's
-        // (absent) handle the moment it set the speed.
-        if (_own is not null)
-        {
-            if (!_own.SetSpeed(speed)) throw new DriveException($"{Device} did not accept a {speed}x speed limit.");
-            return;
-        }
-        if (OperatingSystem.IsMacOS())
-        {
-            // libcdio's set_speed on macOS passes the value where the ioctl
-            // wants a pointer (security scan 2026-10-12, L2); do it directly.
-            using var mac = new MacIoctlTransport(Device);
-            if (!mac.SetSpeed(speed)) throw new DriveException($"{Device} did not accept a {speed}x speed limit.");
-            return;
-        }
-        if (LibCdio.cdio_set_speed(Handle, speed ?? 0) != 0)
-            throw new DriveException($"{Device} did not accept a {speed}x speed limit.");
+        if (!Transport.SetSpeed(speed)) throw new DriveException($"{Device} did not accept a {speed}x speed limit.");
     }
 
     /// Opens the device just long enough to set or lift the cap.
@@ -267,11 +169,6 @@ public sealed class CdDrive : IDisposable
         drive.LimitSpeed(speed);
     }
 
-    private IntPtr Handle => _cdio != IntPtr.Zero ? _cdio : throw new ObjectDisposedException(nameof(CdDrive));
-
-    /// libcdio's handle, for the subchannel reader's MMC commands.
-    internal IntPtr NativeHandle => Handle;
-
     /// The drive's identity by Deadwax's own means: DiskArbitration on the Mac,
     /// sysfs on Linux (no command sent), INQUIRY through the transport on Windows.
     public static DriveIdentity? OwnIdentity(string device, IDriveTransport transport) =>
@@ -279,39 +176,21 @@ public sealed class CdDrive : IDisposable
         : OperatingSystem.IsLinux() ? DriveIdentity.FromSysfs(device)
         : (transport as PassThroughTransport)?.Inquiry();
 
-    /// Deadwax's own transport when it is the one in use, for the subchannel reader.
-    internal IDriveTransport? OwnTransport => _own;
+    /// The drive's transport, for the subchannel reader.
+    internal IDriveTransport Transport => _transport ?? throw new ObjectDisposedException(nameof(CdDrive));
 
     /// The TOC's control bits for a track, which cdrdao's TOC file records
     /// (its Q-subchannel reading is only checked against them).
     public (bool PreEmphasis, bool CopyPermitted, bool FourChannel) TrackFlags(int track)
     {
-        if (_own is not null)
-        {
-            if (_control is null) ReadToc();
-            var c = _control!.GetValueOrDefault(track);
-            return ((c & 0x01) != 0, (c & 0x02) != 0, (c & 0x08) != 0);
-        }
-        var n = (byte)track;
-        return (LibCdio.cdio_get_track_preemphasis(Handle, n) == LibCdio.TrackFlagTrue,
-                LibCdio.cdio_get_track_copy_permit(Handle, n) == LibCdio.TrackFlagTrue,
-                LibCdio.cdio_get_track_channels(Handle, n) == 4);
+        if (_control is null) ReadToc();
+        var c = _control!.GetValueOrDefault(track);
+        return ((c & 0x01) != 0, (c & 0x02) != 0, (c & 0x08) != 0);
     }
-
-    /// libcdio's own list of drives, for check-drive to compare with ours.
-    public static IReadOnlyList<string> LibCdioDevices() => LibCdio.Devices();
-
-    /// "libcdio-paranoia (libcdio 2.3.0)", for the rip log.
-    public static string EngineDescription => SecureReader.OwnReader
-        ? SecureReader.EngineDescription
-        : $"libcdio-paranoia (libcdio {LibCdio.Version() ?? "unknown"})";
 
     public void Dispose()
     {
-        _own?.Dispose();
-        _own = null;
-        if (_cdio == IntPtr.Zero) return;
-        LibCdio.cdio_destroy(_cdio);
-        _cdio = IntPtr.Zero;
+        _transport?.Dispose();
+        _transport = null;
     }
 }

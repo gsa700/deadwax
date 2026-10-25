@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using System.Runtime.InteropServices;
 
 namespace Deadwax.Drive;
 
@@ -41,6 +39,9 @@ public sealed class ReadReport
     public int Repairs => this[ParanoiaEvent.Scratch] + this[ParanoiaEvent.Repair]
                           + this[ParanoiaEvent.FixupDropped] + this[ParanoiaEvent.FixupDuped];
 
+    /// Positions are in 16-bit words, as paranoia's callback counted them.
+    internal const int SectorWords = 2352 / 2;
+
     internal void Record(int e, long wordPosition)
     {
         if ((uint)e < _events.Length) _events[e]++;
@@ -53,7 +54,7 @@ public sealed class ReadReport
             _ => SectorState.NotRead,
         };
         if (state == SectorState.NotRead) return;
-        var i = (int)(wordPosition / LibParanoia.SectorWords) - FirstSector;
+        var i = (int)(wordPosition / SectorWords) - FirstSector;
         if ((uint)i < (uint)Sectors.Length && state > Sectors[i])
         {
             Sectors[i] = state;
@@ -62,7 +63,9 @@ public sealed class ReadReport
     }
 }
 
-/// What paranoia's callback reports (paranoia.h, paranoia_cb_mode_t).
+/// What happened to a sector, in the words paranoia's callback used
+/// (paranoia.h, paranoia_cb_mode_t), which PassReader kept when it replaced
+/// paranoia: the read report and the window's read map speak them.
 public enum ParanoiaEvent
 {
     Read = 0, Verify, FixupEdge, FixupAtom, Scratch, Repair, Skip, Drift,
@@ -114,81 +117,53 @@ public readonly record struct ReadWindow(
     }
 }
 
-/// Reads tracks with the drive's read offset corrected (see ReadWindow):
-/// through Deadwax's own PassReader (step 4, spec §11; the only reader on the
-/// Mac since 0.7.2, on Linux since 0.7.3 and on Windows since 0.7.4, after
-/// Dido's Life for Rent and Led Zeppelin I read better with it than with
-/// paranoia). The paranoia path below is no longer reached by any build.
+/// Reads tracks with the drive's read offset corrected (see ReadWindow),
+/// through Deadwax's own PassReader (step 4, spec §11): C2, five tries, the
+/// best copy. libcdio-paranoia did this until 0.7.4 (the Mac dropped it in
+/// 0.7.2, Linux in 0.7.3), after Dido's Life for Rent and Led Zeppelin I read
+/// better with PassReader than with paranoia.
 public sealed class SecureReader : IDisposable
 {
     public const int DefaultMaxRetries = 20;
 
-    /// Whether this run reads audio with Deadwax's own reader.
-    public static bool OwnReader => OperatingSystem.IsMacOS() || OperatingSystem.IsLinux() || OperatingSystem.IsWindows();
-
     /// The rip log's extraction engine.
-    public static string EngineDescription => OwnReader
-        ? $"Deadwax {typeof(SecureReader).Assembly.GetName().Version?.ToString(3)} secure read ({IDriveTransport.Kind}, C2)"
-        : CdDrive.EngineDescription;
+    public static string EngineDescription =>
+        $"Deadwax {typeof(SecureReader).Assembly.GetName().Version?.ToString(3)} secure read ({IDriveTransport.Kind}, C2)";
 
-    private IntPtr _drive;
     private IDriveTransport? _transport;
-    private Source? _source;
-    private PassReader? _own;
+    private readonly Source _source;
+    private readonly PassReader _own;
 
     public string Device { get; }
 
-    private SecureReader(string device, IntPtr drive)
+    private SecureReader(string device, IDriveTransport transport)
     {
         Device = device;
-        _drive = drive;
-    }
-
-    private SecureReader(string device, IDriveTransport mac)
-    {
-        Device = device;
-        _transport = mac;
-        _source = new Source(mac);
+        _transport = transport;
+        _source = new Source(transport);
         _own = new PassReader(_source);
     }
 
-    /// The Mac transport as PassReader's audio source; AudioEnd is what the
-    /// reads so far have shown of the disc (a TOC's audio lead-out when one is known).
-    private sealed class Source(IDriveTransport mac) : IAudioSource
+    /// The transport as PassReader's audio source; AudioEnd is what the reads
+    /// so far have shown of the disc (a TOC's audio lead-out when one is known).
+    private sealed class Source(IDriveTransport transport) : IAudioSource
     {
         public int AudioEnd { get; set; }
-        public bool SetSpeed(int? multiple) => mac.SetSpeed(multiple);
-        public byte[]? ReadAudio(int lsn, int count, bool c2) => mac.ReadAudio(lsn, count, c2);
+        public bool SetSpeed(int? multiple) => transport.SetSpeed(multiple);
+        public byte[]? ReadAudio(int lsn, int count, bool c2) => transport.ReadAudio(lsn, count, c2);
     }
 
-    /// The rip's speed cap (null: the drive's own), for Deadwax's own reader to
-    /// return to after slowing down for damaged sectors.
-    public int? NormalSpeed { set { if (_own is not null) _own.NormalSpeed = value; } }
+    /// The rip's speed cap (null: the drive's own), for the reader to return
+    /// to after slowing down for damaged sectors.
+    public int? NormalSpeed { set => _own.NormalSpeed = value; }
 
     public static SecureReader Open(string? device = null)
     {
         device ??= CdDrive.DefaultDevice;
-        if (OwnReader) return new SecureReader(device, IDriveTransport.Open(device));
-        IntPtr drive;
-        try
-        {
-            drive = LibParanoia.cdio_cddap_identify(device, LibParanoia.MessageForgetIt, IntPtr.Zero);
-        }
-        catch (DllNotFoundException)
-        {
-            throw new DriveException($"libcdio-paranoia is not installed (looked for {NativeLibraries.Expected("cdio_cdda")} and {NativeLibraries.Expected("cdio_paranoia")}).");
-        }
-        if (drive == IntPtr.Zero) throw new DriveException($"{device} is not a CD drive paranoia can use, or it is empty.");
-        if (LibParanoia.cdio_cddap_open(drive) != 0)
-        {
-            LibParanoia.cdio_cddap_close(drive);
-            throw new DriveException($"Could not open the disc in {device} for reading.");
-        }
-        return new SecureReader(device, drive);
+        return new SecureReader(device, IDriveTransport.Open(device));
     }
 
-    /// One pass over one track. Each pass gets its own paranoia instance, so a
-    /// second pass is a real second read, not paranoia's cache of the first.
+    /// One pass over one track; a second pass is a real second read.
     public (byte[] Audio, ReadReport Report) ReadTrack(
         Toc toc, int trackNumber, int offsetSamples,
         int maxRetries = DefaultMaxRetries, Action<int, int>? progress = null, CancellationToken ct = default,
@@ -198,13 +173,12 @@ public sealed class SecureReader : IDisposable
         if (!track.IsAudio) throw new ArgumentException($"Track {trackNumber} is data, not audio.");
 
         var w = ReadWindow.For(toc, track, offsetSamples);
-        if (_source is not null) _source.AudioEnd = Math.Max(_source.AudioEnd, toc.AudioLeadoutLsn);
+        _source.AudioEnd = Math.Max(_source.AudioEnd, toc.AudioLeadoutLsn);
         var (window, report) = ReadSectors(w.FirstSector, w.EndSector, w.ReadableStart, w.ReadableEnd, maxRetries, progress, ct, damaged, retrying);
         return (window.AsSpan(w.TrackStartInWindow, w.TrackBytes).ToArray(), report);
     }
 
-    /// Bytes [fromByte, toByte) of one track, read again on their own (a new
-    /// paranoia instance, as every pass gets).
+    /// Bytes [fromByte, toByte) of one track, read again on their own.
     public (byte[] Audio, ReadReport Report) ReadTrackPart(
         Toc toc, int trackNumber, int offsetSamples, int fromByte, int toByte,
         int maxRetries = DefaultMaxRetries, CancellationToken ct = default)
@@ -213,87 +187,30 @@ public sealed class SecureReader : IDisposable
         if (!track.IsAudio) throw new ArgumentException($"Track {trackNumber} is data, not audio.");
 
         var p = ReadWindow.For(toc, track, offsetSamples).Part(fromByte, toByte);
-        if (_source is not null) _source.AudioEnd = Math.Max(_source.AudioEnd, toc.AudioLeadoutLsn);
+        _source.AudioEnd = Math.Max(_source.AudioEnd, toc.AudioLeadoutLsn);
         var (window, report) = ReadSectors(p.FirstSector, p.EndSector, p.ReadableStart, p.ReadableEnd, maxRetries, ct: ct);
         return (window.AsSpan(p.TrackStartInWindow, p.TrackBytes).ToArray(), report);
     }
 
-    /// One pass over a run of sectors, through paranoia: [firstSector, endSector)
-    /// comes back as bytes, of which only [readableStart, readableEnd) is read
-    /// from the disc; the rest stays zero (before the disc, or past the audio).
-    /// ReadTrack cuts a track out of this; OffsetFinder reads a track with a
-    /// margin on both sides and slides over it.
+    /// One pass over a run of sectors: [firstSector, endSector) comes back as
+    /// bytes, of which only [readableStart, readableEnd) is read from the disc;
+    /// the rest stays zero (before the disc, or past the audio). ReadTrack cuts
+    /// a track out of this; OffsetFinder reads a track with a margin on both
+    /// sides and slides over it.
     public (byte[] Window, ReadReport Report) ReadSectors(
         int firstSector, int endSector, int readableStart, int readableEnd,
         int maxRetries = DefaultMaxRetries, Action<int, int>? progress = null, CancellationToken ct = default,
         Action<int, SectorState>? damaged = null, Action<RetryStatus>? retrying = null)
     {
-        if (_own is not null)
-        {
-            _source!.AudioEnd = Math.Max(_source.AudioEnd, readableEnd);
-            return _own.ReadSectors(firstSector, endSector, readableStart, readableEnd, maxRetries, progress, ct, damaged, retrying);
-        }
-        var window = new byte[(long)(endSector - firstSector) * LibParanoia.SectorBytes];
-        var report = new ReadReport(firstSector, endSector - firstSector) { Damaged = damaged };
-        var clock = Stopwatch.StartNew();
-
-        var paranoia = LibParanoia.cdio_paranoia_init(Handle);
-        if (paranoia == IntPtr.Zero) throw new DriveException("paranoia could not start on this drive.");
-        try
-        {
-            LibParanoia.cdio_paranoia_modeset(paranoia, LibParanoia.ModeFull & ~LibParanoia.ModeNeverSkip);
-            if (readableEnd > readableStart)
-            {
-                LibParanoia.cdio_paranoia_seek(paranoia, readableStart, LibParanoia.SeekSet);
-                Sink.Current = report;
-                try
-                {
-                    for (var sector = readableStart; sector < readableEnd; sector++)
-                    {
-                        ct.ThrowIfCancellationRequested();
-                        unsafe
-                        {
-                            var data = LibParanoia.cdio_paranoia_read_limited(paranoia, &Sink.Callback, maxRetries);
-                            if (data == null) throw new DriveException($"Read failed at sector {sector}.");
-                            new ReadOnlySpan<byte>(data, LibParanoia.SectorBytes)
-                                .CopyTo(window.AsSpan((int)((long)(sector - firstSector) * LibParanoia.SectorBytes)));
-                        }
-                        progress?.Invoke(sector - readableStart + 1, readableEnd - readableStart);
-                    }
-                }
-                finally
-                {
-                    Sink.Current = null;
-                }
-            }
-        }
-        finally
-        {
-            LibParanoia.cdio_paranoia_free(paranoia);
-        }
-        report.Elapsed = clock.Elapsed;
-        return (window, report);
+        _source.AudioEnd = Math.Max(_source.AudioEnd, readableEnd);
+        return _own.ReadSectors(firstSector, endSector, readableStart, readableEnd, maxRetries, progress, ct, damaged, retrying);
     }
-
-    /// paranoia calls back from inside a read on the calling thread, with no
-    /// user argument to say which read, so the report being filled is per thread.
-    private static class Sink
-    {
-        [ThreadStatic] public static ReadReport? Current;
-
-        [UnmanagedCallersOnly]
-        public static void Callback(CLong position, int e) => Current?.Record(e, (long)position.Value);
-    }
-
-    private IntPtr Handle => _drive != IntPtr.Zero ? _drive : throw new ObjectDisposedException(nameof(SecureReader));
 
     public void Dispose()
     {
-        _own?.RestoreSpeed();
-        _transport?.Dispose();
+        if (_transport is null) return;
+        _own.RestoreSpeed();
+        _transport.Dispose();
         _transport = null;
-        if (_drive == IntPtr.Zero) return;
-        LibParanoia.cdio_cddap_close(_drive);
-        _drive = IntPtr.Zero;
     }
 }

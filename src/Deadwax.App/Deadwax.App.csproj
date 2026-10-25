@@ -49,5 +49,4 @@
   <ItemGroup>
     <EmbeddedResource Include="Assets\app-icon.png" LogicalName="app-icon.png" />
   </ItemGroup>
-  <Import Project="..\..\native.targets" />
 </Project>

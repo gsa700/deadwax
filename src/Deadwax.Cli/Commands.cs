@@ -34,16 +34,9 @@ internal static class Commands
               Read the disc's TOC and print its IDs; --full adds catalog, ISRCs,
               CD-Text and pregaps from the subchannel. With --against, compare them
               with the whipper log of the same disc (gate G1).
-          deadwax natives
-              Which libcdio and libcdio-paranoia the program loads and
-              from where (its own copies, or the system's). Touches no drive.
           deadwax best-copy OUT.raw READ1.raw READ2.raw [...]
               "Make best copy" on raw reads of one track (deadwax read --save):
               voted sector by sector, then sample by sample. Not verified.
-          deadwax check-drive [--device DEV]
-              Step 3's proof: the disc's drive list, drive identity, TOC and
-              track flags read by libcdio and by Deadwax's own drive access,
-              side by side (macOS so far). Reads the TOC; no audio.
           deadwax subchannel [--device DEV] [--speed N] [--cdrdao] [--out FILE]
               Read the disc's subchannel the way a rip does and print the .toc
               Deadwax would write. --cdrdao runs `cdrdao read-toc` on the same
@@ -99,8 +92,6 @@ internal static class Commands
                 "art" => await ArtCommand.RunAsync(args[1..]),
                 "scan" => await ScanCommand.RunAsync(args[1..]),
                 "subchannel" => await SubchannelCommand.RunAsync(args[1..]),
-                "natives" => await NativesCommand.RunAsync(args[1..]),
-                "check-drive" => await CheckDriveCommand.RunAsync(args[1..]),
                 "best-copy" => await BestCopyCommand.RunAsync(args[1..]),
                 "probe-c2" => await ProbeC2Command.RunAsync(args[1..]),
                 "read" => await ReadCommand.RunAsync(args[1..]),

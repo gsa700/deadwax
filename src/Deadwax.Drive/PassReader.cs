@@ -234,5 +234,5 @@ public sealed class PassReader(IAudioSource source)
     }
 
     /// The sample-word position paranoia reports a sector by (ReadReport.Record).
-    private static long Word(int sector) => (long)sector * LibParanoia.SectorWords;
+    private static long Word(int sector) => (long)sector * ReadReport.SectorWords;
 }

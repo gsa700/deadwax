@@ -12,10 +12,10 @@
 # SHA-256, so that a reader can check any of them against upstream.
 # release.sh puts LICENSE, THIRD-PARTY-NOTICES.md and licenses/ in every zip.
 #
-# The native libraries' versions are READ OUT OF tools/build-natives/pins.sh, not
-# repeated here: the pins are the one place those versions live. Run this again
-# whenever a pin moves, and look at the diff. AlbumWall's tools/fetch-licenses.py
-# is the model; the two stay alike.
+# Run this again whenever a bundled component's version moves, and look at the
+# diff. Since 0.7.4 no release carries native libraries of Deadwax's own
+# (libcdio and libcdio-paranoia were the last), so nothing is read from the old
+# natives pins. AlbumWall's tools/fetch-licenses.py is the model; the two stay alike.
 #
 # It refuses to write a file that does not look like a license - an HTML error
 # page saved as COPYING is exactly the failure this kind of script has.
@@ -30,21 +30,6 @@ import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "licenses")
-PINS = os.path.join(ROOT, "tools", "build-natives", "pins.sh")
-
-
-def pins():
-    text = io.open(PINS, encoding="utf-8").read()
-    found = dict(re.findall(r"^([A-Z_]+)=([^\s#]+)\s*$", text, flags=re.M))
-    wanted = ["LIBCDIO_VERSION", "PARANOIA_VERSION", "FLAC_VERSION"]
-    missing = [w for w in wanted if w not in found]
-    if missing:
-        sys.exit("could not read these pins from pins.sh: " + ", ".join(missing))
-    return found
-
-
-P = pins()
-
 GITHUB = "https://raw.githubusercontent.com/{repo}/{ref}/{path}"
 INRIA = "https://gitlab.inria.fr/{repo}/-/raw/{ref}/{path}"
 
@@ -53,10 +38,7 @@ INRIA = "https://gitlab.inria.fr/{repo}/-/raw/{ref}/{path}"
 # whose license does not change with the version and whose tags are not
 # predictable from a package version. Which ref was used is recorded either way.
 WANTED = [
-    # ---- reading the disc and writing FLAC: exactly the pins Deadwax builds
-    ("libcdio-COPYING.txt", "libcdio (GPL v3 or later)", GITHUB, "libcdio/libcdio", [P["LIBCDIO_VERSION"]], ["COPYING"]),
-    ("libcdio-paranoia-COPYING.txt", "libcdio-paranoia (GPL v3 or later)", GITHUB, "libcdio/libcdio-paranoia",
-     ["release-" + P["PARANOIA_VERSION"]], ["COPYING"]),
+    # ---- reading the disc: code ported into Deadwax
     ("cdrdao-COPYING.txt", "cdrdao, the CD-Text and Q-subchannel decoders ported from it (GPL v2 or later)", GITHUB,
      "cdrdao/cdrdao", [None], ["COPYING"]),
 
@@ -130,8 +112,7 @@ def main():
         f.write("was typed or edited. What each component is and what it does in Deadwax is in\n")
         f.write("[THIRD-PARTY-NOTICES.md](../THIRD-PARTY-NOTICES.md); Deadwax's own license is\n")
         f.write("[LICENSE](../LICENSE), the GNU GPL version 3.\n\n")
-        f.write("The native libraries' files come from exactly the versions pinned in\n")
-        f.write("`tools/build-natives/pins.sh`. Where a ref says *default branch*, the project's\n")
+        f.write("Where a ref says *default branch*, the project's\n")
         f.write("tags could not be predicted from a package version and its license does not vary\n")
         f.write("with it; the SHA-256 says exactly which text this is.\n\n")
         f.write("| file | covers | from | ref | path | SHA-256 |\n|---|---|---|---|---|---|\n")

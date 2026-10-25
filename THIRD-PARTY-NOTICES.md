@@ -2,34 +2,24 @@
 
 Deadwax is free software under the GNU General Public License, version 3 or
 later. A release is a single file, and that file carries other people's work
-inside it: the libraries that talk to the drive and read the audio, the FLAC
-encoder, the toolkit the window is drawn with, a font. This page says what each
-one is, what it does here, the license it comes under, and where its source is.
+inside it: the toolkit the window is drawn with, the runtime, a font. This page
+says what each one is, what it does here, the license it comes under, and where
+its source is.
 
 ## Reading the disc and writing FLAC
 
-These three are C libraries that Deadwax builds itself from pinned source
-(`tools/build-natives/pins.sh`, each archive checked against its SHA-256), so
-that the same ones ship on every platform. Each `natives-N` release on GitHub
-carries the libraries and, beside them, the exact source archives they were
-built from. Unlike the rest of this page, they are **patched**: the changes are
-in `tools/build-natives/patches/`, and its README says what each one fixes.
+Deadwax's own code: it talks to the drive itself (the system's own interface on
+each platform), reads the audio itself, and encodes FLAC itself. No C library
+is involved. Releases up to 0.7.3 carried libcdio and libcdio-paranoia (the
+Mac's up to 0.7.1, Linux's up to 0.7.2); the `natives-N` releases on GitHub
+keep those libraries and the exact source archives they were built from.
 
-- **libcdio 2.3.0**: opens the drive and reads the disc's table of contents,
-  and carries the raw commands Deadwax uses to read ISRCs, the catalog number,
-  CD-Text and pregaps.
-  License: GNU GPL, version 3 or later.
-  Source: https://github.com/libcdio/libcdio (release `2.3.0`)
-  Patched: three range checks on the table of contents a drive returns (Linux,
-  Windows, macOS), and a use-after-free when a drive is closed on macOS, found
-  in the security review of 2026-10-12.
+- **cdrdao**: the decoders for CD-Text and the Q subchannel (ISRCs, the
+  catalog number, pregaps) were ported from it into Deadwax's own code.
+  License: GNU GPL, version 2 or later.
+  Source: https://github.com/cdrdao/cdrdao
 
-- **libcdio-paranoia 10.2+2.0.2**: the careful read. Every sector of a track
-  comes through it, with jitter correction and re-reads of what does not
-  verify.
-  License: GNU GPL, version 3 or later.
-  Source: https://ftp.gnu.org/gnu/libcdio/ (`libcdio-paranoia-10.2+2.0.2`)
-  Patched: a buffer sized in bytes for a count of samples, from the same review.
+## The program around it
 
 - **.NET 10 runtime**: a release is self-contained, so the runtime is inside
   it.

@@ -37,14 +37,8 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      # libcdio is loaded by name where a test asks for the default device.
-      - name: Native libraries (Linux)
-        if: runner.os == 'Linux'
-        run: sudo apt-get update -q && sudo apt-get install -y -q libcdio-paranoia-dev
-      - name: Native libraries (macOS)
-        if: runner.os == 'macOS'
-        run: brew install libcdio libcdio-paranoia
-
+      # No native libraries to install: Deadwax talks to the drive with its own
+      # code on every platform since 0.7.4.
       - name: Build
         run: dotnet build Deadwax.slnx -c Release -nologo -v quiet
 
@@ -59,7 +53,7 @@ jobs:
         run: |
           # No headless mode; the runner has a window server, so the window
           # opens and says "Put a CD in the drive". Alive after ten seconds =
-          # Avalonia and the natives loaded. The timer's own exit code is the pass.
+          # Avalonia and its native libraries loaded. The timer's own exit code is the pass.
           set +e
           perl -e 'alarm 10; exec @ARGV' ./out/Deadwax > smoke.log 2>&1
           rc=$?

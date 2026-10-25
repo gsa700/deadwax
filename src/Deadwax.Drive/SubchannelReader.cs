@@ -2,8 +2,8 @@ using System.Runtime.InteropServices;
 
 namespace Deadwax.Drive;
 
-/// Reads what the TOC does not say, straight from the disc through libcdio's
-/// MMC pass-through: each track's pregap (where the next track's index 0
+/// Reads what the TOC does not say, straight from the disc through the
+/// drive's transport: each track's pregap (where the next track's index 0
 /// begins), its ISRC, the disc's catalog number and its CD-Text. This is
 /// what `cdrdao read-toc` did for Deadwax until 0.2.16, in two minutes per
 /// disc, by scanning every sector's Q subchannel; the same answers come from
@@ -27,16 +27,11 @@ public static class SubchannelReader
 
     public sealed record Frame(int Lsn, QFrame Q);
 
-    /// The subchannel pass over a disc already open in the drive. `toc` is
-    /// libcdio's; only its audio session is read (cdrdao reads session 1).
-    public static Cdrdao.Result Read(CdDrive drive, Toc toc, Action<string>? say = null, CancellationToken ct = default)
-    {
-        // The drive's own transport when Deadwax's own drive access is in use
-        // (it belongs to the drive, which disposes it), else libcdio's pass-through.
-        if (drive.OwnTransport is { } own) return Read(own, drive, toc, say, ct);
-        using var transport = new LibCdioTransport(drive.NativeHandle);
-        return Read(transport, drive, toc, say, ct);
-    }
+    /// The subchannel pass over a disc already open in the drive, through the
+    /// drive's own transport (it belongs to the drive, which disposes it).
+    /// Only the TOC's audio session is read (cdrdao reads session 1).
+    public static Cdrdao.Result Read(CdDrive drive, Toc toc, Action<string>? say = null, CancellationToken ct = default) =>
+        Read(drive.Transport, drive, toc, say, ct);
 
     public static Cdrdao.Result Read(IMmcTransport io, CdDrive drive, Toc toc, Action<string>? say, CancellationToken ct)
     {
@@ -94,7 +89,7 @@ public static class SubchannelReader
                 trackTexts.TryGetValue(t.Number, out var text) ? text : null));
         }
         var result = CdrdaoToc.Build(mcn is null ? null : CdrdaoToc.CatalogNumber(mcn), discText, list);
-        return new Cdrdao.Result(result.Write(), result, drive.OwnTransport is not null ? $"Deadwax ({IDriveTransport.Kind})" : $"Deadwax (libcdio {LibCdio.Version() ?? "unknown"})");
+        return new Cdrdao.Result(result.Write(), result, $"Deadwax ({IDriveTransport.Kind})");
     }
 
     /// Formatted Q if the drive gives it, else raw P-W, else nothing.

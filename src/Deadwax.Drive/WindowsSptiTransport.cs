@@ -5,7 +5,7 @@ namespace Deadwax.Drive;
 
 /// Windows: MMC commands sent to the drive through SCSI pass-through
 /// (IOCTL_SCSI_PASS_THROUGH_DIRECT) on \\.\D:, the same command bytes
-/// LibCdioTransport hands to libcdio's mmc_run_cmd, which does the same
+/// libcdio's mmc_run_cmd sent until 0.7.4, which did the same
 /// underneath (step 3 of the plan to need no native libraries, spec §11).
 public sealed unsafe class WindowsSptiTransport : PassThroughTransport
 {

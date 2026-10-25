@@ -110,8 +110,8 @@ trap 'rm -rf "$WORK"' EXIT
 
 # ---- no native libraries ----------------------------------------------------
 # None since 0.7.4: Deadwax reads the drive with its own code on every platform
-# (macOS since 0.7.2, Linux 0.7.3, Windows 0.7.4). native.targets ignores a
-# native/ folder unless DeadwaxNatives=true, which this script never sets.
+# (macOS since 0.7.2, Linux 0.7.3, Windows 0.7.4), and nothing in the build
+# picks up a native/ folder left in an older checkout.
 
 # ---- build ------------------------------------------------------------------
 for rid in "${RIDS[@]}"; do

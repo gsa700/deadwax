@@ -29,8 +29,8 @@ public interface IDriveTransport : IMmcTransport
 }
 
 /// Linux: MMC commands sent to the drive through the SCSI generic ioctl
-/// (SG_IO) on /dev/srN, the same command bytes LibCdioTransport hands to
-/// libcdio's mmc_run_cmd, which does the same underneath (step 3 of the plan
+/// (SG_IO) on /dev/srN, the same command bytes libcdio's mmc_run_cmd sent
+/// until 0.7.3, which did the same underneath (step 3 of the plan
 /// to need no native libraries, spec §11).
 public sealed unsafe class LinuxSgTransport : PassThroughTransport
 {

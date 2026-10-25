@@ -6,15 +6,12 @@ was typed or edited. What each component is and what it does in Deadwax is in
 [THIRD-PARTY-NOTICES.md](../THIRD-PARTY-NOTICES.md); Deadwax's own license is
 [LICENSE](../LICENSE), the GNU GPL version 3.
 
-The native libraries' files come from exactly the versions pinned in
-`tools/build-natives/pins.sh`. Where a ref says *default branch*, the project's
+Where a ref says *default branch*, the project's
 tags could not be predicted from a package version and its license does not vary
 with it; the SHA-256 says exactly which text this is.
 
 | file | covers | from | ref | path | SHA-256 |
 |---|---|---|---|---|---|
-| [libcdio-COPYING.txt](libcdio-COPYING.txt) | libcdio (GPL v3 or later) | https://github.com/libcdio/libcdio | `2.3.0` | `COPYING` | `8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903` |
-| [libcdio-paranoia-COPYING.txt](libcdio-paranoia-COPYING.txt) | libcdio-paranoia (GPL v3 or later) | https://github.com/libcdio/libcdio-paranoia | `release-10.2+2.0.2` | `COPYING` | `8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903` |
 | [cdrdao-COPYING.txt](cdrdao-COPYING.txt) | cdrdao, the CD-Text and Q-subchannel decoders ported from it (GPL v2 or later) | https://github.com/cdrdao/cdrdao | `default branch` | `COPYING` | `91df39d1816bfb17a4dda2d3d2c83b1f6f2d38d53e53e41e8f97ad5ac46a0cad` |
 | [dotnet-runtime-LICENSE.TXT](dotnet-runtime-LICENSE.TXT) | .NET runtime and System.IO.Hashing (MIT) | https://github.com/dotnet/runtime | `v10.0.0` | `LICENSE.TXT` | `cfc21f5e8bd655ae997eec916138b707b1d290b83272c02a95c9f821b8c87310` |
 | [avalonia-licence.md](avalonia-licence.md) | Avalonia (MIT) | https://github.com/AvaloniaUI/Avalonia | `12.1.2` | `licence.md` | `213814d306090074d234d760239ff0f67eb9b8d20eefb4d5631bb39dbe0b769b` |

@@ -20,6 +20,4 @@
          runtime or not (security review 2026-10-24, M1). -->
     <StartupHookSupport>false</StartupHookSupport>
   </PropertyGroup>
-
-  <Import Project="..\..\native.targets" />
 </Project>

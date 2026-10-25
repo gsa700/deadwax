@@ -209,7 +209,7 @@ public sealed class RipSession
     /// The pass over the subchannel: ISRCs, catalog, CD-Text and pregaps
     /// (spec §4), read by Deadwax itself since 0.2.16 (SubchannelReader); set
     /// DEADWAX_SUBCHANNEL=cdrdao to have cdrdao read it instead, for
-    /// comparing the two. Either way its TOC must agree with libcdio's audio
+    /// comparing the two. Either way its TOC must agree with the drive's audio
     /// session, or nothing is ripped.
     public static async Task<PreparedDisc> ReadSubchannelAsync(PreparedDisc disc, CancellationToken ct = default)
     {
@@ -353,10 +353,10 @@ public sealed class RipSession
             CdDrive.LimitSpeed(disc.Device, speed);
             observer.Say($"Drive speed limited to {speed}x.");
         }
-        else if (SecureReader.OwnReader)
+        else
         {
-            // No cap: the drive's own speed, whatever was left set (Deadwax's own
-            // reader slows down for damaged sectors; so might another program).
+            // No cap: the drive's own speed, whatever was left set (the reader
+            // slows down for damaged sectors; so might another program).
             try { CdDrive.LimitSpeed(disc.Device, null); }
             catch (DriveException) { }
         }

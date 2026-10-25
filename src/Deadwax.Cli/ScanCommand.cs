@@ -84,7 +84,7 @@ internal static class ScanCommand
             checks.Add(new("CDDB ID", Hex(cddb), log.CddbId is { } id ? Hex(id) : null));
             if (cdrdao is not null)
             {
-                // cdrdao's own TOC must agree with libcdio's, then with the cue.
+                // cdrdao's own TOC must agree with the drive's, then with the cue.
                 checks.AddRange(CdrdaoChecks.AgainstToc(cdrdao.ToToc(), toc).Select(c => c with { What = "cdrdao " + c.What }));
                 if (cuePath is not null) checks.AddRange(CdrdaoChecks.AgainstCue(cdrdao, WhipperCue.Load(cuePath)));
             }

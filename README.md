@@ -1,9 +1,9 @@
 # Deadwax
 
 A CD ripper for a FLAC library you own, and the companion to
-[AlbumWall](https://github.com/gsa700/albumwall). It reads the disc itself
-through libcdio-paranoia, verifies every rip against AccurateRip, and files the
-album into the library the way the library wants it.
+[AlbumWall](https://github.com/gsa700/albumwall). It reads the disc itself,
+with its own secure reader, verifies every rip against AccurateRip, and files
+the album into the library the way the library wants it.
 
 It is in daily use on the author's library since 2026-09-24: every disc
 is checked against AccurateRip as it is read, and read again until two passes
@@ -17,12 +17,13 @@ it happens with a read map of the disc surface, and the post-rip filing steps.
 
 ![The Disc screen: a disc from a five-album box set, the three MusicBrainz releases that carry its disc ID, and the choice to file it as the album it originally was](docs/images/disc.png)
 
-Linux and Windows, with a macOS app built from source. Only the drive layer
-comes from outside: libcdio and libcdio-paranoia read the disc. Everything
-after the read is Deadwax's own code: the disc's pregaps, ISRCs, catalog number
-and CD-Text (read through libcdio's MMC pass-through), AccurateRip, the FLAC
-encoder and decoder (from the format's specification, RFC 9639), the tags and
-ReplayGain. The design
+Linux and Windows, with a macOS app built from source. All of it is Deadwax's
+own code, the drive layer included (since 0.7.4; libcdio and libcdio-paranoia
+read the disc before): the drive commands (the system's own SCSI interface on
+each platform), the secure read (C2 error flags, re-reads, a best copy of a
+damaged track), the disc's pregaps, ISRCs, catalog number and CD-Text,
+AccurateRip, the FLAC encoder and decoder (from the format's specification,
+RFC 9639), the tags and ReplayGain. The design
 is in a spec kept outside the repository, and the build went through its
 validation gates in order, each checked against the 309 whipper 0.10.0 rips
 already in the library.
@@ -43,12 +44,13 @@ Windows may say "Windows protected your PC" on the first run, because the
 program is not signed: More info, then Run anyway. There is no Mac download
 yet: build the app as described under [Install](#install).
 
-Since 0.3.1 the program carries its own libcdio and libcdio-paranoia (built from pinned source by
-`tools/build-natives`, published as a `natives-N` pre-release with the
-sources attached), so nothing needs installing. Releases before that needed
-`libcdio`, `libcdio-paranoia` and `flac-libs` from the distribution, and
-0.2.x needed `cdrdao` as well. Since 0.6.0 Deadwax's own encoder makes the
-FLACs; libFLAC, which made them before, left the program in 0.6.2.
+Nothing needs installing. Since 0.7.4 Deadwax carries no native libraries of
+its own at all: it talks to the drive and reads the audio with its own code.
+From 0.3.1 to 0.7.3 it carried its own builds of libcdio and libcdio-paranoia
+(published as `natives-N` pre-releases with the sources attached); releases
+before that needed `libcdio`, `libcdio-paranoia` and `flac-libs` from the
+distribution, and 0.2.x needed `cdrdao` as well. Since 0.6.0 Deadwax's own
+encoder makes the FLACs; libFLAC, which made them before, left the program in 0.6.2.
 
 A running copy checks GitHub for a newer release a few seconds after launch
 and, if there is one, offers it in the title bar. The update is verified against
@@ -235,9 +237,7 @@ Applications. It does not update itself yet: rebuild it after pulling.
 
 ## Build and run
 
-Needs the .NET 10 SDK and, unless `native/` holds the bundled copies
-(`tools/build-natives`), libcdio and libcdio-paranoia from the distribution
-(the -devel packages are not needed). cdrdao is only needed by
+Needs the .NET 10 SDK, nothing else. cdrdao is only needed by
 `deadwax subchannel --cdrdao`, which compares Deadwax's reading with it.
 
 ```
@@ -260,7 +260,7 @@ catalog number, ISRCs, CD-Text and pregaps, and compares those with the cue.
 [After the rip](#after-the-rip) (a set's disc is refiled only with
 `--unbox`), and `post-rip DIR` does them for an album already ripped. `art DIR`
 fetches a missing `cover.jpg` and `back.jpg`. `compare` checks a
-Deadwax rip against whipper's rip of the same disc. `read` reads tracks securely through paranoia, twice, at the drive's read offset
+Deadwax rip against whipper's rip of the same disc. `read` reads tracks securely, twice, at the drive's read offset
 (from `drives.json`, or `--offset`), and with `--against` checks each track's audio
 against whipper's logged CRC and the MD5 stored in the existing FLAC. It writes
 nothing.
@@ -268,10 +268,11 @@ nothing.
 ## Layout
 
 ```
-src/Deadwax.Drive      libcdio via P/Invoke (TOC, drive identity, MMC pass-through);
-                       the subchannel reader (catalog, ISRCs, CD-Text, pregaps) and
-                       cdrdao's TOC file format; libcdio-paranoia secure reads with
-                       offset correction
+src/Deadwax.Drive      the drive itself (SG_IO on Linux, SPTI on Windows, the CD
+                       ioctls and DiskArbitration on macOS): TOC, drive identity,
+                       speed, tray; secure reads with C2, re-reads, the best copy
+                       and offset correction; the subchannel reader (catalog,
+                       ISRCs, CD-Text, pregaps) and cdrdao's TOC file format
 src/Deadwax.Metadata   disc IDs; MusicBrainz client, tags and library conventions;
                        front and back covers from the Cover Art Archive
 src/Deadwax.Verify     AccurateRip IDs, database and checksums; CRC32/MD5 audio
@@ -287,5 +288,5 @@ tests/Deadwax.Tests    golden files from real rips
 
 ## License
 
-GPLv3. libcdio and libcdio-paranoia are GPLv3 themselves. What else a release
-carries, under which licenses, and what is patched: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+GPLv3. What a release carries, and under which licenses:
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
