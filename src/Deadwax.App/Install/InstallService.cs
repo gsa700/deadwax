@@ -682,7 +682,7 @@ public static class InstallService
                        $"if (Test-Path -LiteralPath {q}) {{ Start-Sleep -Milliseconds 250 }} }}";
             }));
             lines.Add($"Remove-Item -LiteralPath {PowerShell.Quote(script)} -Force -ErrorAction SilentlyContinue");
-            File.WriteAllText(script, string.Join("\n", lines) + "\n");
+            File.WriteAllText(script, string.Join("\n", lines) + "\n", PowerShell.FileEncoding);
 
             // PowerShell.StartInfo starts it by its full path, and in %TEMP%: the helper must not
             // inherit this process's working directory. An installed copy runs with its own folder

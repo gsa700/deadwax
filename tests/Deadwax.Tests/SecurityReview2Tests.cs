@@ -148,6 +148,11 @@ public class SecurityReview2Tests
         (T)type.GetMethod(name, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static)!.Invoke(null, args)!;
 
     [Fact]
+    public void A_ps1_is_written_with_the_utf8_byte_order_mark() =>
+        Assert.Equal(new byte[] { 0xEF, 0xBB, 0xBF },
+            ((System.Text.Encoding)Ps.GetField("FileEncoding", BindingFlags.Public | BindingFlags.Static)!.GetValue(null)!).GetPreamble());
+
+    [Fact]
     public void M4_powershell_is_started_from_System32_by_its_full_path()
     {
         var exe = (string)Ps.GetProperty("Exe", BindingFlags.Public | BindingFlags.Static)!.GetValue(null)!;

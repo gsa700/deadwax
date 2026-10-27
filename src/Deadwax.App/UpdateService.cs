@@ -409,7 +409,7 @@ public static class UpdateService
         if (OperatingSystem.IsWindows())
         {
             var ps1 = Path.Combine(helperDir, "apply-update.ps1");
-            File.WriteAllText(ps1, WindowsApplyScript(pid, from, to, ExeFileName, libraries, marker, stageRoot, OwnExtractionDir, helperDir, args, StartCheckSeconds));
+            File.WriteAllText(ps1, WindowsApplyScript(pid, from, to, ExeFileName, libraries, marker, stageRoot, OwnExtractionDir, helperDir, args, StartCheckSeconds), PowerShell.FileEncoding);
             Process.Start(PowerShell.StartInfo(ps1));
         }
         else

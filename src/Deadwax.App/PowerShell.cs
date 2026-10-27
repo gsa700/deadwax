@@ -6,6 +6,14 @@ namespace Deadwax.App;
 /// script (review 2026-10-24 M4, L13).
 internal static class PowerShell
 {
+    /// How a .ps1 Deadwax writes is encoded: UTF-8 WITH its byte-order mark.
+    /// Windows PowerShell 5.1 reads a file without one as the ANSI code page,
+    /// so a path past ASCII (an O’Brien in the user's name, which every path
+    /// under %LOCALAPPDATA% has) came out mangled, and the update helper copied
+    /// nothing and started nothing. Found in AlbumWall's identical helper by
+    /// Mobilenode's session, 2026-10-27 (AlbumWall 011ce0c).
+    public static readonly System.Text.Encoding FileEncoding = new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: true);
+
     /// By its full path in System32: started by its bare name, Windows looks
     /// in this program's own folder first, so a powershell.exe dropped beside
     /// a loose copy in Downloads would run instead.
