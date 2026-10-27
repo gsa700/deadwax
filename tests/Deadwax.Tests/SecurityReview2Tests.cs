@@ -414,6 +414,17 @@ public class SecurityReview2Tests
     }
 
     [Fact]
+    public void A_streaminfo_shorter_than_34_bytes_is_a_decode_error_not_a_crash()
+    {
+        // fLaC, a 34-byte PADDING block, then a STREAMINFO of 18 bytes at the very
+        // end: every field is there, but its MD5 (bytes 18 to 34) was read from past
+        // the end of the file, an ArgumentOutOfRange (AlbumWall security review
+        // 2026-10-26, the same line).
+        byte[] data = [.. "fLaC"u8, 0x01, 0, 0, 34, .. new byte[34], 0x80, 0, 0, 18, .. new byte[18]];
+        Assert.Throws<FlacDecodeException>(() => FlacDecoder.ReadStreamInfo(data, out _));
+    }
+
+    [Fact]
     public void L3_reading_many_distinct_tags_is_not_quadratic()
     {
         var path = Patched(_ => { });

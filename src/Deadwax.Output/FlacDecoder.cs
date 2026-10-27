@@ -101,6 +101,10 @@ public static class FlacDecoder
             if (at + size > data.Length) throw new FlacDecodeException("A metadata block runs past the end.");
             if (type == 0)
             {
+                // 34 bytes, the MD5 its last 16: a shorter block had them read
+                // from past its end, or past the file's (AlbumWall security
+                // review 2026-10-26, FLAC STREAMINFO; the same line there).
+                if (size < 34) throw new FlacDecodeException("STREAMINFO is too short.");
                 var r = new BitReader(data, at, at + size);
                 info = new FlacStreamInfo(
                     (int)r.Read(16), (int)r.Read(16), (int)r.Read(24), (int)r.Read(24),
