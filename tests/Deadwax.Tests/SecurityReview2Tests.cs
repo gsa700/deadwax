@@ -486,4 +486,34 @@ public class SecurityReview2Tests
         var e = Assert.Throws<TargetInvocationException>(() => install.GetMethod("Uninstall")!.Invoke(null, [options]));
         Assert.Equal("InstallBlockedException", e.InnerException!.GetType().Name);
     }
+
+    // ---- the update feed and its downloads (AlbumWall's review, 2026-10-26, INFO) ----
+
+    [Theory]
+    [InlineData("https://api.github.com/repos/gsa700/deadwax/releases/latest", true)]
+    [InlineData("https://github.com/gsa700/deadwax/releases/download/v0.8.2/SHA256SUMS", true)]
+    [InlineData("https://release-assets.githubusercontent.com/x", true)]
+    [InlineData("http://127.0.0.1:8080/feed", true)]
+    [InlineData("http://localhost:8080/feed", true)]
+    [InlineData("http://github.com/x", false)]
+    [InlineData("https://evil.example/x", false)]
+    [InlineData("https://github.com.evil.example/x", false)]
+    [InlineData("https://evilgithubusercontent.com/x", false)]
+    [InlineData("file:///etc/passwd", false)]
+    public void The_updater_fetches_from_GitHub_over_https_or_this_computer_only(string url, bool allowed) =>
+        Assert.Equal(allowed, Call<bool>(typeof(Deadwax.App.UpdateService), "MayFetch", new Uri(url)));
+
+    [Fact]
+    public void A_feed_override_to_another_host_is_ignored()
+    {
+        var was = Environment.GetEnvironmentVariable("DEADWAX_UPDATE_FEED");
+        try
+        {
+            Environment.SetEnvironmentVariable("DEADWAX_UPDATE_FEED", "https://evil.example/feed");
+            Assert.StartsWith("https://api.github.com/", Call<string>(typeof(Deadwax.App.UpdateService), "FeedUrl", false));
+            Environment.SetEnvironmentVariable("DEADWAX_UPDATE_FEED", "http://127.0.0.1:9/feed");
+            Assert.Equal("http://127.0.0.1:9/feed", Call<string>(typeof(Deadwax.App.UpdateService), "FeedUrl", false));
+        }
+        finally { Environment.SetEnvironmentVariable("DEADWAX_UPDATE_FEED", was); }
+    }
 }
