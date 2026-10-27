@@ -277,6 +277,9 @@ APPLESCRIPT
         cp "$WORK/Deadwax.icns" "$MNT/.VolumeIcon.icns"
         SetFile -a C "$MNT"
         SetFile -a V "$MNT/.background" "$MNT/.VolumeIcon.icns"
+        # "Deadwax", not "Deadwax.app": Finder's "extension hidden" above does
+        # not stay (seen on AlbumWall's, 2026-10-27); the file's own flag does.
+        SetFile -a E "$MNT/Deadwax.app"
     fi
     sync
     hdiutil detach -quiet "$MNT" || { sleep 2; hdiutil detach -force -quiet "$MNT"; }
