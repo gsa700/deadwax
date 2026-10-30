@@ -290,13 +290,13 @@ public sealed partial class MainWindow : Window
 
     internal DriveIdentity? CurrentDrive => _disc?.Identity;
     internal int? CurrentOffset => _disc?.Offset;
-    /// The last answer from GitHub, if any; the About tab reads and refreshes it.
+    /// The last answer from GitHub, if any; the Updates page reads and refreshes it.
     internal UpdateInfo? LatestUpdate { get => _update; set => _update = value; }
     /// The previous update was staged but could not replace the program.
     internal bool LastUpdateFailed { get; private set; }
 
     /// The dot on the gear: a newer version exists (or the last update failed).
-    /// As AlbumWall's. Nothing is downloaded until asked for on the About tab.
+    /// As AlbumWall's. Nothing is downloaded until asked for on the Updates page.
     internal void ShowUpdateDot(bool on)
     {
         UpdateDot.IsVisible = on;
@@ -407,7 +407,7 @@ public sealed partial class MainWindow : Window
     }
 
     /// Fetches the known newer release, checks it, and restarts into it. Called
-    /// from the About tab's button. Throws with a plain sentence when it cannot.
+    /// from the Updates page's button. Throws with a plain sentence when it cannot.
     internal async Task ApplyUpdateAsync(UpdateInfo info, IProgress<double> progress)
     {
         if (_vm.IsRipping)

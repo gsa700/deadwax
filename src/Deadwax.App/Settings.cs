@@ -36,10 +36,10 @@ public sealed class Settings
     public bool AlwaysTwoPasses { get; set; }
     /// Where albums go, and whose artist spellings are followed. Null = ~/Music.
     public string? Library { get; set; }
-    /// Look for a newer release a few seconds after launch (About tab).
+    /// Look for a newer release a few seconds after launch (Updates page).
     public bool CheckForUpdates { get; set; } = true;
     /// Edge: every build as it is released (GitHub pre-releases included).
-    /// Off = Stable: only builds promoted after running on Edge (About tab).
+    /// Off = Stable: only builds promoted after running on Edge (Updates page).
     public bool EdgeChannel { get; set; }
     /// After a clean rip: a set disc filed as its album when chosen, then back.jpg. Null = not decided: on.
     public bool? PostRip { get; set; }

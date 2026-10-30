@@ -4,7 +4,7 @@
         x:Class="Deadwax.App.PrefsWindow"
         x:DataType="app:MainViewModel"
         Title="Deadwax — Preferences"
-        Width="580" Height="620" CanResize="False"
+        Width="780" Height="640" CanResize="False"
         Background="{DynamicResource Ground}"
         ShowInTaskbar="False"
         RequestedThemeVariant="Light">
@@ -27,191 +27,254 @@
         <SolidColorBrush x:Key="PanelHover" Color="#22000000"/>
     </Window.Resources>
 
+    <Window.Styles>
+        <Style Selector="TextBlock.pagetitle">
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <!-- THE SIDEBAR'S LINES, as AlbumWall's: the sheet's own colors, the
+             selected page darker than the desk and edged, and by weight. -->
+        <Style Selector="ListBox#Pages">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+        <Style Selector="ListBox#Pages ListBoxItem">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="{DynamicResource Soft}"/>
+            <Setter Property="Padding" Value="12,7"/>
+            <Setter Property="Margin" Value="0,0,0,2"/>
+            <Setter Property="MinHeight" Value="0"/>
+        </Style>
+        <Style Selector="ListBox#Pages ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+        </Style>
+        <Style Selector="ListBox#Pages ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#0C000000"/>
+            <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+        </Style>
+        <Style Selector="ListBox#Pages ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#CDCDD0"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Rule}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+        </Style>
+        <Style Selector="ListBox#Pages ListBoxItem:selected">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style Selector="ListBox#Pages ListBoxItem.apart">
+            <Setter Property="Margin" Value="0,18,0,2"/>
+        </Style>
+    </Window.Styles>
+
     <!-- AlbumWall's Preferences format, so the two read as companions: a proper
-         window with the system's own title bar, 580 wide, fixed size, one
-         instance, no Close button because the title bar has one, settings
-         written straight through, section headings at 14 semibold with a dim
-         13 explanation under each, panel buttons, a path shown in a box.
-         Every tab scrolls: the window is as tall as the longest tab, but no
-         taller than the screen, and on a 1080-line screen the Drive tab is
-         taller than that (his report from Linux, 2026-10-20).
-         The Disc screen keeps only what is about this disc; everything about
-         the machine or the program lives here (his call, 2026-10-05). About is
-         the last tab; new tabs go before it.
+         window with the system's own title bar, fixed size, one instance, no
+         Close button because the title bar has one, settings written straight
+         through, section headings at 14 semibold with a dim 13 explanation
+         under each, panel buttons, a path shown in a box. The Disc screen keeps
+         only what is about this disc; everything about the machine or the
+         program lives here (his call, 2026-10-05).
+
+         A SIDEBAR, NOT TABS (2026-10-29, both apps together: "B is the best for
+         future growth as well as now. Adding another page is cheap with the
+         sidebar"). The pages are a list on the left, the page on the right
+         scrolls on its own, and the window is one size on every page: 780 by
+         640, and no taller than the main window (his rule, 2026-10-24) or the
+         screen. About is last, set apart; new pages go before it.
 
          WORDING: for someone on a clean install who has never heard of whipper
          or of his library tools. Nothing here names a program the reader may
          not have, except where it only appears when that program is present. -->
-    <TabControl x:Name="Tabs" Margin="12">
-        <TabItem Header="Library">
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <StackPanel Spacing="12" Margin="0,0,8,0">
-                <TextBlock Text="Where the music goes" FontSize="14" FontWeight="SemiBold"/>
-                <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
-                           Text="Each disc becomes a folder, laid out as chosen on the Filing tab, with the FLAC files, the cover and the rip log inside. If an artist is already in the library, their name is spelled the way it is there."/>
-                <Border CornerRadius="4" Padding="13,11" Background="{DynamicResource Bar}">
-                    <TextBlock x:Name="LibraryPath" FontSize="13" Classes="mono" TextWrapping="Wrap"/>
-                </Border>
-                <TextBlock x:Name="LibraryNote" Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"/>
-                <StackPanel Orientation="Horizontal" Spacing="9">
-                    <Button Classes="panel" Content="Choose folder…" Click="OnChooseLibrary"/>
-                    <Button Classes="panel" Content="Use my Music folder" Click="OnUseDefaultLibrary"/>
-                </StackPanel>
+    <DockPanel Margin="12">
+        <ListBox x:Name="Pages" DockPanel.Dock="Left" Width="168" Margin="0,0,12,0"
+                 SelectionMode="Single,AlwaysSelected"
+                 AutomationProperties.Name="Preferences pages">
+            <ListBoxItem Content="Library"/>
+            <ListBoxItem Content="Filing"/>
+            <ListBoxItem Content="Drive"/>
+            <ListBoxItem Content="Updates"/>
+            <ListBoxItem Content="About" Classes="apart"/>
+        </ListBox>
 
-                <StackPanel Spacing="12">
-                    <Border Height="1" Background="{DynamicResource Rule}" Margin="0,6,0,0"/>
-                    <TextBlock Text="After a rip" FontSize="14" FontWeight="SemiBold"/>
-                    <CheckBox x:Name="PostRipBox" FontSize="13" Content="Finish the new album for the library" Click="OnPostRipToggled"/>
+        <Border Background="{DynamicResource Aside}" BorderBrush="{DynamicResource Rule}"
+                BorderThickness="1" CornerRadius="6" Padding="22,20,8,20">
+            <Panel>
+                <ScrollViewer x:Name="PageLibrary" IsVisible="False" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="12" Margin="0,0,14,0">
+                    <TextBlock Classes="pagetitle" Text="Library"/>
+                    <TextBlock Text="Where the music goes" FontSize="14" FontWeight="SemiBold"/>
                     <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
-                               Text="A disc from a set, when you chose to file it as the album it originally was, is retagged with that album's own title, year and front cover, and its folder renamed. Then, if chosen on the Filing tab, the back cover is fetched from the Cover Art Archive as back.jpg: this pressing's when it has one, otherwise another edition's of the same album. Runs only after a rip where every track was proven: by AccurateRip, or by two reads that agree."/>
-                </StackPanel>
-            </StackPanel>
-            </ScrollViewer>
-        </TabItem>
-
-        <!-- Filing (2026-10-08): his conventions are the defaults; anyone can
-             change them. Lists, not templates, so no choice can break Unbox
-             or produce an illegal name. New rips only. -->
-        <TabItem Header="Filing">
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <StackPanel Spacing="10" Margin="0,0,8,0">
-                <TextBlock Text="Folders and file names" FontSize="14" FontWeight="SemiBold"/>
-                <Grid ColumnDefinitions="110,*" RowDefinitions="Auto,Auto" RowSpacing="8">
-                    <TextBlock Text="Album folder" FontSize="13" VerticalAlignment="Center"/>
-                    <ComboBox x:Name="FolderStyleBox" Grid.Column="1" FontSize="13" MinWidth="260" SelectionChanged="OnFilingChanged"/>
-                    <TextBlock Grid.Row="1" Text="Track files" FontSize="13" VerticalAlignment="Center"/>
-                    <ComboBox x:Name="TrackStyleBox" Grid.Row="1" Grid.Column="1" FontSize="13" MinWidth="260" SelectionChanged="OnFilingChanged"/>
-                </Grid>
-                <Border CornerRadius="4" Padding="13,9" Background="{DynamicResource Bar}">
-                    <TextBlock x:Name="FilingExample" FontSize="12" Classes="mono" TextWrapping="Wrap"/>
-                </Border>
-                <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
-                           Text="For new rips only: albums already in the library are never renamed."/>
-
-                <Border Height="1" Background="{DynamicResource Rule}" Margin="0,4,0,0"/>
-                <TextBlock Text="Cover art" FontSize="14" FontWeight="SemiBold"/>
-                <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
-                           Text="The front cover is always saved as cover.jpg in the album's folder, where most players look for it."/>
-                <CheckBox x:Name="EmbedBox" FontSize="13" Content="Also embed the front cover in each file" Click="OnFilingChanged"/>
-                <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap" Margin="28,-6,0,0"
-                           Text="Phones, car stereos and some players show only a cover stored inside the file. Adds the size of cover.jpg to every track, usually 50 to 300 KB."/>
-                <CheckBox x:Name="BackBox" FontSize="13" Content="Fetch the back cover as back.jpg" Click="OnFilingChanged"/>
-                <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap" Margin="28,-6,0,0"
-                           Text="The back of the CD case, usually the track list as printed. AlbumWall turns the sleeve over to show it when you open an album; other players may not use it."/>
-
-                <Border Height="1" Background="{DynamicResource Rule}" Margin="0,4,0,0"/>
-                <TextBlock Text="Volume" FontSize="14" FontWeight="SemiBold"/>
-                <CheckBox x:Name="GainBox" FontSize="13" Content="Write ReplayGain tags" Click="OnFilingChanged"/>
-                <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap" Margin="28,-6,0,0"
-                           Text="Deadwax measures how loud each track and the whole album are while it rips, so players that read ReplayGain play one album as loud as the next, with no volume to adjust between discs. The audio itself is not changed."/>
-
-                <Border Height="1" Background="{DynamicResource Rule}" Margin="0,4,0,0"/>
-                <TextBlock Text="Beside the music" FontSize="14" FontWeight="SemiBold"/>
-                <CheckBox x:Name="CueBox" FontSize="13" Content="A .cue sheet (the disc's exact layout, for burning a copy)" Click="OnFilingChanged"/>
-                <CheckBox x:Name="M3uBox" FontSize="13" Content="An .m3u playlist of the tracks in order" Click="OnFilingChanged"/>
-                <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
-                           Text="The rip log (.log) and table of contents (.toc) are always written: they are the record that the rip was verified, and how Deadwax knows a disc is already in your library."/>
-            </StackPanel>
-            </ScrollViewer>
-        </TabItem>
-
-        <TabItem Header="Drive">
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <StackPanel Spacing="12" Margin="0,0,8,0">
-                <TextBlock Text="This drive" FontSize="14" FontWeight="SemiBold"/>
-                <Border CornerRadius="4" Padding="13,11" Background="{DynamicResource Bar}">
-                    <StackPanel Spacing="4">
-                        <TextBlock x:Name="DriveNameText" FontSize="13" Classes="mono"/>
-                        <TextBlock x:Name="DeviceText" FontSize="12" Classes="mono dim"/>
-                    </StackPanel>
-                </Border>
-
-                <TextBlock Text="Read offset" FontSize="14" FontWeight="SemiBold" Margin="0,6,0,0"/>
-                <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
-                           Text="Every drive hands back audio a few samples early or late, always by the same amount. Correcting it makes your rips identical to everyone else's, which is what lets them be verified. Deadwax measures it once, from a well-known commercial CD (sometimes it needs two), and remembers it for this drive."/>
-                <Border CornerRadius="4" Padding="13,11" Background="{DynamicResource Bar}">
-                    <TextBlock x:Name="OffsetValueText" FontSize="13" Classes="mono"/>
-                </Border>
-                <Button Classes="panel" HorizontalAlignment="Left" Content="Measure from the disc in the drive…"
-                        Click="OnMeasure" IsEnabled="{Binding !MeasuringOffset}"/>
-                <TextBlock Text="{Binding OffsetText}" Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"/>
-                <TextBlock x:Name="SavedDrivesText" Classes="dim mono" FontSize="12" LineHeight="18" TextWrapping="Wrap" IsVisible="False"/>
-
-                <Border Height="1" Background="{DynamicResource Rule}" Margin="0,6,0,0"/>
-                <TextBlock Text="Speed" FontSize="14" FontWeight="SemiBold"/>
-                <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
-                           Text="A disc that is slightly out of balance shakes at full speed, and a bad one can stop the drive answering. Capping the speed calms it; try 4x first, then lower. The cap applies to the rip, which reads more slowly; the first scan of a disc always runs at the drive's own speed, which is how you hear that it needs one. The cap is noted in the rip log and stays until you change it."/>
-                <StackPanel Orientation="Horizontal" Spacing="12">
-                    <ComboBox ItemsSource="{Binding Speeds}" SelectedItem="{Binding DriveSpeed}" MinWidth="150" FontSize="13"/>
-                    <CheckBox IsChecked="{Binding EjectAfterRip}" FontSize="13" Content="Open the tray when a rip is done" VerticalAlignment="Center"/>
-                </StackPanel>
-
-                <Border Height="1" Background="{DynamicResource Rule}" Margin="0,6,0,0"/>
-                <TextBlock Text="Reading" FontSize="14" FontWeight="SemiBold"/>
-                <StackPanel Spacing="2">
-                    <RadioButton GroupName="reading" IsChecked="{Binding ReadOnceWhenConfirmed}" FontSize="13"
-                                 Content="Once, when AccurateRip confirms it (faster)"/>
-                    <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap" Margin="28,0,0,6"
-                               Text="A track whose first read matches at least two other people's rips of the same pressing in AccurateRip is proven, and is not read again. The first and last few sectors of the disc, which AccurateRip leaves out, are read a second time and must match. A track AccurateRip cannot confirm is read twice, as below."/>
-                    <RadioButton GroupName="reading" IsChecked="{Binding AlwaysTwoPasses}" FontSize="13"
-                                 Content="Always twice"/>
-                    <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap" Margin="28,0,0,0"
-                               Text="Every track is read twice and kept only when both reads agree. Slower; it does not depend on AccurateRip. Every track is still checked against AccurateRip and the result is in the log, as with the first choice."/>
-                </StackPanel>
-                <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
-                           Text="Either way, the rip log says how each track was proven."/>
-            </StackPanel>
-            </ScrollViewer>
-        </TabItem>
-
-        <TabItem Header="About">
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <StackPanel Spacing="12" Margin="0,0,8,0">
-                <!-- The icon beside the name, as a program's About page has. -->
-                <StackPanel Orientation="Horizontal" Spacing="18" Margin="0,4,0,6">
-                    <Image Source="/Assets/icon-256.png" Width="96" Height="96" VerticalAlignment="Center"/>
-                    <StackPanel VerticalAlignment="Center" Spacing="4">
-                        <TextBlock Text="Deadwax" FontSize="26" FontWeight="Bold"/>
-                        <TextBlock x:Name="VersionText" Classes="dim" FontSize="14"/>
-                        <TextBlock Text="The companion to AlbumWall" Classes="dim" FontSize="13"/>
-                    </StackPanel>
-                </StackPanel>
-                <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
-                           Text="Rips CDs into a FLAC library you own. Every track is checked against AccurateRip, the database of what thousands of other drives read from the same disc; a track it cannot confirm is read twice until two readings agree. Tags come from MusicBrainz. Free software, GPLv3."/>
-                <StackPanel Orientation="Horizontal" Spacing="9">
-                    <Button x:Name="UpdateButton" Classes="panel" Content="Check for updates" Click="OnCheckUpdates"/>
-                    <Button Classes="panel" Content="Deadwax on GitHub" Click="OnOpenRepo"/>
-                    <Button Classes="panel" Content="AlbumWall" Click="OnOpenAlbumWall"/>
-                </StackPanel>
-                <!-- As AlbumWall's About tab: one button that checks, then reads
-                     "Update to X and restart" when there is something to install,
-                     and a bar while it downloads. The check at launch only ever
-                     lights the dot on the gear; nothing is fetched until this. -->
-                <TextBlock x:Name="UpdateText" Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"/>
-                <Border x:Name="UpdateBar" Height="4" CornerRadius="2" IsVisible="False" Background="{DynamicResource Bar}">
-                    <Border x:Name="UpdateFill" Height="4" CornerRadius="2" Width="0" HorizontalAlignment="Left" Background="{DynamicResource Text}"/>
-                </Border>
-                <CheckBox x:Name="AutoCheckBox" FontSize="13" Content="Look for a newer release when Deadwax opens" Click="OnAutoCheckToggled"/>
-                <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
-                           Text="A newer release is offered in the title bar; nothing is downloaded until you ask, and the download is checked against the release's published checksum before it is installed."/>
-                <CheckBox x:Name="EdgeBox" FontSize="13" Content="Edge builds: every release as it comes out" Click="OnEdgeToggled"/>
-                <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
-                           Text="Off is Stable: only builds that have already run on Edge without trouble. Switching back to Stable keeps the build you have until Stable passes it."/>
-
-                <!-- HOW THIS COPY IS RUNNING, and the one thing that can be done
-                     about it, as in AlbumWall's About tab. The app installs and
-                     removes itself (Install/InstallService); this is where that is
-                     visible, rather than only in a prompt at startup that can be
-                     declined and then never found again. -->
-                <StackPanel x:Name="InstallSection" Spacing="6" Margin="0,8,0,0">
-                    <TextBlock x:Name="InstallStatus" Classes="dim" FontSize="13" LineHeight="20"
-                               TextWrapping="Wrap"/>
+                               Text="Each disc becomes a folder, laid out as chosen on the Filing tab, with the FLAC files, the cover and the rip log inside. If an artist is already in the library, their name is spelled the way it is there."/>
+                    <Border CornerRadius="4" Padding="13,11" Background="{DynamicResource Bar}">
+                        <TextBlock x:Name="LibraryPath" FontSize="13" Classes="mono" TextWrapping="Wrap"/>
+                    </Border>
+                    <TextBlock x:Name="LibraryNote" Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"/>
                     <StackPanel Orientation="Horizontal" Spacing="9">
-                        <Button x:Name="InstallButton" Classes="panel" Click="OnInstallClicked"/>
+                        <Button Classes="panel" Content="Choose folder…" Click="OnChooseLibrary"/>
+                        <Button Classes="panel" Content="Use my Music folder" Click="OnUseDefaultLibrary"/>
+                    </StackPanel>
+
+                    <StackPanel Spacing="12">
+                        <Border Height="1" Background="{DynamicResource Rule}" Margin="0,6,0,0"/>
+                        <TextBlock Text="After a rip" FontSize="14" FontWeight="SemiBold"/>
+                        <CheckBox x:Name="PostRipBox" FontSize="13" Content="Finish the new album for the library" Click="OnPostRipToggled"/>
+                        <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
+                                   Text="A disc from a set, when you chose to file it as the album it originally was, is retagged with that album's own title, year and front cover, and its folder renamed. Then, if chosen on the Filing tab, the back cover is fetched from the Cover Art Archive as back.jpg: this pressing's when it has one, otherwise another edition's of the same album. Runs only after a rip where every track was proven: by AccurateRip, or by two reads that agree."/>
                     </StackPanel>
                 </StackPanel>
-            </StackPanel>
-            </ScrollViewer>
-        </TabItem>
-    </TabControl>
+                </ScrollViewer>
+
+                <!-- Filing (2026-10-08): his conventions are the defaults; anyone can
+                     change them. Lists, not templates, so no choice can break Unbox
+                     or produce an illegal name. New rips only. -->
+                <ScrollViewer x:Name="PageFiling" IsVisible="False" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="10" Margin="0,0,14,0">
+                    <TextBlock Classes="pagetitle" Text="Filing"/>
+                    <TextBlock Text="Folders and file names" FontSize="14" FontWeight="SemiBold"/>
+                    <Grid ColumnDefinitions="110,*" RowDefinitions="Auto,Auto" RowSpacing="8">
+                        <TextBlock Text="Album folder" FontSize="13" VerticalAlignment="Center"/>
+                        <ComboBox x:Name="FolderStyleBox" Grid.Column="1" FontSize="13" MinWidth="260" SelectionChanged="OnFilingChanged"/>
+                        <TextBlock Grid.Row="1" Text="Track files" FontSize="13" VerticalAlignment="Center"/>
+                        <ComboBox x:Name="TrackStyleBox" Grid.Row="1" Grid.Column="1" FontSize="13" MinWidth="260" SelectionChanged="OnFilingChanged"/>
+                    </Grid>
+                    <Border CornerRadius="4" Padding="13,9" Background="{DynamicResource Bar}">
+                        <TextBlock x:Name="FilingExample" FontSize="12" Classes="mono" TextWrapping="Wrap"/>
+                    </Border>
+                    <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
+                               Text="For new rips only: albums already in the library are never renamed."/>
+
+                    <Border Height="1" Background="{DynamicResource Rule}" Margin="0,4,0,0"/>
+                    <TextBlock Text="Cover art" FontSize="14" FontWeight="SemiBold"/>
+                    <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
+                               Text="The front cover is always saved as cover.jpg in the album's folder, where most players look for it."/>
+                    <CheckBox x:Name="EmbedBox" FontSize="13" Content="Also embed the front cover in each file" Click="OnFilingChanged"/>
+                    <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap" Margin="28,-6,0,0"
+                               Text="Phones, car stereos and some players show only a cover stored inside the file. Adds the size of cover.jpg to every track, usually 50 to 300 KB."/>
+                    <CheckBox x:Name="BackBox" FontSize="13" Content="Fetch the back cover as back.jpg" Click="OnFilingChanged"/>
+                    <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap" Margin="28,-6,0,0"
+                               Text="The back of the CD case, usually the track list as printed. AlbumWall turns the sleeve over to show it when you open an album; other players may not use it."/>
+
+                    <Border Height="1" Background="{DynamicResource Rule}" Margin="0,4,0,0"/>
+                    <TextBlock Text="Volume" FontSize="14" FontWeight="SemiBold"/>
+                    <CheckBox x:Name="GainBox" FontSize="13" Content="Write ReplayGain tags" Click="OnFilingChanged"/>
+                    <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap" Margin="28,-6,0,0"
+                               Text="Deadwax measures how loud each track and the whole album are while it rips, so players that read ReplayGain play one album as loud as the next, with no volume to adjust between discs. The audio itself is not changed."/>
+
+                    <Border Height="1" Background="{DynamicResource Rule}" Margin="0,4,0,0"/>
+                    <TextBlock Text="Beside the music" FontSize="14" FontWeight="SemiBold"/>
+                    <CheckBox x:Name="CueBox" FontSize="13" Content="A .cue sheet (the disc's exact layout, for burning a copy)" Click="OnFilingChanged"/>
+                    <CheckBox x:Name="M3uBox" FontSize="13" Content="An .m3u playlist of the tracks in order" Click="OnFilingChanged"/>
+                    <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
+                               Text="The rip log (.log) and table of contents (.toc) are always written: they are the record that the rip was verified, and how Deadwax knows a disc is already in your library."/>
+                </StackPanel>
+                </ScrollViewer>
+
+                <ScrollViewer x:Name="PageDrive" IsVisible="False" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="12" Margin="0,0,14,0">
+                    <TextBlock Classes="pagetitle" Text="Drive"/>
+                    <TextBlock Text="This drive" FontSize="14" FontWeight="SemiBold"/>
+                    <Border CornerRadius="4" Padding="13,11" Background="{DynamicResource Bar}">
+                        <StackPanel Spacing="4">
+                            <TextBlock x:Name="DriveNameText" FontSize="13" Classes="mono"/>
+                            <TextBlock x:Name="DeviceText" FontSize="12" Classes="mono dim"/>
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock Text="Read offset" FontSize="14" FontWeight="SemiBold" Margin="0,6,0,0"/>
+                    <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
+                               Text="Every drive hands back audio a few samples early or late, always by the same amount. Correcting it makes your rips identical to everyone else's, which is what lets them be verified. Deadwax measures it once, from a well-known commercial CD (sometimes it needs two), and remembers it for this drive."/>
+                    <Border CornerRadius="4" Padding="13,11" Background="{DynamicResource Bar}">
+                        <TextBlock x:Name="OffsetValueText" FontSize="13" Classes="mono"/>
+                    </Border>
+                    <Button Classes="panel" HorizontalAlignment="Left" Content="Measure from the disc in the drive…"
+                            Click="OnMeasure" IsEnabled="{Binding !MeasuringOffset}"/>
+                    <TextBlock Text="{Binding OffsetText}" Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="SavedDrivesText" Classes="dim mono" FontSize="12" LineHeight="18" TextWrapping="Wrap" IsVisible="False"/>
+
+                    <Border Height="1" Background="{DynamicResource Rule}" Margin="0,6,0,0"/>
+                    <TextBlock Text="Speed" FontSize="14" FontWeight="SemiBold"/>
+                    <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
+                               Text="A disc that is slightly out of balance shakes at full speed, and a bad one can stop the drive answering. Capping the speed calms it; try 4x first, then lower. The cap applies to the rip, which reads more slowly; the first scan of a disc always runs at the drive's own speed, which is how you hear that it needs one. The cap is noted in the rip log and stays until you change it."/>
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <ComboBox ItemsSource="{Binding Speeds}" SelectedItem="{Binding DriveSpeed}" MinWidth="150" FontSize="13"/>
+                        <CheckBox IsChecked="{Binding EjectAfterRip}" FontSize="13" Content="Open the tray when a rip is done" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <Border Height="1" Background="{DynamicResource Rule}" Margin="0,6,0,0"/>
+                    <TextBlock Text="Reading" FontSize="14" FontWeight="SemiBold"/>
+                    <StackPanel Spacing="2">
+                        <RadioButton GroupName="reading" IsChecked="{Binding ReadOnceWhenConfirmed}" FontSize="13"
+                                     Content="Once, when AccurateRip confirms it (faster)"/>
+                        <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap" Margin="28,0,0,6"
+                                   Text="A track whose first read matches at least two other people's rips of the same pressing in AccurateRip is proven, and is not read again. The first and last few sectors of the disc, which AccurateRip leaves out, are read a second time and must match. A track AccurateRip cannot confirm is read twice, as below."/>
+                        <RadioButton GroupName="reading" IsChecked="{Binding AlwaysTwoPasses}" FontSize="13"
+                                     Content="Always twice"/>
+                        <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap" Margin="28,0,0,0"
+                                   Text="Every track is read twice and kept only when both reads agree. Slower; it does not depend on AccurateRip. Every track is still checked against AccurateRip and the result is in the log, as with the first choice."/>
+                    </StackPanel>
+                    <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
+                               Text="Either way, the rip log says how each track was proven."/>
+                </StackPanel>
+                </ScrollViewer>
+
+                <!-- UPDATES (2026-10-29, with the sidebar): the policy and the action
+                     together, as AlbumWall has had them since 2026-10-10. They were
+                     on About. One button that checks, then reads "Update to X and
+                     restart" when there is something to install, and a bar while it
+                     downloads. The check at launch only ever lights the dot on the
+                     gear; nothing is fetched until this button. -->
+                <ScrollViewer x:Name="PageUpdates" IsVisible="False" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="12" Margin="0,0,14,0">
+                    <TextBlock Classes="pagetitle" Text="Updates"/>
+                    <CheckBox x:Name="AutoCheckBox" FontSize="13" Content="Look for a newer release when Deadwax opens" Click="OnAutoCheckToggled"/>
+                    <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap" Margin="28,-6,0,0"
+                               Text="One small question to GitHub. If there is one, the gear gets a dot; nothing is downloaded until you ask for it here, and the download is checked against the release's published checksum before it is installed."/>
+                    <CheckBox x:Name="EdgeBox" FontSize="13" Content="Edge builds: every release as it comes out" Click="OnEdgeToggled"/>
+                    <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap" Margin="28,-6,0,0"
+                               Text="Off is Stable: only builds that have already run on Edge without trouble. Switching back to Stable keeps the build you have until Stable passes it."/>
+
+                    <Border Height="1" Background="{DynamicResource Rule}" Margin="0,6,0,0"/>
+                    <TextBlock x:Name="UpdateText" Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"/>
+                    <Border x:Name="UpdateBar" Height="4" CornerRadius="2" IsVisible="False" Background="{DynamicResource Bar}">
+                        <Border x:Name="UpdateFill" Height="4" CornerRadius="2" Width="0" HorizontalAlignment="Left" Background="{DynamicResource Text}"/>
+                    </Border>
+                    <Button x:Name="UpdateButton" Classes="panel" HorizontalAlignment="Left" Content="Check for updates" Click="OnCheckUpdates"/>
+                </StackPanel>
+                </ScrollViewer>
+
+                <ScrollViewer x:Name="PageAbout" IsVisible="False" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="12" Margin="0,0,14,0">
+                    <!-- The icon beside the name, as a program's About page has. -->
+                    <StackPanel Orientation="Horizontal" Spacing="18" Margin="0,4,0,6">
+                        <Image Source="/Assets/icon-256.png" Width="96" Height="96" VerticalAlignment="Center"/>
+                        <StackPanel VerticalAlignment="Center" Spacing="4">
+                            <TextBlock Text="Deadwax" FontSize="26" FontWeight="Bold"/>
+                            <TextBlock x:Name="VersionText" Classes="dim" FontSize="14"/>
+                            <TextBlock Text="The companion to AlbumWall" Classes="dim" FontSize="13"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
+                               Text="Rips CDs into a FLAC library you own. Every track is checked against AccurateRip, the database of what thousands of other drives read from the same disc; a track it cannot confirm is read twice until two readings agree. Tags come from MusicBrainz. Free software, GPLv3."/>
+                    <StackPanel Orientation="Horizontal" Spacing="9">
+                        <Button Classes="panel" Content="Deadwax on GitHub" Click="OnOpenRepo"/>
+                        <Button Classes="panel" Content="AlbumWall" Click="OnOpenAlbumWall"/>
+                    </StackPanel>
+
+                    <!-- HOW THIS COPY IS RUNNING, and the one thing that can be done
+                         about it, as in AlbumWall's About tab. The app installs and
+                         removes itself (Install/InstallService); this is where that is
+                         visible, rather than only in a prompt at startup that can be
+                         declined and then never found again. -->
+                    <StackPanel x:Name="InstallSection" Spacing="6" Margin="0,8,0,0">
+                        <TextBlock x:Name="InstallStatus" Classes="dim" FontSize="13" LineHeight="20"
+                                   TextWrapping="Wrap"/>
+                        <StackPanel Orientation="Horizontal" Spacing="9">
+                            <Button x:Name="InstallButton" Classes="panel" Click="OnInstallClicked"/>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+                </ScrollViewer>
+            </Panel>
+        </Border>
+    </DockPanel>
 </Window>

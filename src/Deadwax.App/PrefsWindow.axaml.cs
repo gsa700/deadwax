@@ -31,15 +31,26 @@ public partial class PrefsWindow : Window
         FillUpdate();
         FillInstall();
 
-        // One height for every tab: the longest one's. IN Opened, not posted
-        // after it, as AlbumWall's FitToTallestTab does: a fixed-size window
-        // already on screen ignored the new height (0.2.8, the trace said
+        // A page is called what its line says, for a screen reader too.
+        var lines = Pages.Items.OfType<ListBoxItem>().ToList();
+        for (var i = 0; i < lines.Count && i < PageList.Length; i++)
+            if (lines[i].Content is string name)
+            {
+                Avalonia.Automation.AutomationProperties.SetName(lines[i], name);
+                Avalonia.Automation.AutomationProperties.SetName(PageList[i], name);
+            }
+        Pages.SelectionChanged += (_, _) => ShowPage();
+        Pages.SelectedIndex = 0;
+        ShowPage();     // the list starts on its first line, so no change is raised for it
+
+        // The height, IN Opened, not posted after it: a fixed-size window
+        // already on screen ignored a new height (0.2.8, the trace said
         // "620 -> 749" and the window stayed 620).
         // Then where it was last time, kept on a screen (WindowPlacement); a
         // first run opens where it always has.
         Opened += (_, _) =>
         {
-            SizeToLongestTab();
+            FitToMainWindow();
             WindowPlacement.Restore(this, _settings.PrefsX, _settings.PrefsY);
         };
         Closing += (_, _) =>
@@ -50,41 +61,44 @@ public partial class PrefsWindow : Window
         };
     }
 
-    /// His rule, as in the family's other apps (2026-10-08): the window is as
-    /// tall as its LONGEST tab and the same height on all of them, so nothing
-    /// moves from tab to tab. Each tab is laid out in turn, in one go before
-    /// anything is drawn, and the tallest wins; the height in the markup is the
-    /// least it will be, and the main window's height and the screen's the most.
-    private void SizeToLongestTab()
+    private ScrollViewer[] PageList => [PageLibrary, PageFiling, PageDrive, PageUpdates, PageAbout];
+
+    /// Preferences at a page, by the name on its line ("About").
+    internal void Select(string page)
     {
-        var shown = Tabs.SelectedIndex;
-        var tallest = Height;
-        for (var i = 0; i < Tabs.ItemCount; i++)
+        var lines = Pages.Items.OfType<ListBoxItem>().ToList();
+        var i = lines.FindIndex(l => l.Content is string name && name == page);
+        if (i >= 0) Pages.SelectedIndex = i;
+    }
+
+    /// One page at a time, each from its top.
+    private void ShowPage()
+    {
+        var shown = Pages.SelectedIndex;
+        for (var i = 0; i < PageList.Length; i++)
         {
-            Tabs.SelectedIndex = i;
-            UpdateLayout();
-            if (Tabs.SelectedItem is not TabItem { Content: Control content }
-                || Avalonia.VisualTree.VisualExtensions.GetVisualParent(content) is not Control host
-                || host.Bounds.Height <= 0) continue;
-            host.Measure(new Avalonia.Size(host.Bounds.Width, double.PositiveInfinity));
-            var want = Math.Ceiling(host.DesiredSize.Height + ClientSize.Height - host.Bounds.Height);
-            Console.WriteLine($"[prefs] {((TabItem)Tabs.SelectedItem).Header} tab: content {host.DesiredSize.Height:0} in {host.Bounds.Height:0}, window {ClientSize.Height:0} -> wants {want:0}");
-            tallest = Math.Max(tallest, want);
-            host.InvalidateMeasure();
+            PageList[i].IsVisible = i == shown;
+            if (i == shown) PageList[i].Offset = default;
         }
-        Tabs.SelectedIndex = shown;
-        // NO TALLER THAN THE MAIN WINDOW, his rule (2026-10-24): it is already
-        // fitted to the screen, so this one cannot run off it, and the two
-        // stand the same height. Its frame (a title bar the main window draws
-        // inside itself) comes off: as the window system gives it, else 32,
-        // GNOME's title bar, since native Wayland gives no frame size (on
-        // Techbench the two windows' bottoms then differed by that bar).
-        // A longer tab scrolls. The screen's working height stays a limit too,
-        // for a main window larger than the screen. Native Wayland gives a new
-        // window no screen of its own and reports the working area as the
-        // whole screen, without GNOME's bar: on Techbench's 1080 screen the
-        // screen limit alone let it open 1013 high, past the bottom.
-        var height = tallest;
+    }
+
+    /// ONE SIZE ON EVERY PAGE (the family's rule, 2026-10-08), the markup's
+    /// 640, and a longer page scrolls inside it. With tabs it was the longest
+    /// tab's height, 964 by 2026-10-25 for the Drive tab.
+    /// NO TALLER THAN THE MAIN WINDOW, his rule (2026-10-24): it is already
+    /// fitted to the screen, so this one cannot run off it, and the two
+    /// stand the same height. Its frame (a title bar the main window draws
+    /// inside itself) comes off: as the window system gives it, else 32,
+    /// GNOME's title bar, since native Wayland gives no frame size (on
+    /// Techbench the two windows' bottoms then differed by that bar).
+    /// The screen's working height stays a limit too, for a main window
+    /// larger than the screen. Native Wayland gives a new window no screen of
+    /// its own and reports the working area as the whole screen, without
+    /// GNOME's bar: on Techbench's 1080 screen the screen limit alone let it
+    /// open 1013 high, past the bottom.
+    private void FitToMainWindow()
+    {
+        var height = Height;
         if (_main.Bounds.Height > 0)
         {
             var frame = FrameSize is { } f && f.Height > ClientSize.Height ? f.Height - ClientSize.Height
@@ -222,7 +236,7 @@ public partial class PrefsWindow : Window
         ShowDrive();
     }
 
-    // ---- about --------------------------------------------------------------
+    // ---- updates --------------------------------------------------------------
 
     private bool _updating;
     private string? _updateNote;

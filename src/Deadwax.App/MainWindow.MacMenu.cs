@@ -85,12 +85,10 @@ public partial class MainWindow
         return bar;
     }
 
-    /// Preferences, opened at a tab by its header ("About"), or as it was.
-    private void ShowPrefs(string? tab)
+    /// Preferences, opened at a page by its name ("About"), or as it was.
+    private void ShowPrefs(string? page)
     {
         OnPreferences(null, new RoutedEventArgs());
-        if (tab is null || _prefs is null) return;
-        foreach (var item in _prefs.Tabs.Items)
-            if (item is TabItem { Header: string h } t && h == tab) { _prefs.Tabs.SelectedItem = t; break; }
+        if (page is not null) _prefs?.Select(page);
     }
 }
