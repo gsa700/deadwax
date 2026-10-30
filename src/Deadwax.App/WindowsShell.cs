@@ -12,11 +12,12 @@
 // be the reason Deadwax does not start.
 
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.Marshalling;
 using System.Runtime.Versioning;
 
 namespace Deadwax.App;
 
-public static class WindowsShell
+public static partial class WindowsShell
 {
     /// Permanent. Shortcuts already made carry this string, so changing it
     /// orphans them. The form is Microsoft's: Company.Product — his GitHub
@@ -140,7 +141,7 @@ public static class WindowsShell
     [SupportedOSPlatform("windows")]
     private static void Write(string lnk, string exe)
     {
-        var link = (IShellLinkW)new CShellLink();
+        var link = CreateShellLink();
         try
         {
             link.SetPath(exe);
@@ -167,29 +168,60 @@ public static class WindowsShell
         }
         finally
         {
-            Marshal.FinalReleaseComObject(link);
+            ((ComObject)(object)link).FinalRelease();
         }
     }
 
     [SupportedOSPlatform("windows")]
-    private static string ReadTarget(string lnk)
+    private static unsafe string ReadTarget(string lnk)
     {
-        var link = (IShellLinkW)new CShellLink();
+        var link = CreateShellLink();
         try
         {
             ((IPersistFile)link).Load(lnk, 0);
             var buffer = new char[1024];
-            link.GetPath(buffer, buffer.Length, IntPtr.Zero, 0);
+            fixed (char* p = buffer) link.GetPath(p, buffer.Length, 0, 0);
             return new string(buffer).TrimEnd('\0');
         }
         finally
         {
-            Marshal.FinalReleaseComObject(link);
+            ((ComObject)(object)link).FinalRelease();
         }
     }
 
     // ---- The shell's interfaces, declared only as far as they are used. Method
     // ---- ORDER is the vtable, so the unused ones stay as placeholders.
+    //
+    // Source-generated COM ([GeneratedComInterface] and ComWrappers), because the
+    // built-in kind ([ComImport] and `new CShellLink()`) does not exist under
+    // Native AOT: AlbumWall 0.8.0 on Windows, whose copy of this is the same,
+    // logged "Common Language Runtime detected an invalid program" for
+    // CShellLink's constructor at every install and wrote no shortcut
+    // (Mobilenode, 2026-10-29); Deadwax 0.8.x had the same code. The buffers the shell fills are plain
+    // pointers, so nothing is left for the marshaller to guess.
+
+    private static readonly StrategyBasedComWrappers ComWrappers = new();
+
+    private static readonly Guid CLSID_ShellLink = new("00021401-0000-0000-C000-000000000046");
+    private const uint CLSCTX_INPROC_SERVER = 1;
+
+    [SupportedOSPlatform("windows")]
+    private static IShellLinkW CreateShellLink()
+    {
+        var iid = typeof(IShellLinkW).GUID;
+        Marshal.ThrowExceptionForHR(CoCreateInstance(CLSID_ShellLink, 0, CLSCTX_INPROC_SERVER, iid, out var unknown));
+        try
+        {
+            return (IShellLinkW)ComWrappers.GetOrCreateObjectForComInstance(unknown, CreateObjectFlags.None);
+        }
+        finally
+        {
+            Marshal.Release(unknown);           // the wrapper holds its own reference
+        }
+    }
+
+    [LibraryImport("ole32.dll")]
+    private static partial int CoCreateInstance(in Guid clsid, nint outer, uint context, in Guid iid, out nint unknown);
 
     [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = true)]
     private static extern int SetCurrentProcessExplicitAppUserModelID(string appId);
@@ -215,14 +247,14 @@ public static class WindowsShell
     private const ushort VT_LPWSTR = 31;
 
     [StructLayout(LayoutKind.Sequential, Pack = 4)]
-    private struct PropertyKey
+    internal struct PropertyKey
     {
         public Guid fmtid;
         public uint pid;
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    private struct PropVariant
+    internal struct PropVariant
     {
         public ushort vt;
         public ushort reserved1, reserved2, reserved3;
@@ -230,34 +262,31 @@ public static class WindowsShell
         public IntPtr padding;
     }
 
-    [ComImport, Guid("00021401-0000-0000-C000-000000000046")]
-    private class CShellLink { }
-
-    [ComImport, InterfaceType(ComInterfaceType.InterfaceIsIUnknown), Guid("000214F9-0000-0000-C000-000000000046")]
-    private interface IShellLinkW
+    [GeneratedComInterface(StringMarshalling = StringMarshalling.Utf16), Guid("000214F9-0000-0000-C000-000000000046")]
+    internal unsafe partial interface IShellLinkW
     {
-        void GetPath([Out, MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 1)] char[] file, int max, IntPtr findData, uint flags);
-        void GetIDList(out IntPtr idList);
-        void SetIDList(IntPtr idList);
-        void GetDescription([Out, MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 1)] char[] name, int max);
-        void SetDescription([MarshalAs(UnmanagedType.LPWStr)] string name);
-        void GetWorkingDirectory([Out, MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 1)] char[] dir, int max);
-        void SetWorkingDirectory([MarshalAs(UnmanagedType.LPWStr)] string dir);
-        void GetArguments([Out, MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 1)] char[] args, int max);
-        void SetArguments([MarshalAs(UnmanagedType.LPWStr)] string args);
+        void GetPath(char* file, int max, nint findData, uint flags);
+        void GetIDList(out nint idList);
+        void SetIDList(nint idList);
+        void GetDescription(char* name, int max);
+        void SetDescription(string name);
+        void GetWorkingDirectory(char* dir, int max);
+        void SetWorkingDirectory(string dir);
+        void GetArguments(char* args, int max);
+        void SetArguments(string args);
         void GetHotkey(out ushort hotkey);
         void SetHotkey(ushort hotkey);
         void GetShowCmd(out int showCmd);
         void SetShowCmd(int showCmd);
-        void GetIconLocation([Out, MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 1)] char[] path, int max, out int index);
-        void SetIconLocation([MarshalAs(UnmanagedType.LPWStr)] string path, int index);
-        void SetRelativePath([MarshalAs(UnmanagedType.LPWStr)] string path, uint reserved);
-        void Resolve(IntPtr hwnd, uint flags);
-        void SetPath([MarshalAs(UnmanagedType.LPWStr)] string file);
+        void GetIconLocation(char* path, int max, out int index);
+        void SetIconLocation(string path, int index);
+        void SetRelativePath(string path, uint reserved);
+        void Resolve(nint hwnd, uint flags);
+        void SetPath(string file);
     }
 
-    [ComImport, InterfaceType(ComInterfaceType.InterfaceIsIUnknown), Guid("886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99")]
-    private interface IPropertyStore
+    [GeneratedComInterface, Guid("886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99")]
+    internal partial interface IPropertyStore
     {
         void GetCount(out uint count);
         void GetAt(uint index, out PropertyKey key);
@@ -266,14 +295,14 @@ public static class WindowsShell
         void Commit();
     }
 
-    [ComImport, InterfaceType(ComInterfaceType.InterfaceIsIUnknown), Guid("0000010B-0000-0000-C000-000000000046")]
-    private interface IPersistFile
+    [GeneratedComInterface(StringMarshalling = StringMarshalling.Utf16), Guid("0000010B-0000-0000-C000-000000000046")]
+    internal partial interface IPersistFile
     {
         void GetClassID(out Guid classId);
         [PreserveSig] int IsDirty();
-        void Load([MarshalAs(UnmanagedType.LPWStr)] string file, uint mode);
-        void Save([MarshalAs(UnmanagedType.LPWStr)] string file, [MarshalAs(UnmanagedType.Bool)] bool remember);
-        void SaveCompleted([MarshalAs(UnmanagedType.LPWStr)] string file);
-        void GetCurFile([MarshalAs(UnmanagedType.LPWStr)] out string file);
+        void Load(string file, uint mode);
+        void Save(string file, [MarshalAs(UnmanagedType.Bool)] bool remember);
+        void SaveCompleted(string file);
+        void GetCurFile(out nint file);
     }
 }
