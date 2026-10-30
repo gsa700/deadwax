@@ -4,7 +4,7 @@
         x:Class="Deadwax.App.PrefsWindow"
         x:DataType="app:MainViewModel"
         Title="Deadwax — Preferences"
-        Width="780" Height="640" CanResize="False"
+        Width="780" Height="640" MinWidth="640" MinHeight="480" CanResize="True"
         Background="{DynamicResource Ground}"
         ShowInTaskbar="False"
         RequestedThemeVariant="Light">
@@ -80,7 +80,10 @@
          sidebar"). The pages are a list on the left, the page on the right
          scrolls on its own, and the window is one size on every page: 780 by
          640, and no taller than the main window (his rule, 2026-10-24) or the
-         screen. About is last, set apart; new pages go before it.
+         screen as it opens. About is last, set apart; new pages go before it.
+         RESIZABLE (the same evening, both apps): a size he drags it to is kept,
+         from page to page and to the next opening (Settings.PrefsWidth/Height);
+         never smaller than 640 by 480.
 
          WORDING: for someone on a clean install who has never heard of whipper
          or of his library tools. Nothing here names a program the reader may

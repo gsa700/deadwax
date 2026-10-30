@@ -19,6 +19,10 @@ public partial class PrefsWindow : Window
         _main = main;
         _settings = settings;
         InitializeComponent();
+        // The size it was dragged to last time, if it was; still no taller than
+        // the main window or the screen as it opens (FitToMainWindow).
+        if (_settings.PrefsWidth is { } w) Width = Math.Max(w, MinWidth);
+        if (_settings.PrefsHeight is { } h) Height = Math.Max(h, MinHeight);
         DataContext = vm;
 
         PostRipBox.IsChecked = _settings.PostRip ?? true;
@@ -55,8 +59,8 @@ public partial class PrefsWindow : Window
         };
         Closing += (_, _) =>
         {
-            if (WindowPlacement.Current(this) is not { } p) return;
-            (_settings.PrefsX, _settings.PrefsY) = (p.X, p.Y);
+            (_settings.PrefsWidth, _settings.PrefsHeight) = (Math.Round(Width), Math.Round(Height));
+            if (WindowPlacement.Current(this) is { } p) (_settings.PrefsX, _settings.PrefsY) = (p.X, p.Y);
             _settings.Save();
         };
     }
@@ -83,7 +87,7 @@ public partial class PrefsWindow : Window
     }
 
     /// ONE SIZE ON EVERY PAGE (the family's rule, 2026-10-08), the markup's
-    /// 640, and a longer page scrolls inside it. With tabs it was the longest
+    /// 640 or the size he dragged it to, and a longer page scrolls inside it. With tabs it was the longest
     /// tab's height, 964 by 2026-10-25 for the Drive tab.
     /// NO TALLER THAN THE MAIN WINDOW, his rule (2026-10-24): it is already
     /// fitted to the screen, so this one cannot run off it, and the two

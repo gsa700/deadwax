@@ -20,6 +20,9 @@ public sealed class Settings
     /// The same for Preferences (his ask, 2026-10-13: "we forgot the prefs window").
     public int? PrefsX { get; set; }
     public int? PrefsY { get; set; }
+    /// Its size, once it has been dragged to one (2026-10-29, as AlbumWall's).
+    public double? PrefsWidth { get; set; }
+    public double? PrefsHeight { get; set; }
     /// The drive speed cap, kept between runs: a vibrating disc is usually
     /// one of several. SlowSpin false = "Full speed"; 4x is what read Now
     /// and Zen (2026-10-05).
