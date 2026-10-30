@@ -7,8 +7,8 @@ using Deadwax.Verify;
 namespace Deadwax.App;
 
 /// Preferences: see PrefsWindow.axaml. Reads and writes Settings itself; the
-/// drive speed and eject tick bind to the main view model, whose handlers
-/// already save them, so one setting has one owner.
+/// eject tick and the reading choice bind to the main view model, whose
+/// handlers already save them, so one setting has one owner.
 public partial class PrefsWindow : Window
 {
     private readonly MainWindow _main;

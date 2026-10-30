@@ -104,7 +104,7 @@
                     <TextBlock Classes="pagetitle" Text="Library"/>
                     <TextBlock Text="Where the music goes" FontSize="14" FontWeight="SemiBold"/>
                     <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
-                               Text="Each disc becomes a folder, laid out as chosen on the Filing tab, with the FLAC files, the cover and the rip log inside. If an artist is already in the library, their name is spelled the way it is there."/>
+                               Text="Each disc becomes a folder, laid out as chosen on the Filing page, with the FLAC files, the cover and the rip log inside. If an artist is already in the library, their name is spelled the way it is there."/>
                     <Border CornerRadius="4" Padding="13,11" Background="{DynamicResource Bar}">
                         <TextBlock x:Name="LibraryPath" FontSize="13" Classes="mono" TextWrapping="Wrap"/>
                     </Border>
@@ -119,7 +119,7 @@
                         <TextBlock Text="After a rip" FontSize="14" FontWeight="SemiBold"/>
                         <CheckBox x:Name="PostRipBox" FontSize="13" Content="Finish the new album for the library" Click="OnPostRipToggled"/>
                         <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
-                                   Text="A disc from a set, when you chose to file it as the album it originally was, is retagged with that album's own title, year and front cover, and its folder renamed. Then, if chosen on the Filing tab, the back cover is fetched from the Cover Art Archive as back.jpg: this pressing's when it has one, otherwise another edition's of the same album. Runs only after a rip where every track was proven: by AccurateRip, or by two reads that agree."/>
+                                   Text="A disc from a set, when you chose to file it as the album it originally was, is retagged with that album's own title, year and front cover, and its folder renamed. Then, if chosen on the Filing page, the back cover is fetched from the Cover Art Archive as back.jpg: this pressing's when it has one, otherwise another edition's of the same album. Runs only after a rip where every track was proven: by AccurateRip, or by two reads that agree."/>
                     </StackPanel>
                 </StackPanel>
                 </ScrollViewer>
@@ -192,15 +192,6 @@
                     <TextBlock x:Name="SavedDrivesText" Classes="dim mono" FontSize="12" LineHeight="18" TextWrapping="Wrap" IsVisible="False"/>
 
                     <Border Height="1" Background="{DynamicResource Rule}" Margin="0,6,0,0"/>
-                    <TextBlock Text="Speed" FontSize="14" FontWeight="SemiBold"/>
-                    <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
-                               Text="A disc that is slightly out of balance shakes at full speed, and a bad one can stop the drive answering. Capping the speed calms it; try 4x first, then lower. The cap applies to the rip, which reads more slowly; the first scan of a disc always runs at the drive's own speed, which is how you hear that it needs one. The cap is noted in the rip log and stays until you change it."/>
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <ComboBox ItemsSource="{Binding Speeds}" SelectedItem="{Binding DriveSpeed}" MinWidth="150" FontSize="13"/>
-                        <CheckBox IsChecked="{Binding EjectAfterRip}" FontSize="13" Content="Open the tray when a rip is done" VerticalAlignment="Center"/>
-                    </StackPanel>
-
-                    <Border Height="1" Background="{DynamicResource Rule}" Margin="0,6,0,0"/>
                     <TextBlock Text="Reading" FontSize="14" FontWeight="SemiBold"/>
                     <StackPanel Spacing="2">
                         <RadioButton GroupName="reading" IsChecked="{Binding ReadOnceWhenConfirmed}" FontSize="13"
@@ -214,6 +205,14 @@
                     </StackPanel>
                     <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
                                Text="Either way, the rip log says how each track was proven."/>
+
+                    <!-- THE SPEED CAP IS NOT HERE (his call, 2026-10-29: "there is no real
+                         use for it in prefs"): it is on the Disc screen, beside the disc
+                         that shakes, which is the only time anyone reaches for it. The
+                         tray stays: a standing choice, not a cure for the disc at hand. -->
+                    <Border Height="1" Background="{DynamicResource Rule}" Margin="0,6,0,0"/>
+                    <TextBlock Text="When a rip is done" FontSize="14" FontWeight="SemiBold"/>
+                    <CheckBox IsChecked="{Binding EjectAfterRip}" FontSize="13" Content="Open the tray"/>
                 </StackPanel>
                 </ScrollViewer>
 

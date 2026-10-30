@@ -75,7 +75,7 @@ install 0.8.0 or later itself, because it would take the program without its
 libraries: it says the release has no build for it, and the zip is downloaded
 from the release page instead.
 
-There are two channels, chosen in Preferences > About. **Edge** gets every build
+There are two channels, chosen in Preferences > Updates. **Edge** gets every build
 as it is released (published as GitHub pre-releases). **Stable**, the default,
 gets a build only once it has run on Edge without trouble and been promoted:
 the same binary, with its pre-release flag cleared.
@@ -127,12 +127,12 @@ For every track read twice regardless, choose **Always twice** in Preferences >
 Drive > Reading; AccurateRip is still checked and logged. On the command line it
 is `deadwax rip --two-passes`.
 
-<img src="docs/images/prefs-drive.png" width="420" alt="Preferences, Drive tab: the drive and its read offset, the speed cap, and the Reading choice between once when AccurateRip confirms it and always twice">
+<img src="docs/images/prefs-drive.png" width="420" alt="Preferences, Drive page: the drive and its read offset, and the Reading choice between once when AccurateRip confirms it and always twice">
 
 ## After the rip
 
 When every track was proven (by AccurateRip, or by two reads alike), Deadwax finishes the album for the
-library (Preferences, Library tab, **After a rip**; on by default). Nothing
+library (Preferences, Library page, **After a rip**; on by default). Nothing
 else needs to be installed for this.
 
 ![The Intake screen after a rip: all ten tracks accurately ripped, the disc filed as its own album, front and back covers fetched, and the tags and file names checked](docs/images/intake.png)

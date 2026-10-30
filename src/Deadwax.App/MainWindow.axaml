@@ -116,17 +116,18 @@
                             <TextBlock Grid.Row="5" Classes="dim" Text="AccurateRip"/>
                             <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding AccurateRipText}" TextWrapping="Wrap"/>
                         </Grid>
-                        <!-- The speed cap is back here as well as in Preferences (his call,
-                             2026-10-08): a disc vibrates while it is being read, and the cure
-                             should be at hand then. Shown while scanning too; a change restarts
-                             the background pass. The rest of the machine settings stay in
-                             Preferences. -->
+                        <!-- The speed cap lives here (his call, 2026-10-08, to bring it back
+                             beside the disc; and 2026-10-29, to take it out of Preferences,
+                             where it had no use): a disc vibrates while it is being read, and
+                             the cure should be at hand then. Shown while scanning too; a change
+                             restarts the background pass. The rest of the machine settings stay
+                             in Preferences. -->
                         <Border Height="1" Background="{StaticResource Rule}"/>
                         <StackPanel Spacing="8">
                             <TextBlock Classes="label" Text="DRIVE SPEED"/>
                             <ComboBox ItemsSource="{Binding Speeds}" SelectedItem="{Binding DriveSpeed}" MinWidth="160" FontSize="13"/>
                             <TextBlock Classes="soft" FontSize="13" TextWrapping="Wrap"
-                                       Text="If the disc shakes, cap the speed here and the rip reads it that slowly; try 4x first, then lower. The first scan always runs at the drive's own speed: that is how you hear that a disc needs it."/>
+                                       Text="If the disc shakes, cap the speed here and the rip reads it that slowly; try 4x first, then lower. The first scan always runs at the drive's own speed: that is how you hear that a disc needs it. The cap is noted in the rip log and stays until you change it."/>
                             <!-- The reading choice stays in Preferences (a standing choice, not a
                                  cure for the disc at hand); this line says which one the rip will use. -->
                             <TextBlock Classes="soft" FontSize="13" TextWrapping="Wrap" Text="{Binding ReadingText}"/>
