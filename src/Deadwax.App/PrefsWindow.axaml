@@ -109,7 +109,7 @@
                     <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
                                Text="Each disc becomes a folder, laid out as chosen on the Filing page, with the FLAC files, the cover and the rip log inside. If an artist is already in the library, their name is spelled the way it is there."/>
                     <Border CornerRadius="4" Padding="13,11" Background="{DynamicResource Bar}">
-                        <TextBlock x:Name="LibraryPath" FontSize="13" Classes="mono" TextWrapping="Wrap"/>
+                        <TextBlock x:Name="LibraryPath" FontSize="13" Classes="mono" LineHeight="20" TextWrapping="Wrap"/>
                     </Border>
                     <TextBlock x:Name="LibraryNote" Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"/>
                     <StackPanel Orientation="Horizontal" Spacing="9">
@@ -141,7 +141,7 @@
                         <ComboBox x:Name="TrackStyleBox" Grid.Row="1" Grid.Column="1" FontSize="13" MinWidth="260" SelectionChanged="OnFilingChanged"/>
                     </Grid>
                     <Border CornerRadius="4" Padding="13,9" Background="{DynamicResource Bar}">
-                        <TextBlock x:Name="FilingExample" FontSize="12" Classes="mono" TextWrapping="Wrap"/>
+                        <TextBlock x:Name="FilingExample" FontSize="12" Classes="mono" LineHeight="18" TextWrapping="Wrap"/>
                     </Border>
                     <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
                                Text="For new rips only: albums already in the library are never renamed."/>
@@ -178,8 +178,9 @@
                     <TextBlock Text="This drive" FontSize="14" FontWeight="SemiBold"/>
                     <Border CornerRadius="4" Padding="13,11" Background="{DynamicResource Bar}">
                         <StackPanel Spacing="4">
-                            <TextBlock x:Name="DriveNameText" FontSize="13" Classes="mono"/>
-                            <TextBlock x:Name="DeviceText" FontSize="12" Classes="mono dim"/>
+                            <TextBlock x:Name="DriveNameText" FontSize="13" Classes="mono" LineHeight="20" TextWrapping="Wrap"/>
+                            <TextBlock x:Name="DeviceText" FontSize="12" Classes="mono dim" LineHeight="18" TextWrapping="Wrap"
+                                       IsVisible="{Binding $self.Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                         </StackPanel>
                     </Border>
 
@@ -187,11 +188,11 @@
                     <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
                                Text="Every drive hands back audio a few samples early or late, always by the same amount. Correcting it makes your rips identical to everyone else's, which is what lets them be verified. Deadwax measures it once, from a well-known commercial CD (sometimes it needs two), and remembers it for this drive."/>
                     <Border CornerRadius="4" Padding="13,11" Background="{DynamicResource Bar}">
-                        <TextBlock x:Name="OffsetValueText" FontSize="13" Classes="mono"/>
+                        <TextBlock x:Name="OffsetValueText" FontSize="13" Classes="mono" LineHeight="20" TextWrapping="Wrap"/>
                     </Border>
                     <Button Classes="panel" HorizontalAlignment="Left" Content="Measure from the disc in the drive…"
                             Click="OnMeasure" IsEnabled="{Binding !MeasuringOffset}"/>
-                    <TextBlock Text="{Binding OffsetText}" Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"/>
+                    <TextBlock Text="{Binding OffsetText}" IsVisible="{Binding OffsetText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"/>
                     <TextBlock x:Name="SavedDrivesText" Classes="dim mono" FontSize="12" LineHeight="18" TextWrapping="Wrap" IsVisible="False"/>
 
                     <Border Height="1" Background="{DynamicResource Rule}" Margin="0,6,0,0"/>
