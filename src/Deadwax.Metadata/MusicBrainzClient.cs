@@ -10,6 +10,10 @@ public sealed class MusicBrainzException(string message) : Exception(message);
 /// with a growing pause. Only a 404 means "no such thing"; the wizard once
 /// reported a busy server as "disc not attached" and sent him off doing
 /// pointless submissions.
+///
+/// Marginal's MusicBrainzClient (src/Marginal.Core/MusicBrainzClient.cs,
+/// 2026-10-31) is made from this one: a fix to the pacing or the retries
+/// goes to both.
 public sealed class MusicBrainzClient : IDisposable
 {
     public const string ReleaseIncludes =

@@ -6,6 +6,9 @@ namespace Deadwax.Metadata;
 /// is used in a file name, a URL or memory. Both answer over HTTPS and are
 /// trusted to be themselves; these keep a wrong answer from going further than
 /// it should. Security review 2026-10-10.
+///
+/// COPIED to Marginal (src/Marginal.Core/WebLimits.cs, 2026-10-31), the same
+/// code in both: a fix here goes there too.
 public static class WebLimits
 {
     /// The largest image kept: the archive's 500 px renderings are well under 1 MB.

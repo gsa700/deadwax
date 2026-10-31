@@ -7,6 +7,8 @@ namespace Deadwax.Metadata;
 /// tells MusicBrainz and the Cover Art Archive it is. Both were constants,
 /// "0.1", that nothing ever bumped (the log fixed 2026-10-10, the MusicBrainz
 /// client and the CLI 2026-10-11).
+///
+/// COPIED to Marginal (src/Marginal.Core/AppVersion.cs, 2026-10-31).
 public static class AppVersion
 {
     public static string Current
