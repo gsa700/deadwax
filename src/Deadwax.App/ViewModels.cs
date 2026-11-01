@@ -26,6 +26,14 @@ public abstract class Observable : INotifyPropertyChanged
 
 public enum Stage { Waiting, Scanning, Disc, Ripping, Intake }
 
+/// Screen-reader text (accessibility, 2026-11-01; Marginal's Speech): the parts
+/// that are there, joined with commas, so a reader pauses between them.
+public static class Speech
+{
+    public static string Join(params string?[] parts) =>
+        string.Join(", ", parts.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p!.Trim()));
+}
+
 /// The palette's status colours, in one place, so a state is never colour alone
 /// but always colour plus a word (the mockup's rule).
 public static class Tone
@@ -82,14 +90,19 @@ public sealed class ReleaseRow : Observable
     public bool IsSet => Candidate.MediaCount > 1;
 
     private bool _barcodeMatch;
-    public bool BarcodeMatch { get => _barcodeMatch; set => Set(ref _barcodeMatch, value); }
+    public bool BarcodeMatch { get => _barcodeMatch; set { if (Set(ref _barcodeMatch, value)) Raise(nameof(Spoken)); } }
 
     private bool _selected;
     public bool IsSelected
     {
         get => _selected;
-        set { if (Set(ref _selected, value)) Raise(nameof(Background), nameof(Border)); }
+        set { if (Set(ref _selected, value)) Raise(nameof(Background), nameof(Border), nameof(Spoken)); }
     }
+
+    /// The row as a screen reader says it: the pick is shown only by colour
+    /// and edge on screen, so it is said in words here.
+    public string Spoken => Speech.Join(IsSelected ? "chosen" : null, Title, Note, Detail, Printed,
+        BarcodeMatch ? "barcode matches this disc" : null, IsSet ? "box set" : null);
 
     public IBrush Background => IsSelected ? Tone.Selected : Tone.Unselected;
     public IBrush Border => IsSelected ? Tone.Amber : Tone.RowRule;
@@ -112,14 +125,17 @@ public sealed class TrackRow : Observable
     public string TestCrc { get => _test; set => Set(ref _test, value); }
     public string CopyCrc { get => _copy; set => Set(ref _copy, value); }
     public string Speed { get => _speed; set => Set(ref _speed, value); }
-    public string Status { get => _status; set => Set(ref _status, value); }
-    public string Detail { get => _detail; set => Set(ref _detail, value); }
+    public string Status { get => _status; set { if (Set(ref _status, value)) Raise(nameof(Spoken)); } }
+    public string Detail { get => _detail; set { if (Set(ref _detail, value)) Raise(nameof(Spoken)); } }
     public IBrush StatusBrush { get => _statusBrush; set => Set(ref _statusBrush, value); }
     public IBrush Foreground { get => _fg; set => Set(ref _fg, value); }
     public IBrush Background { get => _bg; set => Set(ref _bg, value); }
     public double Progress { get => _progress; set => Set(ref _progress, value); }
     public bool Active { get => _active; set { if (Set(ref _active, value)) Raise(nameof(NotActive)); } }
     public bool NotActive => !Active;
+
+    public string Spoken => Speech.Join($"track {Number}", Title, Length, Status.TrimStart('✓', ' '), Detail,
+        TestCrc.Length > 0 ? $"read 1 CRC {TestCrc}" : null, CopyCrc.Length > 0 && CopyCrc != "—" ? $"read 2 CRC {CopyCrc}" : null);
 }
 
 /// One cell of the read map: about two seconds of the disc.
@@ -136,6 +152,7 @@ public sealed class StepRow
     public required bool Ok { get; init; }
     public IBrush Brush => Ok ? Tone.Good : Tone.Warn;
     public string Mark => Ok ? "✓" : "!";
+    public string Spoken => Speech.Join(Name, Ok ? "done" : "needs a look", Detail);
 }
 
 /// A row of the drive-speed list; null = the drive's own choice.
@@ -154,7 +171,7 @@ public sealed class MainViewModel : Observable
         {
             if (Set(ref _stage, value))
                 Raise(nameof(IsWaiting), nameof(IsScanning), nameof(IsDisc), nameof(IsRipping), nameof(IsIntake),
-                      nameof(ShowDiscScreen), nameof(DiscStage), nameof(RipStage), nameof(IntakeStage));
+                      nameof(ShowDiscScreen), nameof(DiscStage), nameof(RipStage), nameof(IntakeStage), nameof(StageSpoken));
         }
     }
 
@@ -167,6 +184,8 @@ public sealed class MainViewModel : Observable
     public string DiscStage => ShowDiscScreen ? "current" : "";
     public string RipStage => IsRipping ? "current" : "";
     public string IntakeStage => IsIntake ? "current" : "";
+    /// The three stages in the title bar, the current one shown only by its look.
+    public string StageSpoken => $"Stage: {(ShowDiscScreen ? "Disc" : IsRipping ? "Rip" : "Intake")}, of Disc, Rip, Intake";
 
     private string _drive = "", _status = "", _error = "";
     public string DriveText { get => _drive; set => Set(ref _drive, value); }
@@ -348,15 +367,39 @@ public sealed class MainViewModel : Observable
     public double Overall { get => _overall; set => Set(ref _overall, value); }
     public ObservableCollection<TrackRow> Tracks { get; } = [];
     public ObservableCollection<MapCell> Map { get; } = [];
+
+    /// The disc-surface map in words, for a screen reader: its cells are
+    /// colour only. Raised by the rip as it goes (MapChanged), never read out
+    /// by itself.
+    public string MapSpoken
+    {
+        get
+        {
+            if (Map.Count == 0) return "Disc surface";
+            int Count(IBrush b) => Map.Count(c => ReferenceEquals(c.Fill, b));
+            var parts = new List<string> { $"Disc surface, {Map.Count} cells" };
+            void Add(IBrush b, string what) { var n = Count(b); if (n > 0) parts.Add($"{n} {what}"); }
+            Add(Tone.Unread, "not read yet");
+            Add(Tone.Reading, "reading");
+            Add(Tone.Copied, "reading again");
+            Add(Tone.MapGood, "confirmed by AccurateRip");
+            Add(Tone.MapTwice, "read twice alike");
+            Add(Tone.Warn, "re-read and recovered");
+            Add(Tone.Bad, "could not read");
+            return string.Join(", ", parts);
+        }
+    }
+    public void MapChanged() => Raise(nameof(MapSpoken));
     public ObservableCollection<string> Log { get; } = [];
 
     // The Intake screen.
     private string _verdict = "", _verdictDetail = "", _albumDir = "";
     private bool _allGood;
-    public string Verdict { get => _verdict; set => Set(ref _verdict, value); }
-    public string VerdictDetail { get => _verdictDetail; set => Set(ref _verdictDetail, value); }
+    public string Verdict { get => _verdict; set { if (Set(ref _verdict, value)) Raise(nameof(VerdictSpoken)); } }
+    public string VerdictDetail { get => _verdictDetail; set { if (Set(ref _verdictDetail, value)) Raise(nameof(VerdictSpoken)); } }
     public bool AllGood { get => _allGood; set { if (Set(ref _allGood, value)) Raise(nameof(VerdictBrush), nameof(VerdictMark)); } }
     public IBrush VerdictBrush => AllGood ? Tone.Good : Tone.Warn;
+    public string VerdictSpoken => Speech.Join(Verdict, VerdictDetail);
     public string VerdictMark => AllGood ? "✓" : "!";
     public string AlbumDirectory { get => _albumDir; set => Set(ref _albumDir, value); }
     public ObservableCollection<StepRow> Steps { get; } = [];

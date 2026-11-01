@@ -73,3 +73,5 @@ AlbumWall (`~/Projects/albumwall`) plays FLAC with a copy of this repository's
 FLAC decoder (`src/Deadwax.Output/FlacDecoder.cs` and the reader in
 `FlacBits.cs` -> AlbumWall's `src/AlbumWall.Codecs/Flac.cs`). The frame
 decoding is kept identical in both: a fix to it here goes there too.
+`src/Deadwax.App/TextSize.cs` is AlbumWall's, copied unchanged below its header
+(2026-11-01); a fix in one goes to the other.

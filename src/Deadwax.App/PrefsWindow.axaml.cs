@@ -34,6 +34,10 @@ public partial class PrefsWindow : Window
         EdgeBox.IsChecked = _settings.EdgeChannel;
         FillUpdate();
         FillInstall();
+        FillKeys();
+        WireAccessibility();
+        // Escape closes it, as any panel of settings (accessibility, 2026-11-01).
+        KeyDown += (_, e) => { if (e.Key == Avalonia.Input.Key.Escape) { Close(); e.Handled = true; } };
 
         // A page is called what its line says, for a screen reader too.
         var lines = Pages.Items.OfType<ListBoxItem>().ToList();
@@ -59,13 +63,15 @@ public partial class PrefsWindow : Window
         };
         Closing += (_, _) =>
         {
-            (_settings.PrefsWidth, _settings.PrefsHeight) = (Math.Round(Width), Math.Round(Height));
+            var f = TextSize.Percent / 100.0;   // kept at 100% text, as AlbumWall's
+            (_settings.PrefsWidth, _settings.PrefsHeight) = (Math.Round(Width / f), Math.Round(Height / f));
             if (WindowPlacement.Current(this) is { } p) (_settings.PrefsX, _settings.PrefsY) = (p.X, p.Y);
             _settings.Save();
         };
+        TextSize.Follow(this);
     }
 
-    private ScrollViewer[] PageList => [PageLibrary, PageFiling, PageDrive, PageUpdates, PageAbout];
+    private ScrollViewer[] PageList => [PageLibrary, PageFiling, PageDrive, PageAccessibility, PageUpdates, PageKeys, PageAbout];
 
     /// Preferences at a page, by the name on its line ("About").
     internal void Select(string page)

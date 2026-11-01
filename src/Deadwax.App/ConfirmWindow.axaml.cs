@@ -42,6 +42,9 @@ public partial class ConfirmWindow : Window
 
         if (negative is null) NegativeButton.IsVisible = false;
         else NegativeButton.Content = negative;
+        // Escape answers no, or closes a message with nothing to decline (accessibility, 2026-11-01).
+        if (negative is null) AffirmativeButton.IsCancel = true;
+        else NegativeButton.IsCancel = true;
 
         if (!string.IsNullOrWhiteSpace(detail))
         {
@@ -57,6 +60,7 @@ public partial class ConfirmWindow : Window
 
         AffirmativeButton.Click += (_, _) => Close(true);
         NegativeButton.Click += (_, _) => Close(false);
+        TextSize.Follow(this);   // the text size chosen in Preferences (accessibility, 2026-11-01)
     }
 
     /// <summary>Whether the optional checkbox was ticked when the dialog closed.</summary>

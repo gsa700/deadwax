@@ -49,7 +49,7 @@
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="20" VerticalAlignment="Center"
                             IsHitTestVisible="False">
                     <TextBlock Text="Deadwax" FontSize="17" FontWeight="Bold" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                    <StackPanel Orientation="Horizontal" Spacing="4">
+                    <StackPanel Orientation="Horizontal" Spacing="4" AutomationProperties.Name="{Binding StageSpoken}">
                         <Border Classes="stage" Classes.current="{Binding ShowDiscScreen}"><TextBlock Text="Disc"/></Border>
                         <Border Classes="stage" Classes.current="{Binding IsRipping}"><TextBlock Text="Rip"/></Border>
                         <Border Classes="stage" Classes.current="{Binding IsIntake}"><TextBlock Text="Intake"/></Border>
@@ -59,7 +59,8 @@
                     <!-- AlbumWall's gear, the same glyph and size: the two are companions.
                          A newer release only ever lights the dot on it; the About tab
                          of Preferences is where it is checked for and installed. -->
-                    <Button x:Name="SettingsButton" Classes="chrome" Click="OnPreferences" Padding="8,4" VerticalAlignment="Center" ToolTip.Tip="Preferences">
+                    <Button x:Name="SettingsButton" Classes="chrome" Click="OnPreferences" Padding="8,4" VerticalAlignment="Center" ToolTip.Tip="Preferences"
+                            AutomationProperties.Name="Preferences">
                         <Panel>
                         <Path Stretch="Uniform" Width="17" Height="17" Fill="{StaticResource Text}"
                               Data="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58
@@ -96,7 +97,7 @@
                                 <TextBlock Text="{Binding StatusText}" Classes="dim" TextWrapping="Wrap" TextAlignment="Center"
                                            HorizontalAlignment="Center" VerticalAlignment="Center" Margin="32"/>
                             </Border>
-                            <Image Source="{Binding Cover}" Stretch="UniformToFill" IsVisible="{Binding HasCover}"/>
+                            <Image Source="{Binding Cover}" Stretch="UniformToFill" IsVisible="{Binding HasCover}" AutomationProperties.Name="Front cover"/>
                         </Panel>
                         <Border Height="1" Background="{StaticResource Rule}"/>
                         <Grid ColumnDefinitions="132,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" IsVisible="{Binding IsDisc}">
@@ -125,7 +126,7 @@
                         <Border Height="1" Background="{StaticResource Rule}"/>
                         <StackPanel Spacing="8">
                             <TextBlock Classes="label" Text="DRIVE SPEED"/>
-                            <ComboBox ItemsSource="{Binding Speeds}" SelectedItem="{Binding DriveSpeed}" MinWidth="160" FontSize="13"/>
+                            <ComboBox ItemsSource="{Binding Speeds}" SelectedItem="{Binding DriveSpeed}" MinWidth="160" FontSize="13" AutomationProperties.Name="Drive speed"/>
                             <TextBlock Classes="soft" FontSize="13" TextWrapping="Wrap"
                                        Text="If the disc shakes, cap the speed here and the rip reads it that slowly; try 4x first, then lower. The first scan always runs at the drive's own speed: that is how you hear that a disc needs it. The cap is noted in the rip log and stays until you change it."/>
                             <!-- The reading choice stays in Preferences (a standing choice, not a
@@ -139,17 +140,20 @@
                     <!-- Waiting for a disc, or reading it. -->
                     <StackPanel Grid.Row="0" Spacing="10" VerticalAlignment="Center" HorizontalAlignment="Center"
                                 IsVisible="{Binding !IsDisc}">
-                        <TextBlock Text="{Binding StatusText}" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                        <!-- Read out when it changes (accessibility): what the drive and the disc are doing. -->
+                        <TextBlock Text="{Binding StatusText}" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Center"
+                                   AutomationProperties.LiveSetting="Polite" AutomationProperties.HeadingLevel="1"/>
                         <ProgressBar IsIndeterminate="True" Width="320" IsVisible="{Binding IsScanning}"/>
                         <TextBlock Text="{Binding ErrorText}" Foreground="{StaticResource Bad}" IsVisible="{Binding HasError}"
-                                   TextWrapping="Wrap" MaxWidth="640" HorizontalAlignment="Center" TextAlignment="Center"/>
+                                   TextWrapping="Wrap" MaxWidth="640" HorizontalAlignment="Center" TextAlignment="Center"
+                                   AutomationProperties.LiveSetting="Assertive"/>
                         <!-- A drive with no offset on file: the one-time setup, in calm grey (not
                              the red of a failure), and the measurement from the disc (OffsetFinder). -->
                         <StackPanel Spacing="10" HorizontalAlignment="Center" IsVisible="{Binding NeedsOffset}" Margin="0,4,0,0">
                             <TextBlock Text="{Binding OffsetIntro}" Classes="soft" FontSize="16" LineHeight="24" TextWrapping="Wrap" MaxWidth="600"
                                        HorizontalAlignment="Center" TextAlignment="Center"/>
                             <!-- What each CD found so far, kept while the next one goes in. -->
-                            <TextBlock Text="{Binding OffsetProgress}" IsVisible="{Binding HasOffsetProgress}" FontSize="15" LineHeight="22"
+                            <TextBlock Text="{Binding OffsetProgress}" IsVisible="{Binding HasOffsetProgress}" FontSize="15" LineHeight="22" AutomationProperties.LiveSetting="Polite"
                                        TextWrapping="Wrap" MaxWidth="600" HorizontalAlignment="Center" TextAlignment="Center"/>
                             <ProgressBar Width="320" HorizontalAlignment="Center" IsVisible="{Binding MeasuringOffset}"
                                          IsIndeterminate="{Binding OffsetWorking}" Minimum="0" Maximum="100" Value="{Binding OffsetPercent}"/>
@@ -167,14 +171,14 @@
                                 <TextBlock Classes="label" Text="WHICH RELEASE IS THIS?"/>
                                 <TextBlock Classes="dim" FontSize="14" Text="{Binding ReleasesHeading}"/>
                             </StackPanel>
-                            <ItemsControl ItemsSource="{Binding Releases}">
+                            <ItemsControl ItemsSource="{Binding Releases}" AutomationProperties.Name="Releases to choose from">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate><StackPanel Spacing="8"/></ItemsPanelTemplate>
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="app:ReleaseRow">
                                         <Button Classes="release" Background="{Binding Background}" BorderBrush="{Binding Border}"
-                                                Click="OnReleaseClicked" Tag="{Binding}">
+                                                Click="OnReleaseClicked" Tag="{Binding}" AutomationProperties.Name="{Binding Spoken}">
                                             <Grid ColumnDefinitions="*,Auto">
                                                 <StackPanel Spacing="3">
                                                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -203,7 +207,7 @@
                             <StackPanel Spacing="6">
                                 <TextBlock Classes="dim" FontSize="13" Text="Not listed? Paste its MusicBrainz release link. The disc's tracks are checked against it."/>
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                                    <TextBox x:Name="ReleaseLink" Classes="mono" FontSize="13"
+                                    <TextBox x:Name="ReleaseLink" Classes="mono" FontSize="13" AutomationProperties.Name="MusicBrainz release link"
                                              PlaceholderText="https://musicbrainz.org/release/…" KeyDown="OnReleaseLinkKey"/>
                                     <Button Grid.Column="1" Classes="quiet" Content="Use this release" Click="OnUseReleaseLink"/>
                                 </Grid>
@@ -226,11 +230,11 @@
                                     <StackPanel Spacing="10">
                                         <Grid ColumnDefinitions="90,*,70,80" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="8">
                                             <TextBlock Classes="dim" FontSize="13" VerticalAlignment="Center" Text="Artist"/>
-                                            <TextBox Grid.Column="1" Text="{Binding DescribeArtist}" FontSize="13"/>
+                                            <TextBox Grid.Column="1" Text="{Binding DescribeArtist}" FontSize="13" AutomationProperties.Name="Artist"/>
                                             <TextBlock Grid.Column="2" Classes="dim" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Right" Text="Year"/>
-                                            <TextBox Grid.Column="3" Text="{Binding DescribeYear}" FontSize="13" MaxLength="4"/>
+                                            <TextBox Grid.Column="3" Text="{Binding DescribeYear}" FontSize="13" MaxLength="4" AutomationProperties.Name="Year"/>
                                             <TextBlock Grid.Row="1" Classes="dim" FontSize="13" VerticalAlignment="Center" Text="Album"/>
-                                            <TextBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding DescribeAlbum}" FontSize="13"/>
+                                            <TextBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding DescribeAlbum}" FontSize="13" AutomationProperties.Name="Album"/>
                                         </Grid>
                                         <ItemsControl ItemsSource="{Binding DescribeTracks}">
                                             <ItemsControl.ItemTemplate>
@@ -238,7 +242,8 @@
                                                     <Grid ColumnDefinitions="28,52,*" ColumnSpacing="10" Margin="0,2">
                                                         <TextBlock Text="{Binding Number}" Classes="dim mono" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Right"/>
                                                         <TextBlock Grid.Column="1" Text="{Binding Length}" Classes="dim mono" FontSize="13" VerticalAlignment="Center"/>
-                                                        <TextBox Grid.Column="2" Text="{Binding Title}" FontSize="13"/>
+                                                        <TextBox Grid.Column="2" Text="{Binding Title}" FontSize="13"
+                                                                 AutomationProperties.Name="{Binding Number, StringFormat='Title of track {0}'}"/>
                                                     </Grid>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
@@ -320,7 +325,8 @@
                     <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,24,0,0">
                         <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" Margin="0,0,24,0">
                             <TextBlock Text="{Binding ErrorText}" Foreground="{StaticResource Bad}" IsVisible="{Binding HasError}"
-                                       TextWrapping="Wrap" MaxWidth="520" VerticalAlignment="Center"/>
+                                       TextWrapping="Wrap" MaxWidth="520" VerticalAlignment="Center"
+                                       AutomationProperties.LiveSetting="Assertive"/>
                             <Button Classes="quiet" Content="Remove the partial album" Click="OnRemovePartial"
                                     IsVisible="{Binding HasPartialAlbum}" ToolTip.Tip="{Binding PartialAlbum}"/>
                         </StackPanel>
@@ -339,16 +345,16 @@
                     <Grid ColumnDefinitions="Auto,*" >
                         <Panel Width="112" Height="112" Margin="0,0,24,0">
                             <Border Background="#26262A" CornerRadius="4"/>
-                            <Image Source="{Binding Cover}" Stretch="UniformToFill"/>
+                            <Image Source="{Binding Cover}" Stretch="UniformToFill" AutomationProperties.Name="Front cover"/>
                         </Panel>
                         <StackPanel Grid.Column="1" Spacing="10" VerticalAlignment="Center">
                             <StackPanel Spacing="2">
-                                <TextBlock Text="{Binding AlbumTitle}" FontSize="24" FontWeight="Bold"/>
+                                <TextBlock Text="{Binding AlbumTitle}" FontSize="24" FontWeight="Bold" AutomationProperties.HeadingLevel="1"/>
                                 <TextBlock Text="{Binding AlbumLine}" Classes="soft" FontSize="14"/>
                             </StackPanel>
-                            <ProgressBar Value="{Binding Overall}" Maximum="100" Height="10" CornerRadius="5"/>
+                            <ProgressBar Value="{Binding Overall}" Maximum="100" Height="10" CornerRadius="5" AutomationProperties.Name="Whole disc"/>
                             <StackPanel Orientation="Horizontal" Spacing="28">
-                                <TextBlock Text="{Binding NowText}" FontSize="13" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding NowText}" FontSize="13" FontWeight="SemiBold" AutomationProperties.LiveSetting="Polite"/>
                                 <TextBlock Text="{Binding SpeedText}" Classes="dim mono" FontSize="13"/>
                                 <TextBlock Text="{Binding ElapsedText}" Classes="dim mono" FontSize="13"/>
                             </StackPanel>
@@ -384,13 +390,16 @@
                         <TextBlock Classes="label" Text="DISC SURFACE"/>
                         <TextBlock Classes="dim" FontSize="13" Text="Each cell is about two seconds of audio. Re-reads show as they happen."/>
                     </StackPanel>
-                    <ItemsControl ItemsSource="{Binding Map}">
+                    <!-- One element for a screen reader, in words; its hundreds of
+                         cells are colour only and are kept out of the tree. -->
+                    <ItemsControl ItemsSource="{Binding Map}" AutomationProperties.Name="{Binding MapSpoken}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate><UniformGrid Columns="120"/></ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="app:MapCell">
-                                <Border Height="10" Margin="1" CornerRadius="1.5" Background="{Binding Fill}"/>
+                                <Border Height="10" Margin="1" CornerRadius="1.5" Background="{Binding Fill}"
+                                        AutomationProperties.AccessibilityView="Raw"/>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
@@ -421,10 +430,11 @@
                     </Grid>
                     <Border DockPanel.Dock="Top" Height="1" Background="{StaticResource Rule}"/>
                     <ScrollViewer x:Name="TrackScroll">
-                        <ItemsControl x:Name="TrackList" ItemsSource="{Binding Tracks}" Margin="0,0,18,0">
+                        <ItemsControl x:Name="TrackList" ItemsSource="{Binding Tracks}" Margin="0,0,18,0" AutomationProperties.Name="Tracks">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="app:TrackRow">
-                                    <Border Background="{Binding Background}" BorderBrush="{StaticResource RowRule}" BorderThickness="0,0,0,1" Height="48">
+                                    <Border Background="{Binding Background}" BorderBrush="{StaticResource RowRule}" BorderThickness="0,0,0,1" Height="48"
+                                            AutomationProperties.Name="{Binding Spoken}">
                                         <Grid ColumnDefinitions="44,*,80,110,110,84,300" Margin="16,0,32,0" VerticalAlignment="Center">
                                             <Grid.Styles><Style Selector="TextBlock"><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="FontSize" Value="14"/></Style></Grid.Styles>
                                             <TextBlock Text="{Binding NumberText}" Classes="mono dim"/>
@@ -434,7 +444,8 @@
                                             <TextBlock Grid.Column="4" Text="{Binding CopyCrc}" Classes="mono" FontSize="13"/>
                                             <TextBlock Grid.Column="5" Text="{Binding Speed}" Classes="mono" FontSize="13"/>
                                             <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                                <ProgressBar Width="110" Height="6" Value="{Binding Progress}" Maximum="100" IsVisible="{Binding Active}" VerticalAlignment="Center"/>
+                                                <ProgressBar Width="110" Height="6" Value="{Binding Progress}" Maximum="100" IsVisible="{Binding Active}" VerticalAlignment="Center"
+                                                             AutomationProperties.Name="{Binding Number, StringFormat='Track {0}'}"/>
                                                 <TextBlock Text="{Binding Status}" Foreground="{Binding StatusBrush}" FontWeight="SemiBold"/>
                                                 <TextBlock Text="{Binding Detail}" Classes="dim" FontSize="13"/>
                                             </StackPanel>
@@ -453,12 +464,13 @@
                     <StackPanel Spacing="16">
                         <Panel Width="364" Height="364">
                             <Border Background="#26262A" CornerRadius="4"/>
-                            <Image Source="{Binding Cover}" Stretch="UniformToFill"/>
+                            <Image Source="{Binding Cover}" Stretch="UniformToFill" AutomationProperties.Name="Front cover"/>
                         </Panel>
                     </StackPanel>
                 </Border>
                 <Grid Grid.Column="1" Margin="40,36" RowDefinitions="Auto,Auto,*,Auto">
-                    <StackPanel Orientation="Horizontal" Spacing="20">
+                    <StackPanel Orientation="Horizontal" Spacing="20" AutomationProperties.Name="{Binding VerdictSpoken}"
+                                AutomationProperties.LiveSetting="Polite">
                         <Border Width="56" Height="56" CornerRadius="28" Background="#1F3A27">
                             <TextBlock Text="{Binding VerdictMark}" Foreground="{Binding VerdictBrush}" FontSize="28" FontWeight="Bold"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -472,10 +484,10 @@
                     <StackPanel Grid.Row="1" Spacing="12" Margin="0,28,0,0">
                         <TextBlock Classes="label" Text="INTO THE LIBRARY"/>
                         <Border Background="{StaticResource Bar}" CornerRadius="8">
-                            <ItemsControl ItemsSource="{Binding Steps}">
+                            <ItemsControl ItemsSource="{Binding Steps}" AutomationProperties.Name="Into the library">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="app:StepRow">
-                                        <Grid ColumnDefinitions="28,220,*" Margin="20,12">
+                                        <Grid ColumnDefinitions="28,220,*" Margin="20,12" AutomationProperties.Name="{Binding Spoken}">
                                             <TextBlock Text="{Binding Mark}" Foreground="{Binding Brush}" FontWeight="Bold" FontSize="15"/>
                                             <TextBlock Grid.Column="1" Text="{Binding Name}" FontWeight="SemiBold" FontSize="14"/>
                                             <TextBlock Grid.Column="2" Text="{Binding Detail}" Classes="soft" FontSize="14" TextWrapping="Wrap"/>

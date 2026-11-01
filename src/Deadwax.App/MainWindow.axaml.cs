@@ -63,6 +63,8 @@ public sealed partial class MainWindow : Window
         FollowTheCurrentTrack();
         UseMacTitleBar();
         SetUpMacMenu();
+        SetUpKeys();
+        TextSize.Choose(_settings.TextSize);   // for Preferences and the questions (TextSize)
         BuildWindowButtons();
         AddHandler(PointerPressedEvent, OnPointerPressedForResize, RoutingStrategies.Tunnel);
         AddHandler(PointerMovedEvent, OnPointerMovedForResize, RoutingStrategies.Tunnel);
@@ -832,6 +834,7 @@ public sealed partial class MainWindow : Window
         var cells = (int)Math.Ceiling(disc.Toc.LeadoutLsn / (double)Observer.SectorsPerCell);
         _vm.Map.Clear();
         for (var i = 0; i < cells; i++) _vm.Map.Add(new MapCell());
+        _vm.MapChanged();
         _vm.Log.Clear();
         _vm.Overall = 0;
         _vm.NowText = "Starting: AccurateRip, the front cover, then the drive...";
@@ -1115,6 +1118,7 @@ public sealed partial class MainWindow : Window
                 var last = (t.StartLsn + done) / SectorsPerCell;
                 for (var c = t.StartLsn / SectorsPerCell; c <= last && c < vm.Map.Count; c++)
                     if (vm.Map[c].Fill == from) vm.Map[c].Fill = to;
+                vm.MapChanged();   // the map in words, for a screen reader (at most once a percent)
             });
         }
 
@@ -1127,7 +1131,7 @@ public sealed partial class MainWindow : Window
             if (cell < 0) return;
             var brush = state == SectorState.Skipped ? Tone.Bad : Tone.Warn;
             if (!Worsen(cell, brush)) return;
-            Dispatcher.UIThread.Post(() => { if (cell < vm.Map.Count) vm.Map[cell].Fill = brush; });
+            Dispatcher.UIThread.Post(() => { if (cell < vm.Map.Count) { vm.Map[cell].Fill = brush; vm.MapChanged(); } });
         }
 
         /// The status line says what a long silence at a damaged spot is: which
@@ -1202,6 +1206,7 @@ public sealed partial class MainWindow : Window
                 for (var c = t.StartLsn / SectorsPerCell; c <= (disc.Toc.EndLsn(t) - 1) / SectorsPerCell && c < vm.Map.Count; c++)
                     vm.Map[c].Fill = _worst.TryGetValue(c, out var b) ? b
                         : !result.CopyOk ? Tone.Bad : result.AccurateRip.IsAccurate ? Tone.MapGood : Tone.MapTwice;
+            vm.MapChanged();
 
             var row = vm.Tracks.FirstOrDefault(r => r.Number == result.Number);
             if (row is null) return;

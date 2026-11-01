@@ -95,7 +95,9 @@
             <ListBoxItem Content="Library"/>
             <ListBoxItem Content="Filing"/>
             <ListBoxItem Content="Drive"/>
+            <ListBoxItem Content="Accessibility"/>
             <ListBoxItem Content="Updates"/>
+            <ListBoxItem Content="Keys"/>
             <ListBoxItem Content="About" Classes="apart"/>
         </ListBox>
 
@@ -226,6 +228,25 @@
                      restart" when there is something to install, and a bar while it
                      downloads. The check at launch only ever lights the dot on the
                      gear; nothing is fetched until this button. -->
+                <!-- ACCESSIBILITY (2026-11-01, AlbumWall's page less its motion choice:
+                     nothing in Deadwax moves but the busy bars): text size for this window
+                     and the questions, and what is always on. -->
+                <ScrollViewer x:Name="PageAccessibility" IsVisible="False" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="12" Margin="0,0,14,0">
+                    <TextBlock Classes="pagetitle" Text="Accessibility" AutomationProperties.HeadingLevel="1"/>
+                    <TextBlock Text="Text size" FontSize="14" FontWeight="SemiBold" AutomationProperties.HeadingLevel="2"/>
+                    <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
+                               Text="Makes the text in this window and in the questions Deadwax asks larger, with their buttons and spacing. The main window keeps its size."/>
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <ComboBox x:Name="TextSizeChoice" Width="120" AutomationProperties.Name="Text size"/>
+                        <TextBlock Classes="dim" FontSize="13" VerticalAlignment="Center" Text="Applies at once."/>
+                    </StackPanel>
+                    <TextBlock Text="Always on" FontSize="14" FontWeight="SemiBold" Margin="0,6,0,0" AutomationProperties.HeadingLevel="2"/>
+                    <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap"
+                               Text="Everything can be reached from the keyboard; Keys lists the shortcuts. Every control has a name for a screen reader: each release says whether it is the one chosen, each track its status, and the disc map says in words how much has been read and how. What the drive is doing, and anything that goes wrong, is read out when it happens. A state is never colour alone: each has its word beside it."/>
+                </StackPanel>
+                </ScrollViewer>
+
                 <ScrollViewer x:Name="PageUpdates" IsVisible="False" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
                 <StackPanel Spacing="12" Margin="0,0,14,0">
                     <TextBlock Classes="pagetitle" Text="Updates"/>
@@ -242,6 +263,16 @@
                         <Border x:Name="UpdateFill" Height="4" CornerRadius="2" Width="0" HorizontalAlignment="Left" Background="{DynamicResource Text}"/>
                     </Border>
                     <Button x:Name="UpdateButton" Classes="panel" HorizontalAlignment="Left" Content="Check for updates" Click="OnCheckUpdates"/>
+                </StackPanel>
+                </ScrollViewer>
+
+                <!-- KEYS (accessibility, 2026-11-01; AlbumWall's and Marginal's page): what
+                     cannot be found by looking. Built in code (PrefsWindow.Keys.cs) beside
+                     the handler it must agree with (MainWindow.Keys.cs). -->
+                <ScrollViewer x:Name="PageKeys" IsVisible="False" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="12" Margin="0,0,14,0">
+                    <TextBlock Classes="pagetitle" Text="Keys" AutomationProperties.HeadingLevel="1"/>
+                    <StackPanel x:Name="KeysBody" Spacing="3"/>
                 </StackPanel>
                 </ScrollViewer>
 

@@ -86,7 +86,7 @@ public partial class MainWindow
     }
 
     /// Preferences, opened at a page by its name ("About"), or as it was.
-    private void ShowPrefs(string? page)
+    internal void ShowPrefs(string? page)
     {
         OnPreferences(null, new RoutedEventArgs());
         if (page is not null) _prefs?.Select(page);

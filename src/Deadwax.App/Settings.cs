@@ -23,6 +23,9 @@ public sealed class Settings
     /// Its size, once it has been dragged to one (2026-10-29, as AlbumWall's).
     public double? PrefsWidth { get; set; }
     public double? PrefsHeight { get; set; }
+    /// Text size in percent for Preferences and the questions (TextSize);
+    /// absent is 100. Window sizes here are kept at 100%.
+    public int? TextSize { get; set; }
     /// The drive speed cap, kept between runs: a vibrating disc is usually
     /// one of several. SlowSpin false = "Full speed"; 4x is what read Now
     /// and Zen (2026-10-05).
