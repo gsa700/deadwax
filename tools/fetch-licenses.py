@@ -44,7 +44,7 @@ WANTED = [
 
     # ---- the application
     ("dotnet-runtime-LICENSE.TXT", ".NET runtime and System.IO.Hashing (MIT)", GITHUB, "dotnet/runtime", ["v10.0.0", None], ["LICENSE.TXT"]),
-    ("avalonia-licence.md", "Avalonia (MIT)", GITHUB, "AvaloniaUI/Avalonia", ["12.1.2", None], ["licence.md", "LICENSE.md", "LICENSE"]),
+    ("avalonia-licence.md", "Avalonia (MIT)", GITHUB, "AvaloniaUI/Avalonia", ["12.1.4", None], ["licence.md", "LICENSE.md", "LICENSE"]),
     ("skiasharp-LICENSE.md", "SkiaSharp and HarfBuzzSharp (MIT)", GITHUB, "mono/SkiaSharp", [None], ["LICENSE.md", "LICENSE.txt", "LICENSE"]),
     ("skia-LICENSE.txt", "Skia (BSD 3-Clause)", GITHUB, "google/skia", [None], ["LICENSE"]),
     ("microcom-LICENSE.txt", "MicroCom (MIT)", GITHUB, "kekekeks/MicroCom", [None], ["LICENSE", "LICENSE.md", "LICENSE.txt", "licence.md"]),

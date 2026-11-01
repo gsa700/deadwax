@@ -26,7 +26,7 @@ keep those libraries and the exact source archives they were built from.
   License: MIT.
   Source: https://github.com/dotnet/runtime
 
-- **Avalonia 12.1.2**: the user-interface toolkit: every window and control.
+- **Avalonia 12.1.4**: the user-interface toolkit: every window and control.
   Includes the Fluent theme.
   License: MIT.
   Source: https://github.com/AvaloniaUI/Avalonia
