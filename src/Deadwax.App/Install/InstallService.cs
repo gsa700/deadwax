@@ -729,7 +729,8 @@ public static class InstallService
 
         if (!options.RemoveSettings) yield break;
 
-        foreach (var name in new[] { "settings.json", "registration.log" })
+        // The log, the previous run's and the last crash report (Diagnostics).
+        foreach (var name in new[] { "settings.json", "registration.log", "deadwax.log", "deadwax.log.1", "deadwax-crash.txt" })
         {
             var path = Path.Combine(DataDir, name);
             if (File.Exists(path)) yield return path;

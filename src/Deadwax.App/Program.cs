@@ -10,6 +10,12 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        // The log and the crash catcher first (Diagnostics). No single-instance
+        // lock here, unlike AlbumWall: a second copy started while one runs
+        // moves the first one's log to deadwax.log.1, where it carries on.
+        LogFile.Start();
+        Diagnostics.CatchCrashes();
+
         // Who this program is to Windows, before any window exists (WindowsShell).
         WindowsShell.ClaimIdentity();
 
@@ -66,7 +72,9 @@ internal static class Program
         var builder = AppBuilder.Configure<App>().UsePlatformDetect().WithInterFont()
             // macOS: Avalonia's own application-menu items include "About
             // Avalonia"; MainWindow.MacMenu.cs supplies the whole menu instead.
-            .With(new MacOSPlatformOptions { DisableDefaultApplicationMenuItems = true });
+            .With(new MacOSPlatformOptions { DisableDefaultApplicationMenuItems = true })
+            // Avalonia's own warnings (bindings, layout) into the log, not nowhere.
+            .AfterSetup(_ => Avalonia.Logging.Logger.Sink = new ConsoleLogSink(Avalonia.Logging.LogEventLevel.Warning));
         if (!NativeWayland) return builder;
         // This window draws its own title bar (ExtendClientAreaToDecorationsHint), yet
         // Avalonia 12.1's Wayland backend still asks the compositor for a server-side one

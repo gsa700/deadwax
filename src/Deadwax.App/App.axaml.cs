@@ -25,6 +25,7 @@ public sealed class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        Diagnostics.WatchUiThread();
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             desktop.MainWindow = new MainWindow();
         base.OnFrameworkInitializationCompleted();

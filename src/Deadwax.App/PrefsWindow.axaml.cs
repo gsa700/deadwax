@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Deadwax.Drive;
@@ -30,6 +31,7 @@ public partial class PrefsWindow : Window
         ShowLibrary();
         ShowDrive();
         VersionText.Text = $"Version {UpdateService.CurrentVersion}";
+        FillDiagnostics();
         AutoCheckBox.IsChecked = _settings.CheckForUpdates;
         EdgeBox.IsChecked = _settings.EdgeChannel;
         FillUpdate();
@@ -404,5 +406,43 @@ public partial class PrefsWindow : Window
             await InstallFlow.RunUninstallAsync(_main, asked: true);
         else
             await InstallFlow.OfferInstallAsync(_main);
+    }
+
+    // DIAGNOSTICS (Diagnostics.cs): a report on the clipboard, and the log's folder.
+    private void FillDiagnostics() =>
+        DiagnosticsStatus.Text =
+            "If something goes wrong, Copy diagnostics puts a report on the clipboard, ready to paste into "
+          + "a GitHub issue or a message: the version, this system, the last crash if there was one, and "
+          + "the end of the log. It names folders on this computer, so look it over before you send it."
+          + (Diagnostics.LastCrash is { } when
+                ? $" {App.DisplayName} last closed unexpectedly on {when:dddd d MMMM 'at' HH:mm}."
+                : "");
+
+    private async void OnCopyDiagnostics(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        try
+        {
+            if (Clipboard is not { } clipboard) throw new InvalidOperationException("there is no clipboard here");
+            await clipboard.SetTextAsync(Diagnostics.Report());
+            DiagnosticsResult.Text = "Copied. Paste it wherever you are reporting the problem.";
+        }
+        catch (Exception ex)
+        {
+            DiagnosticsResult.Text = $"Could not copy it: {ex.Message}";
+        }
+    }
+
+    private void OnShowLog(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        try
+        {
+            var folder = new DirectoryInfo(Path.GetDirectoryName(LogFile.Path)!);
+            _ = Launcher.LaunchDirectoryInfoAsync(folder);
+            DiagnosticsResult.Text = $"The log is {LogFile.Path}";
+        }
+        catch (Exception ex)
+        {
+            DiagnosticsResult.Text = $"Could not open the folder: {ex.Message}";
+        }
     }
 }
