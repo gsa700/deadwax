@@ -52,7 +52,7 @@ keep those libraries and the exact source archives they were built from.
   License: MIT.
   Source: https://github.com/tmds/Tmds.DBus
 
-- **System.IO.Hashing 10.0.12**: the CRC-32 in every rip log.
+- **System.IO.Hashing 10.0.14**: the CRC-32 in every rip log.
   License: MIT.
   Source: https://github.com/dotnet/runtime
 
