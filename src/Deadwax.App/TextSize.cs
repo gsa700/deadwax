@@ -59,15 +59,15 @@ public static class TextSize
             try
             {
                 var f = Percent / 100.0;
-                if (f == 1)
-                {
-                    if (window.Content == host) { host.Child = null; window.Content = content; }
-                }
-                else if (content is not null)
-                {
-                    host.LayoutTransform = new ScaleTransform(f, f);
-                    if (window.Content != host) { window.Content = null; host.Child = content; window.Content = host; }
-                }
+                if (content is null || (f == 1 && window.Content != host)) return;
+                // Once wrapped, a window STAYS wrapped, at a scale of 1 for 100%.
+                // LayoutTransformControl puts its scale on the content itself, so
+                // taking the content back out left it drawn and laid out at the old
+                // size inside a window that had shrunk to 100%: cut off on the right
+                // (Techbench, 2026-11-01, 150% then back to 100%). A null transform
+                // leaves the old one in place too, so 1 is said explicitly.
+                host.LayoutTransform = new ScaleTransform(f, f);
+                if (window.Content != host) { window.Content = null; host.Child = content; window.Content = host; }
             }
             finally { swapping = false; }
         }
