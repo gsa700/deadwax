@@ -57,9 +57,10 @@
                 </StackPanel>
                 <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center" Margin="0,0,16,0">
                     <!-- AlbumWall's gear, the same glyph and size: the two are companions.
-                         A newer release only ever lights the dot on it; the About tab
-                         of Preferences is where it is checked for and installed. -->
-                    <Button x:Name="SettingsButton" Classes="chrome" Click="OnPreferences" Padding="8,4" VerticalAlignment="Center" ToolTip.Tip="Preferences"
+                         A newer release only ever lights the dot on it; with the dot
+                         lit, the gear opens Preferences on Updates, where it is
+                         checked for and installed. -->
+                    <Button x:Name="SettingsButton" Classes="chrome" Click="OnGear" Padding="8,4" VerticalAlignment="Center" ToolTip.Tip="Preferences"
                             AutomationProperties.Name="Preferences">
                         <Panel>
                         <Path Stretch="Uniform" Width="17" Height="17" Fill="{StaticResource Text}"

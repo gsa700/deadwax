@@ -290,6 +290,10 @@ public sealed partial class MainWindow : Window
         _prefs.Activate();
     }
 
+    /// The gear: Preferences, straight on the Updates page while the dot
+    /// says an update is waiting (Dave, 2026-11-01: all three apps).
+    private void OnGear(object? sender, RoutedEventArgs e) => ShowPrefs(UpdateDot.IsVisible ? "Updates" : null);
+
     internal DriveIdentity? CurrentDrive => _disc?.Identity;
     internal int? CurrentOffset => _disc?.Offset;
     /// The last answer from GitHub, if any; the Updates page reads and refreshes it.
