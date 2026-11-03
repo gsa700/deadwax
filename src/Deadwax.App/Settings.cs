@@ -79,7 +79,7 @@ public sealed class Settings
         EmbedCover ?? false, BackCover, WriteCue, WriteM3u, ReplayGain, Lyrics, PlainLyrics);
 
     /// The tracks whose lyrics LRCLIB has not answered for yet (LyricsQueue).
-    internal static string LyricsQueuePath => Path.Combine(Path.GetDirectoryName(FilePath)!, "lyrics-queue.json");
+    internal static string LyricsQueuePath => Deadwax.Core.LyricsQueue.DefaultPath;
 
     internal static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile, Environment.SpecialFolderOption.DoNotVerify), ".config", "deadwax", "settings.json");

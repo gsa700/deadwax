@@ -27,6 +27,15 @@ internal static class Commands
               tags) and back.jpg (this release's, else another edition's) for an album that has none,
               such as a rip made while the archive was down. --replace fetches
               both again.
+          deadwax lyrics FOLDER [--no-plain] [--queue]
+              Lyrics from LRCLIB for the albums in FOLDER (one album, or a whole
+              library), as Deadwax looks them up after a rip: only those that
+              match a track's artist, title and length; synced ones as a .lrc
+              beside the track and their words in its tags, plain ones in the
+              tags (--no-plain: not those). Tracks with lyrics already are
+              passed over; near misses are listed, to look at in Marginal.
+              2 s between tracks. --queue hands what LRCLIB did not answer to
+              the window, which asks again later.
           deadwax compare DEADWAX_ALBUM_DIR WHIPPER_ALBUM_DIR
               Gate G5: a Deadwax rip against whipper's rip of the same disc,
               file by file: audio frames, tags, names, logs, .m3u, .cue, .toc.
@@ -90,6 +99,7 @@ internal static class Commands
                 "compare" => await CompareCommand.RunAsync(args[1..]),
                 "post-rip" => await PostRipCommand.RunAsync(args[1..]),
                 "art" => await ArtCommand.RunAsync(args[1..]),
+                "lyrics" => await LyricsCommand.RunAsync(args[1..]),
                 "scan" => await ScanCommand.RunAsync(args[1..]),
                 "subchannel" => await SubchannelCommand.RunAsync(args[1..]),
                 "best-copy" => await BestCopyCommand.RunAsync(args[1..]),

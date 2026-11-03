@@ -151,6 +151,12 @@ public static class RipLyrics
 /// time (RunAsync says when it is already running).
 public sealed class LyricsQueue(string file, TimeSpan? pace = null)
 {
+    /// Where the window keeps its queue: beside the settings, for the command
+    /// line's --queue too.
+    public static string DefaultPath => System.IO.Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile, Environment.SpecialFolderOption.DoNotVerify),
+        ".config", "deadwax", "lyrics-queue.json");
+
     /// The pause between one track and the next. LRCLIB answered 503 after two
     /// tracks asked back to back, both questions each (James Taylor, Greatest
     /// Hits, 2026-11-02); this runs in the background, so there is no hurry.
