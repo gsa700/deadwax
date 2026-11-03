@@ -22,6 +22,7 @@ public static class Program
     public static int Main(string[] args)
     {
         AppInfo.Use(Identity);
+        WindowSystem.NativeWayland = NativeWayland;     // for Spindle.Ui (WaylandShell, WindowPlacement, DrawnCaptions)
 
         // The log and the crash catcher first (Diagnostics). No single-instance
         // lock here, unlike AlbumWall: a second copy started while one runs
