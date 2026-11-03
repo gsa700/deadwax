@@ -25,7 +25,10 @@ public sealed class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
-        Diagnostics.WatchUiThread();
+        // An exception escaping a click or a timer: recorded (Spindle's Diagnostics)
+        // and left unhandled, so the app still closes as it always did: carrying on
+        // past an error nobody expected risks doing the wrong thing to his files.
+        Avalonia.Threading.Dispatcher.UIThread.UnhandledException += (_, e) => Diagnostics.Record(e.Exception);
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             desktop.MainWindow = new MainWindow();
         base.OnFrameworkInitializationCompleted();

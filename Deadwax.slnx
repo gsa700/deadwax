@@ -11,4 +11,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/Deadwax.Tests/Deadwax.Tests.csproj" />
   </Folder>
+  <Folder Name="/spindle/">
+    <Project Path="spindle/src/Spindle.Core/Spindle.Core.csproj" />
+  </Folder>
 </Solution>

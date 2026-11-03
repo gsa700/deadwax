@@ -69,9 +69,29 @@ catches it at release time; the rules above are for every push.
 The design record is `~/Documents/Projects/Deadwax/deadwax-spec.md` (outside
 the repository) and the commit messages.
 
-AlbumWall (`~/Projects/albumwall`) plays FLAC with a copy of this repository's
-FLAC decoder (`src/Deadwax.Output/FlacDecoder.cs` and the reader in
-`FlacBits.cs` -> AlbumWall's `src/AlbumWall.Codecs/Flac.cs`). The frame
+## Spindle, the code the apps share
+
+`spindle/` is a git submodule: https://github.com/gsa700/spindle (public,
+GPLv3), the code AlbumWall, Deadwax and Marginal share, compiled into each
+app. Deadwax takes `Spindle.Core` from it since 2026-11-02: VersionOrder,
+ReleaseFeed, WebLimits, AppVersion, LogFile and Diagnostics (namespace
+`Spindle`, a global using in each project that needs it), which replaced the
+copies in Deadwax.Core, Deadwax.Metadata and Deadwax.App. Their tests are
+Spindle's now.
+
+- Clone with `git clone --recurse-submodules`, or `git submodule update
+  --init`; set the no-reply author in `spindle/` too.
+- A change to that code is made and tested in Spindle, pushed there, then
+  taken here by moving the pin (`git -C spindle pull`, build, test, commit
+  the `spindle` change).
+- `tools/release.sh` refuses unless `spindle/` is at its pinned commit and
+  that commit is on GitHub; pinned behind Spindle's main it says so.
+
+## Copied code
+
+AlbumWall plays FLAC with a copy of this repository's FLAC decoder
+(`src/Deadwax.Output/FlacDecoder.cs` and the reader in `FlacBits.cs` -> now
+Spindle's `src/Spindle.Codecs/Flac.cs`, Hymie's). The frame
 decoding is kept identical in both: a fix to it here goes there too.
 `src/Deadwax.App/TextSize.cs` is AlbumWall's, copied unchanged below its header
 (2026-11-01); a fix in one goes to the other.

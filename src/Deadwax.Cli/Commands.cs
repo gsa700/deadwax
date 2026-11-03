@@ -123,7 +123,7 @@ internal static class Commands
     public static HttpClient NewHttp()
     {
         var http = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
-        http.DefaultRequestHeaders.UserAgent.ParseAdd($"Deadwax/{Deadwax.Metadata.AppVersion.Current}");
+        http.DefaultRequestHeaders.UserAgent.ParseAdd($"Deadwax/{AppVersion.Current}");
         return http;
     }
 

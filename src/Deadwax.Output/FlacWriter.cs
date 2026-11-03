@@ -18,7 +18,7 @@ public static class FlacWriter
     /// frame decoded and compared as it is made).
     public static void Encode(string path, ReadOnlySpan<byte> audio)
     {
-        try { FlacEncoder.Encode(path, audio, $"Deadwax {Deadwax.Metadata.AppVersion.Current}"); }
+        try { FlacEncoder.Encode(path, audio, $"Deadwax {AppVersion.Current}"); }
         catch
         {
             File.Delete(path);

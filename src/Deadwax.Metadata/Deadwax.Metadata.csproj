@@ -2,6 +2,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Deadwax.Drive\Deadwax.Drive.csproj" />
+    <!-- Spindle.Core, the helpers the apps share (the submodule at spindle/):
+         WebLimits, AppVersion, VersionOrder, ReleaseFeed, LogFile, Diagnostics.
+         Every project above this one reaches it through here. -->
+    <ProjectReference Include="..\..\spindle\src\Spindle.Core\Spindle.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -18,5 +22,9 @@
          trimmed or compiled build cannot run. -->
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="Spindle" />
+  </ItemGroup>
 
 </Project>

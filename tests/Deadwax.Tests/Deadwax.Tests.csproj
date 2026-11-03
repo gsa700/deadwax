@@ -33,4 +33,8 @@
     <ProjectReference Include="..\..\src\Deadwax.App\Deadwax.App.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Using Include="Spindle" />
+  </ItemGroup>
+
 </Project>

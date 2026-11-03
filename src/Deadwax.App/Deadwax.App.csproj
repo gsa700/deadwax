@@ -55,4 +55,8 @@
   <ItemGroup>
     <EmbeddedResource Include="Assets\app-icon.png" LogicalName="app-icon.png" />
   </ItemGroup>
+  <ItemGroup>
+    <Using Include="Spindle" />
+  </ItemGroup>
+
 </Project>

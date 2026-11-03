@@ -8,9 +8,9 @@ name: Build
 on:
   push:
     branches: [main]
-    paths: ["src/**", "tests/**", "Deadwax.slnx", "Directory.Build.props", ".github/workflows/build.yml"]
+    paths: ["src/**", "tests/**", "spindle", ".gitmodules", "Deadwax.slnx", "Directory.Build.props", ".github/workflows/build.yml"]
   pull_request:
-    paths: ["src/**", "tests/**", "Deadwax.slnx", "Directory.Build.props", ".github/workflows/build.yml"]
+    paths: ["src/**", "tests/**", "spindle", ".gitmodules", "Deadwax.slnx", "Directory.Build.props", ".github/workflows/build.yml"]
   workflow_dispatch:
 
 permissions:
@@ -35,7 +35,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     steps:
+      # With spindle/, the shared code, at the commit this one pins.
       - uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - uses: actions/setup-dotnet@v4
         with:

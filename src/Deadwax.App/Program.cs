@@ -13,8 +13,9 @@ internal static class Program
         // The log and the crash catcher first (Diagnostics). No single-instance
         // lock here, unlike AlbumWall: a second copy started while one runs
         // moves the first one's log to deadwax.log.1, where it carries on.
-        LogFile.Start();
-        Diagnostics.CatchCrashes();
+        LogFile.Start(Path.GetDirectoryName(Settings.FilePath)!, "deadwax.log");
+        Diagnostics.CatchCrashes(App.DisplayName, Install.InstallService.CurrentVersion,
+                                 () => NativeWayland ? "native Wayland" : "X11");
 
         // Who this program is to Windows, before any window exists (WindowsShell).
         WindowsShell.ClaimIdentity();
