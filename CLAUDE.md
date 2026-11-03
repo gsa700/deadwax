@@ -100,5 +100,5 @@ AlbumWall plays FLAC with a copy of this repository's FLAC decoder
 (`src/Deadwax.Output/FlacDecoder.cs` and the reader in `FlacBits.cs` -> now
 Spindle's `src/Spindle.Codecs/Flac.cs`, Hymie's). The frame
 decoding is kept identical in both: a fix to it here goes there too.
-`src/Deadwax.App/TextSize.cs` is AlbumWall's, copied unchanged below its header
-(2026-11-01); a fix in one goes to the other.
+`TextSize` and `MacWindow` come from Spindle.Ui since 2026-11-02 (TextSize
+merged with Marginal's copy; MacWindow is AlbumWall's whole).
