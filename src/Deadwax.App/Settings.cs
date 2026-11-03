@@ -69,11 +69,17 @@ public sealed class Settings
     /// On for everyone, his copy included: a settings file from before the
     /// option has no such field and reads as on (2026-10-11, his ask).
     public bool ReplayGain { get; set; } = true;
+    /// Lyrics from LRCLIB after each rip: off unless chosen (2026-11-02).
+    public bool Lyrics { get; set; }
+    public bool PlainLyrics { get; set; } = true;
 
     public Deadwax.Output.Filing ToFiling() => new(
         Enum.TryParse<Deadwax.Output.FolderStyle>(FolderStyle, out var folder) ? folder : default,
         Enum.TryParse<Deadwax.Output.TrackStyle>(TrackStyle, out var track) ? track : default,
-        EmbedCover ?? false, BackCover, WriteCue, WriteM3u, ReplayGain);
+        EmbedCover ?? false, BackCover, WriteCue, WriteM3u, ReplayGain, Lyrics, PlainLyrics);
+
+    /// The tracks whose lyrics LRCLIB has not answered for yet (LyricsQueue).
+    internal static string LyricsQueuePath => Path.Combine(Path.GetDirectoryName(FilePath)!, "lyrics-queue.json");
 
     internal static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config", "deadwax", "settings.json");

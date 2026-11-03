@@ -166,6 +166,13 @@
                                Text="Deadwax measures how loud each track and the whole album are while it rips, so players that read ReplayGain play one album as loud as the next, with no volume to adjust between discs. The audio itself is not changed."/>
 
                     <Border Height="1" Background="{DynamicResource Rule}" Margin="0,4,0,0"/>
+                    <TextBlock Text="Lyrics" FontSize="14" FontWeight="SemiBold"/>
+                    <CheckBox x:Name="LyricsBox" FontSize="13" Content="Look up lyrics after each rip" Click="OnFilingChanged"/>
+                    <TextBlock Classes="dim" FontSize="13" LineHeight="20" TextWrapping="Wrap" Margin="28,-6,0,0"
+                               Text="From LRCLIB, a free lyrics library, once the album is filed, while you get on with the next disc. Only lyrics that match a track's artist, title and length are used: synced lyrics as a .lrc file beside the track (AlbumWall shows them line by line) and their words in the track's tags. Nothing already there is replaced. When LRCLIB does not answer, Deadwax asks again later."/>
+                    <CheckBox x:Name="PlainLyricsBox" FontSize="13" Margin="28,0,0,0" Content="Lyrics without times too, when there are no synced ones" Click="OnFilingChanged"/>
+
+                    <Border Height="1" Background="{DynamicResource Rule}" Margin="0,4,0,0"/>
                     <TextBlock Text="Beside the music" FontSize="14" FontWeight="SemiBold"/>
                     <CheckBox x:Name="CueBox" FontSize="13" Content="A .cue sheet (the disc's exact layout, for burning a copy)" Click="OnFilingChanged"/>
                     <CheckBox x:Name="M3uBox" FontSize="13" Content="An .m3u playlist of the tracks in order" Click="OnFilingChanged"/>

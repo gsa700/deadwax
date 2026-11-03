@@ -35,10 +35,45 @@ public sealed partial class MainWindow : Window
 
     private readonly Settings _settings = Settings.Load();
 
+    // ---- lyrics after a rip (Deadwax.Core.RipLyrics) ------------------------
+
+    private readonly LyricsQueue _lyrics = new(Settings.LyricsQueuePath);
+    private LrcLibClient? _lrclib;
+    private readonly DispatcherTimer _lyricsTimer = new() { Interval = TimeSpan.FromMinutes(15) };
+
+    /// Asks LRCLIB about every queued track that is due, off the UI thread;
+    /// what happened goes to the engine log and Deadwax's own. A no-op with
+    /// lyrics off, or while a run is already going.
+    private async Task RunLyricsAsync()
+    {
+        if (!Filing.Current.Lyrics || _lyrics.Count == 0) return;
+        _lrclib ??= new LrcLibClient(userAgent: $"Deadwax/{AppVersion.Current} ( https://github.com/gsa700/deadwax )");
+        var plain = Filing.Current.PlainLyrics;
+        void Say(string line)
+        {
+            var colon = line.IndexOf(": ", StringComparison.Ordinal);    // "lyrics: x" -> "[lyrics] x", as the log writes
+            Console.WriteLine(colon > 0 ? $"[{line[..colon]}] {line[(colon + 2)..]}" : line);
+            Dispatcher.UIThread.Post(() => _vm.Log.Add(line));
+        }
+        try
+        {
+            var (ran, written) = await Task.Run(() => _lyrics.RunAsync(_lrclib, plain, Say));
+            if (ran && written > 0) Say($"lyrics: {written} track{(written == 1 ? "" : "s")} got lyrics");
+        }
+        catch (Exception e)
+        {
+            Say($"lyrics: the lookup stopped ({e.GetType().Name}: {e.Message}); the queue is kept for next time");
+        }
+    }
+
     public MainWindow()
     {
         InitializeComponent();
         Filing.Current = _settings.ToFiling();
+        // Tracks LRCLIB did not answer for are asked again: now, and every 15 minutes.
+        _lyricsTimer.Tick += (_, _) => _ = RunLyricsAsync();
+        _lyricsTimer.Start();
+        Opened += (_, _) => _ = RunLyricsAsync();
         if (_settings.EmbedCover is null) { _settings.EmbedCover = false; _settings.Save(); }   // decided once, not re-guessed
         Width = Math.Max(_settings.Width, MinWidth);
         Height = Math.Max(_settings.Height, MinHeight);
@@ -896,6 +931,16 @@ public sealed partial class MainWindow : Window
                 Detail = filed.Count == 0 ? "tags, file names and playlists check out"
                        : filed.Count == 1 ? filed[0] : $"{filed[0]} (and {filed.Count - 1} more; see the engine log)",
             });
+
+            // Lyrics, once the album is filed where it stays (spec §11): queued and
+            // asked for in the background, so the next disc can start now.
+            if (Filing.Current.Lyrics && result.AllOk)
+            {
+                var jobs = RipLyrics.JobsFor(dir);
+                _lyrics.Add(jobs);
+                steps.Add(new StepRow { Name = "Lyrics", Ok = true, Detail = $"Looking up {jobs.Count} tracks on LRCLIB in the background (see the engine log)" });
+                _ = RunLyricsAsync();
+            }
 
             _vm.AllGood = steps.All(s => s.Ok);
             _vm.Verdict = result.AllOk

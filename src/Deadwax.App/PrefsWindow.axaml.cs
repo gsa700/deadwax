@@ -192,6 +192,9 @@ public partial class PrefsWindow : Window
         CueBox.IsChecked = filing.Cue;
         M3uBox.IsChecked = filing.M3u;
         GainBox.IsChecked = filing.ReplayGain;
+        LyricsBox.IsChecked = filing.Lyrics;
+        PlainLyricsBox.IsChecked = filing.PlainLyrics;
+        PlainLyricsBox.IsEnabled = filing.Lyrics;
         ShowFilingExample(filing);
         _fillingFiling = false;
     }
@@ -212,6 +215,9 @@ public partial class PrefsWindow : Window
         _settings.WriteCue = CueBox.IsChecked == true;
         _settings.WriteM3u = M3uBox.IsChecked == true;
         _settings.ReplayGain = GainBox.IsChecked == true;
+        _settings.Lyrics = LyricsBox.IsChecked == true;
+        _settings.PlainLyrics = PlainLyricsBox.IsChecked == true;
+        PlainLyricsBox.IsEnabled = _settings.Lyrics;
         _settings.Save();
         ShowFilingExample(_settings.ToFiling());
         _main.FilingChanged();

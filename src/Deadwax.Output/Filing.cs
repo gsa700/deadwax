@@ -32,7 +32,12 @@ public sealed record Filing(
     bool BackCover = true,
     bool Cue = true,
     bool M3u = true,
-    bool ReplayGain = true)
+    bool ReplayGain = true,
+    // Lyrics from LRCLIB after each rip (Deadwax.Core.RipLyrics), off until he
+    // has seen it work; PlainLyrics: words without times too, into the tag,
+    // when LRCLIB has no synced ones (2026-11-02).
+    bool Lyrics = false,
+    bool PlainLyrics = true)
 {
     public static readonly Filing Default = new();
 
