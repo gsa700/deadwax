@@ -82,7 +82,7 @@ public sealed class Settings
     internal static string LyricsQueuePath => Path.Combine(Path.GetDirectoryName(FilePath)!, "lyrics-queue.json");
 
     internal static string FilePath => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config", "deadwax", "settings.json");
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile, Environment.SpecialFolderOption.DoNotVerify), ".config", "deadwax", "settings.json");
 
     public static Settings Load()
     {

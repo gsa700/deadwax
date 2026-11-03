@@ -9,7 +9,7 @@ namespace Deadwax.Core;
 public sealed record DiscDescription(string Artist, string Album, string Year, IReadOnlyList<string> Titles)
 {
     public static string Directory => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config", "deadwax", "discs");
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile, Environment.SpecialFolderOption.DoNotVerify), ".config", "deadwax", "discs");
 
     private static string PathFor(string discId) => Path.Combine(Directory, discId.Replace('/', '_') + ".json");
 

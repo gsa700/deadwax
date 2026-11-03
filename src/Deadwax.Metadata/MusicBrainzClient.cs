@@ -48,7 +48,7 @@ public sealed class MusicBrainzClient : IDisposable
         File.Exists(path) && nowUtc - File.GetLastWriteTimeUtc(path) < CacheLifetime;
 
     public static string DefaultCacheDir =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".cache", "deadwax", "musicbrainz");
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile, Environment.SpecialFolderOption.DoNotVerify), ".cache", "deadwax", "musicbrainz");
 
     /// A release with everything tagging needs, or null if MusicBrainz has no
     /// such release.

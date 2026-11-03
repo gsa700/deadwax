@@ -19,7 +19,7 @@ namespace Deadwax.App;
 
 public sealed partial class MainWindow : Window
 {
-    private static readonly string Home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+    private static readonly string Home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile, Environment.SpecialFolderOption.DoNotVerify);
     /// His library, where rips go since G5 passed (2026-09-24), and whose artist
     /// spellings every rip follows.
     private string Library => string.IsNullOrWhiteSpace(_settings.Library) ? Path.Combine(Home, "Music") : _settings.Library;

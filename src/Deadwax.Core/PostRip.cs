@@ -123,7 +123,7 @@ public static class PostRip
     /// edition's, and a year from now that should be knowable rather than a
     /// mystery. Appended, never rewritten. Losing the record never fails the rip.
     public static string SourcesFile => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "state", "deadwax", "back-covers.tsv");
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile, Environment.SpecialFolderOption.DoNotVerify), ".local", "state", "deadwax", "back-covers.tsv");
 
     private static void RecordSource(string albumDir, string source)
     {

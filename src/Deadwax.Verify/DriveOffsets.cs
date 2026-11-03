@@ -15,7 +15,7 @@ namespace Deadwax.Verify;
 public static class DriveOffsets
 {
     public static string DefaultPath =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config", "deadwax", "drives.json");
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile, Environment.SpecialFolderOption.DoNotVerify), ".config", "deadwax", "drives.json");
 
     public static string Key(string vendor, string model, string revision) =>
         string.Join(' ', $"{vendor} {model} {revision}".Split(' ', StringSplitOptions.RemoveEmptyEntries));

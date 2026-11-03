@@ -45,7 +45,7 @@ public static partial class Unbox
     public sealed record Result(string AlbumDirectory, bool FrontReplaced);
 
     public static string BackupRoot => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "state", "deadwax", "unbox-backup");
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile, Environment.SpecialFolderOption.DoNotVerify), ".local", "state", "deadwax", "unbox-backup");
 
     public static bool IsSetDisc(string albumDir) => Folder().IsMatch(Path.GetFileName(albumDir));
 

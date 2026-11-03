@@ -156,5 +156,5 @@ internal static class Commands
     public static string Hex(uint v) => v.ToString("X8");
 
     public static string Home(string path) =>
-        path.StartsWith('~') ? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + path[1..] : path;
+        path.StartsWith('~') ? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile, Environment.SpecialFolderOption.DoNotVerify) + path[1..] : path;
 }
