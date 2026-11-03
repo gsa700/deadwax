@@ -30,6 +30,8 @@ public static class Program
         LogFile.Start(Path.GetDirectoryName(Settings.FilePath)!, "deadwax.log");
         Diagnostics.CatchCrashes(App.DisplayName, InstallService.CurrentVersion,
                                  () => NativeWayland ? "native Wayland" : "X11");
+        if (!NativeWayland && ScreenReader.Running)
+            Console.WriteLine("[deadwax] backend: X11 through XWayland (a screen reader is running)");
 
         // Who this program is to Windows, before any window exists (WindowsShell).
         WindowsShell.ClaimIdentity();
@@ -77,10 +79,17 @@ public static class Program
     /// 2026-09-21: Fedora 45's mutter stopped giving clicks to borderless X11
     /// windows that are not GTK's, and this window draws its own title bar.
     /// DEADWAX_X11=1 goes back through XWayland.
+    ///
+    /// So does a running screen reader (Spindle's ScreenReader, AlbumWall's
+    /// check): Avalonia 12.1 speaks to screen readers (AT-SPI) only from its
+    /// X11 backend, and on native Wayland Orca could not see Deadwax at all
+    /// (Techbench, Fedora 45, 2026-11-03: 0 of 3 starts on the bus, all 3
+    /// through XWayland).
     public static readonly bool NativeWayland =
         OperatingSystem.IsLinux()
         && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WAYLAND_DISPLAY"))
-        && Environment.GetEnvironmentVariable("DEADWAX_X11") != "1";
+        && Environment.GetEnvironmentVariable("DEADWAX_X11") != "1"
+        && !ScreenReader.Running;
 
     public static AppBuilder BuildAvaloniaApp()
     {
