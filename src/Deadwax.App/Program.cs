@@ -2,19 +2,32 @@ using Avalonia;
 
 namespace Deadwax.App;
 
-internal static class Program
+public static class Program
 {
     /// Set when this run exists only to uninstall: ask, act, and go (InstallFlow).
     public static bool PendingUninstall { get; private set; }
 
+    /// Which app this is, for Spindle's install and update code: everything
+    /// else (folders, files, repository, bundle id) follows from the name.
+    public static AppInfo Identity => new()
+    {
+        Name = App.DisplayName,
+        Description = "Rip CDs into a FLAC library you own",
+        DataDir = Path.GetDirectoryName(Settings.FilePath)!,
+        AppAssembly = typeof(Program).Assembly,
+        DesktopCategories = ["AudioVideo", "Audio", "DiscBurning"],
+    };
+
     [STAThread]
     public static int Main(string[] args)
     {
+        AppInfo.Use(Identity);
+
         // The log and the crash catcher first (Diagnostics). No single-instance
         // lock here, unlike AlbumWall: a second copy started while one runs
         // moves the first one's log to deadwax.log.1, where it carries on.
         LogFile.Start(Path.GetDirectoryName(Settings.FilePath)!, "deadwax.log");
-        Diagnostics.CatchCrashes(App.DisplayName, Install.InstallService.CurrentVersion,
+        Diagnostics.CatchCrashes(App.DisplayName, InstallService.CurrentVersion,
                                  () => NativeWayland ? "native Wayland" : "X11");
 
         // Who this program is to Windows, before any window exists (WindowsShell).
@@ -30,27 +43,27 @@ internal static class Program
         // the registry by AlbumWall on Hambench, 2026-09-20). Every other
         // argument is ignored, as it always was: this binary has no command
         // line of its own; the deadwax command is Deadwax.Cli.
-        var request = Install.InstallCommandLine.Parse(args);
+        var request = InstallCommandLine.Parse(args);
         try
         {
             switch (request.Action)
             {
-                case Install.InstallAction.Install:
-                    var installed = Install.InstallService.Install();
+                case InstallAction.Install:
+                    var installed = InstallService.Install();
                     Console.WriteLine($"Installed to {installed.ExePath}");
-                    if (!request.Quiet) Install.InstallService.LaunchDetached(installed.ExePath);
+                    if (!request.Quiet) InstallService.LaunchDetached(installed.ExePath);
                     return installed.Registered ? 0 : 2;
 
-                case Install.InstallAction.Uninstall when request.Quiet:
-                    Install.InstallService.Uninstall(new Install.UninstallOptions(RemoveSettings: false));
+                case InstallAction.Uninstall when request.Quiet:
+                    InstallService.Uninstall(new UninstallOptions(RemoveSettings: false));
                     return 0;
 
-                case Install.InstallAction.Uninstall:
+                case InstallAction.Uninstall:
                     PendingUninstall = true;
                     break;
             }
         }
-        catch (Install.InstallBlockedException ex)
+        catch (InstallBlockedException ex)
         {
             Console.Error.WriteLine(ex.Message);
             return 1;

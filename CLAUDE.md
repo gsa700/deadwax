@@ -76,8 +76,13 @@ GPLv3), the code AlbumWall, Deadwax and Marginal share, compiled into each
 app. Deadwax takes `Spindle.Core` from it since 2026-11-02: VersionOrder,
 ReleaseFeed, WebLimits, AppVersion, LogFile and Diagnostics (namespace
 `Spindle`, a global using in each project that needs it), which replaced the
-copies in Deadwax.Core, Deadwax.Metadata and Deadwax.App. Their tests are
-Spindle's now.
+copies in Deadwax.Core, Deadwax.Metadata and Deadwax.App; and the install
+and update code from `Spindle.Install` (`InstallService`, `UpdateService`,
+`MacUpdate`, `WindowsShell`, `PowerShell` and what was `src/Deadwax.App/Install`),
+which brought Marginal's 2026-10-31 hardening of the updater. `Program.Identity`
+(an `AppInfo`) tells Spindle which app this is, first thing in Main. Their tests
+are Spindle's now, but for the Mac update tests, which check the real
+/Applications/Deadwax.app. The dialogs (`InstallFlow`, `MacInstaller`) stay here.
 
 - Clone with `git clone --recurse-submodules`, or `git submodule update
   --init`; set the no-reply author in `spindle/` too.

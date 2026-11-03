@@ -358,27 +358,27 @@ public partial class PrefsWindow : Window
     /// installed by copying one. macOS has Deadwax.app and none of this.
     private void FillInstall()
     {
-        if (!Install.InstallService.CanInstall) { InstallSection.IsVisible = false; return; }
-        var dir = Install.InstallService.ExeDirectory;
-        switch (Install.InstallService.Mode)
+        if (!InstallService.CanInstall) { InstallSection.IsVisible = false; return; }
+        var dir = InstallService.ExeDirectory;
+        switch (InstallService.Mode)
         {
-            case Install.InstallMode.Installed:
+            case InstallMode.Installed:
                 InstallStatus.Text = $"Installed in {dir}.";
                 InstallButton.Content = "Uninstall…";
                 InstallButton.IsVisible = true;
                 break;
 
-            case Install.InstallMode.Portable:
+            case InstallMode.Portable:
                 InstallStatus.Text = $"Portable: runs from {dir} and registers nothing with this computer "
-                                   + $"({Install.InstallLayout.PortableMarker} is beside the program).";
+                                   + $"({InstallLayout.PortableMarker} is beside the program).";
                 InstallButton.IsVisible = false;
                 break;
 
             default:
-                if (Install.InstallService.IsSingleFile)
+                if (InstallService.IsSingleFile)
                 {
                     InstallStatus.Text = $"Running from {dir}, not installed. Installing copies it to "
-                                       + $"{Install.InstallService.InstallDirectory} and adds it to your menus.";
+                                       + $"{InstallService.InstallDirectory} and adds it to your menus.";
                     InstallButton.Content = "Install…";
                     InstallButton.IsVisible = true;
                 }
@@ -402,7 +402,7 @@ public partial class PrefsWindow : Window
             InstallStatus.Text = "Deadwax is reading a disc. Let it finish, then try again.";
             return;
         }
-        if (Install.InstallService.Mode == Install.InstallMode.Installed)
+        if (InstallService.Mode == InstallMode.Installed)
             await InstallFlow.RunUninstallAsync(_main, asked: true);
         else
             await InstallFlow.OfferInstallAsync(_main);

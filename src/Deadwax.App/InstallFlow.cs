@@ -1,5 +1,4 @@
 using Avalonia.Controls;
-using Deadwax.App.Install;
 
 namespace Deadwax.App;
 
