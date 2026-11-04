@@ -119,7 +119,11 @@ foreach (var album in albums)
     var todo = rows.Where(r => !r.Has).ToList();
     var songs = todo.Where(r => r.Choice is not { Instrumental: true }).ToList();
     var matched = songs.Count(r => r.Choice is { Lyrics: not null });
-    var share = songs.Count == 0 ? 1.0 : (double)matched / songs.Count;
+    // Songs that have lyrics already count as matched: the gate asks whether this is the album
+    // the dump knows, and a second run would otherwise judge an album on its leftovers alone
+    // (one song left and missed: 0 of 1, "unsure"; 2026-11-03).
+    var had = rows.Count(r => r.Has);
+    var share = songs.Count == 0 ? 1.0 : (double)(matched + had) / (songs.Count + had);
     var verdict = todo.Count == 0 ? "done already" : share >= 0.7 ? (write ? "written" : "would write") : "unsure";
     var name = Path.GetRelativePath(library, album);
     md.AppendLine($"## {name}").AppendLine()
@@ -244,7 +248,9 @@ static string Norm(string? s)
     if (string.IsNullOrWhiteSpace(s)) return "";
     var t = s.ToLowerInvariant().Normalize(NormalizationForm.FormD);
     t = new string(t.Where(ch => CharUnicodeInfo.GetUnicodeCategory(ch) != UnicodeCategory.NonSpacingMark).ToArray());
-    t = t.Replace("’", "'").Replace("&", " and ");
+    // Apostrophes go, as LRCLIB's own lower-case names drop them ("shes got a way"):
+    // turned into a space, "She's" was "she s" and 227 titles found nothing (2026-11-03).
+    t = Regex.Replace(t, "['’‘ʼ]", "").Replace("&", " and ");
     t = Regex.Replace(t, @"[\(\[][^\)\]]*remaster[^\)\]]*[\)\]]", " ");
     t = Regex.Replace(t, @"\s+-\s+.*remaster.*$", " ");
     t = Regex.Replace(t, @"[^\p{L}\p{N}]+", " ");
