@@ -4,7 +4,7 @@
 
 // Deadwax - lyrics for a FLAC library from a local copy of LRCLIB's database.
 //
-//   dotnet run tools/lyrics-match.cs -- --db LRCLIB.sqlite3 LIBRARY [--report FILE] [--write] [--undo MANIFEST]
+//   dotnet run tools/lyrics-match.cs -- --db LRCLIB.sqlite3 LIBRARY [--report FILE] [--loose] [--write] [--undo MANIFEST]
 //
 // His idea (2026-11-02): "we just write a small program that matches them and
 // inserts them by album automagically. At least for my flac rips." LRCLIB
@@ -35,6 +35,22 @@
 //    (instrumentals aside) have a confident match; otherwise nothing is
 //    written for it and it is reported as unsure.
 //
+// --LOOSE (pass 3, his plan 2026-11-03), only for songs the strict rules leave
+// out; medleys ("A _ B") never:
+// a. One synced entry from another album, same title, ±2 s and fitting (one
+//    line is enough), or the best of a few such short ones: used
+//    (synced), as plain lyrics when one of the two is live and the other not,
+//    or the title has a version note (another cut).
+// b. An edit, mix, single, live or rehearsal version ("(single edit)", "(live
+//    1972)"): the note is taken off the title and the song looked up at any
+//    length; plain lyrics only, since the timing is another recording's.
+// c. The same title at another length (live, other takes): plain lyrics only.
+// Never when the entries at the track's own length are all empty: that says it
+// has no words, nor when more entries are marked instrumental than have words
+// (SRV's "Lenny": 50-odd instrumental entries, and a Hendrix lyric with no length).
+// Plain lyrics in b and c come from an entry's plain text, or the words of its
+// synced text; entries marked instrumental, or with no words, are never used.
+//
 // A DRY RUN unless --write: the report (Markdown) says, album by album, what
 // would be written and why not. With --write, each track is written as
 // Deadwax writes lyrics after a rip (a .lrc beside the FLAC for synced lyrics
@@ -51,7 +67,7 @@ using Microsoft.Data.Sqlite;
 using Spindle;
 
 string? db = null, library = null, report = null, undo = null;
-var write = false;
+var write = false; var loose = false;
 for (var i = 0; i < args.Length; i++)
 {
     switch (args[i])
@@ -59,6 +75,7 @@ for (var i = 0; i < args.Length; i++)
         case "--db": db = args[++i]; break;
         case "--report": report = args[++i]; break;
         case "--write": write = true; break;
+        case "--loose": loose = true; break;
         case "--undo": undo = args[++i]; break;
         default: library = args[i]; break;
     }
@@ -132,7 +149,7 @@ foreach (var album in albums)
     {
         var what = r.Has ? "has lyrics already"
             : r.Choice is { Instrumental: true } ? "instrumental"
-            : r.Choice is { Lyrics: not null } c ? $"{(c.Synced ? "synced" : "plain")} ({c.Why})"
+            : r.Choice is { Lyrics: not null } c ? $"{(c.Synced ? "synced" : "plain")} ({c.Why}){(c.Why.StartsWith("loose") ? $": “{FirstLine(c.Lyrics)}”" : "")}"
             : $"no match ({r.Choice?.Why ?? "nothing in the dump"})";
         md.AppendLine($"- `{Path.GetFileName(r.Path)}` ({r.Seconds:0.0} s): {what}");
     }
@@ -181,38 +198,56 @@ Choice? Choose(Row row)
 {
     var artists = new[] { row.Artist, row.AlbumArtist }.Where(a => !string.IsNullOrWhiteSpace(a))
         .Select(a => Words(a!)).Where(w => w.Length > 0).Distinct().ToList();
-    var titleWords = Words(row.Title);
-    var want = Norm(row.Title);
     var wantAlbum = Norm(row.Album);
-    var candidates = new List<Candidate>();
-    if (titleWords.Length == 0) return null;
-    foreach (var a in artists)
-    {
-        pArtist.Value = $"artist_name_lower:({Fts(a)}) AND name_lower:({Fts(titleWords)})";
-        pMin.Value = row.Seconds - 2; pMax.Value = row.Seconds + 2;
-        using var r = query.ExecuteReader();
-        while (r.Read())
-        {
-            if (Norm(r.GetString(0)) != want || r.IsDBNull(1) || Words(r.GetString(1)) != a) continue;
-            candidates.Add(new Candidate(
-                r.IsDBNull(3) ? 0 : r.GetDouble(3), r.IsDBNull(2) ? "" : r.GetString(2),
-                r.IsDBNull(4) ? null : r.GetString(4), r.IsDBNull(5) ? null : r.GetString(5),
-                !r.IsDBNull(6) && r.GetBoolean(6)));
-        }
-    }
+    if (Words(row.Title).Length == 0) return null;
+    var candidates = Search(artists, row.Title, row.Seconds - 2, row.Seconds + 2);
     // A live recording is another performance: not used for a studio track.
-    var thisLive = Norm(row.Album).Split(' ').Contains("live") || Norm(row.Title).Split(' ').Contains("live");
+    // The folder counts too: a disc of live bonus tracks may be tagged with the box's name only.
+    var thisLive = new[] { row.Album, row.Title, System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(row.Path)) }
+        .Any(t => Norm(t).Split(' ').Contains("live"));
+    var strict = Strict();
+    if (!loose || strict is { Lyrics: not null } or { Instrumental: true } || IsMedley(row.Title)) return strict;
+    return Loose() ?? strict;
+
+    Choice? Loose()
+    {
+        // a. One synced entry from another album (the strict rules want two, or this album).
+        var one = candidates.Where(c => !string.IsNullOrWhiteSpace(c.Synced) && !c.Instrumental && Fits(c.Synced!, 1) && HasWords(c.Synced)).ToList();
+        if (one.Count >= 1)
+        {
+            var oneVotes = one.GroupBy(c => Lrc.Tidy(c.Synced)).ToDictionary(g => g.Key, g => g.Count());
+            var c = one.OrderByDescending(c => oneVotes[Lrc.Tidy(c.Synced)]).ThenByDescending(c => Norm(c.Album) == wantAlbum)
+                .ThenBy(c => Math.Abs(c.Duration - row.Seconds)).First();
+            var otherLive = Norm(c.Album).Split(' ').Contains("live");
+            var why = $"loose: {(one.Count == 1 ? "one synced entry" : $"{one.Count} short synced entries, best")}, from \"{c.Album}\", {Math.Round(c.Duration - row.Seconds, 1) + 0.0:+0.0;-0.0;0.0} s";
+            // Timing from another recording or another cut is not used: plain lyrics then.
+            if (otherLive != thisLive) return new Choice(Lrc.Plain(c.Synced), false, false, why + ", plain (live vs studio)");
+            if (BareTitle(row.Title) != row.Title) return new Choice(Lrc.Plain(c.Synced), false, false, why + ", plain (another cut)");
+            return new Choice(c.Synced, true, false, why);
+        }
+        // Entries at this very length that are all empty say the track has no words ("Lenny").
+        if (candidates.Count > 0 && candidates.All(c => !HasWords(c.Synced) && !HasWords(c.Plain))) return null;
+        // b, c. The title without a version note, at any length: plain only.
+        var bare = BareTitle(row.Title);
+        var all = Search(artists, bare, 0, 1e6);
+        var any = all.Where(c => !c.Instrumental).ToList();
+        // Mostly marked instrumental: the entries with words are someone's mistake (SRV's "Lenny").
+        if (all.Count(c => c.Instrumental) >= any.Count(c => HasWords(c.Synced) || HasWords(c.Plain))) return null;
+        var texts = any.Select(c => (c, Text: !string.IsNullOrWhiteSpace(c.Plain) ? Lrc.Tidy(c.Plain) : Lrc.Plain(c.Synced)))
+            .Where(t => HasWords(t.Text)).ToList();
+        if (texts.Count == 0) return null;
+        var votes = texts.GroupBy(t => t.Text).ToDictionary(g => g.Key, g => g.Count());
+        var best = texts.OrderByDescending(t => votes[t.Text]).ThenByDescending(t => Norm(t.c.Album) == wantAlbum)
+            .ThenBy(t => Math.Abs(t.c.Duration - row.Seconds)).First();
+        return new Choice(best.Text, false, false,
+            $"loose: {(bare != row.Title ? $"as \"{bare}\", " : "")}plain, from \"{best.c.Album}\", {Math.Round(best.c.Duration - row.Seconds, 1) + 0.0:+0.0;-0.0;0.0} s{(votes[best.Text] > 1 ? $", {votes[best.Text]} entries agree" : "")}");
+    }
+
+    Choice? Strict() {
     var liveLeftOut = candidates.RemoveAll(c => !thisLive && Norm(c.Album).Split(' ').Contains("live"));
     if (candidates.Count == 0) return liveLeftOut > 0 ? new Choice(null, false, false, $"only {liveLeftOut} entr{(liveLeftOut == 1 ? "y" : "ies")} from live albums") : null;
     if (candidates.All(c => c.Instrumental)) return new Choice(null, false, true, "instrumental in LRCLIB");
 
-    // Synced lyrics that fit this track: the last line inside its length, and
-    // enough lines to be lyrics, not a stub.
-    bool Fits(string synced)
-    {
-        var lines = Lrc.Parse(synced);
-        return lines.Count >= 4 && lines[^1].Time.TotalSeconds <= row.Seconds + 2;
-    }
     var synced = candidates.Where(c => !string.IsNullOrWhiteSpace(c.Synced) && Fits(c.Synced!)).ToList();
     if (synced.Count > 0)
     {
@@ -237,6 +272,64 @@ Choice? Choose(Row row)
     }
     var badSync = candidates.Count(c => !string.IsNullOrWhiteSpace(c.Synced));
     return new Choice(null, false, false, badSync > 0 ? $"{badSync} synced entr{(badSync == 1 ? "y" : "ies")} that do not fit this track's length" : "only empty entries");
+    }
+
+    // Synced lyrics that fit this track: the last line inside its length, and
+    // enough lines to be lyrics, not a stub.
+    // The loose rules take one line (a spoken line on an instrumental).
+    bool Fits(string synced, int minLines = 4)
+    {
+        var lines = Lrc.Parse(synced);
+        return lines.Count >= minLines && lines[^1].Time.TotalSeconds <= row.Seconds + 2;
+    }
+}
+
+List<Candidate> Search(List<string> artists, string title, double min, double max)
+{
+    var titleWords = Words(title);
+    var want = Norm(title);
+    var found = new List<Candidate>();
+    if (titleWords.Length == 0) return found;
+    foreach (var a in artists)
+    {
+        pArtist.Value = $"artist_name_lower:({Fts(a)}) AND name_lower:({Fts(titleWords)})";
+        pMin.Value = min; pMax.Value = max;
+        using var r = query.ExecuteReader();
+        while (r.Read())
+        {
+            if (Norm(r.GetString(0)) != want || r.IsDBNull(1) || Words(r.GetString(1)) != a) continue;
+            found.Add(new Candidate(
+                r.IsDBNull(3) ? 0 : r.GetDouble(3), r.IsDBNull(2) ? "" : r.GetString(2),
+                r.IsDBNull(4) ? null : r.GetString(4), r.IsDBNull(5) ? null : r.GetString(5),
+                !r.IsDBNull(6) && r.GetBoolean(6)));
+        }
+    }
+    return found;
+}
+
+// "Nobody's Fool (single edit)" -> "Nobody's Fool"; a title without such a note as it is.
+static string BareTitle(string title)
+{
+    var m = Regex.Match(title, @"^(.+?)\s*[\(\[][^\)\]]*\b(edit|version|mix|single|live|rehearsal)\b[^\)\]]*[\)\]]\s*$", RegexOptions.IgnoreCase);
+    return m.Success ? m.Groups[1].Value : title;
+}
+
+// The first line of words, for the report.
+static string FirstLine(string lyrics) =>
+    Lrc.Plain(lyrics).Split('\n').Select(l => l.Trim()).FirstOrDefault(l => l.Count(char.IsLetter) >= 3) ?? "";
+
+// Two songs in one track ("Just a Gigolo _ I Ain't Got Nobody"): left alone.
+static bool IsMedley(string title) => title.Contains(" _ ") || title.Contains(" / ");
+
+// Some words, not only "[Instrumental]" or timestamps. One line is enough: mostly
+// instrumental tracks often have a single spoken line, and it is real ("Bass solo,
+// take one" on "Pulling Teeth"; his call, 2026-11-04).
+static bool HasWords(string? text)
+{
+    if (string.IsNullOrWhiteSpace(text)) return false;
+    var plain = Regex.Replace(text, @"\[\d+:\d+(\.\d+)?\]", "");
+    var lines = plain.Split('\n').Where(l => l.Count(char.IsLetter) >= 3 && !Regex.IsMatch(l, @"instrumental", RegexOptions.IgnoreCase)).ToList();
+    return lines.Count >= 1;
 }
 
 // Lower case, accents off, "&" as "and", punctuation and a remaster note gone,
