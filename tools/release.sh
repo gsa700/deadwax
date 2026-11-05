@@ -218,7 +218,9 @@ mac_checks_here() {
     done
     if grep -E "warning IL[0-9]+" "$d/aot.log" >&2; then die "Mac check: trim/AOT warnings above"; fi
     say "Mac check: smoke test"
-    "$d/cli/deadwax" 2>&1 | grep -q "^usage:" || die "Mac check: the CLI did not print its usage"
+    # Usage exits 2, and pipefail would take that for a failure: capture it first.
+    local usage; usage=$("$d/cli/deadwax" 2>&1) || true
+    grep -q "^usage:" <<< "$usage" || { echo "$usage" >&2; die "Mac check: the CLI did not print its usage"; }
     local rc=0
     perl -e 'alarm 10; exec @ARGV' "$d/app/Deadwax" > "$d/smoke.log" 2>&1 || rc=$?
     [ "$rc" -eq 142 ] || [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ] \
