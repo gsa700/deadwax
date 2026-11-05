@@ -70,15 +70,20 @@ native_libraries() {
     esac
 }
 
-VERSION=${1:?usage: release.sh X.Y.Z [--notes-file FILE] [--edge] [--publish] [--dry-run] [--no-mac]}
+VERSION=${1:?usage: release.sh X.Y.Z [--notes-file FILE] [--edge] [--publish] [--dry-run] [--no-mac] [--mac-checked-here]}
 shift
-PUBLISH=0; NOTES=""; DRY=0; EDGE=0; MAC=1
+PUBLISH=0; NOTES=""; DRY=0; EDGE=0; MAC=1; MAC_HERE=0
 while [ $# -gt 0 ]; do
     case "$1" in
         --publish) PUBLISH=1 ;;
         --edge) EDGE=1 ;;
         --dry-run) DRY=1 ;;
         --no-mac) MAC=0 ;;
+        # When GitHub has no macOS runner for CI's Mac job (2026-11-04: cancelled
+        # four times, "not acquired by Runner ... capacity constraints"), run that
+        # job's checks here instead. Only a CANCELLED Mac job is excused, never a
+        # failed one, and every other job must still have passed.
+        --mac-checked-here) MAC_HERE=1 ;;
         # Every build is Native AOT here, always; accepted so a command written
         # for AlbumWall's script (where it was once needed) does no harm (2026-11-01).
         --aot) ;;
@@ -182,7 +187,44 @@ ci_run() {
         gh run watch "$CI_RUN" -R "$REPO" --interval 30 >/dev/null 2>&1 || true
     fi
     local conclusion; conclusion=$(gh run view "$CI_RUN" -R "$REPO" --json conclusion -q .conclusion)
+    if [ "$conclusion" != success ] && [ $MAC_HERE -eq 1 ]; then
+        # name<TAB>conclusion for each job; the Mac one may only be cancelled.
+        local jobs; jobs=$(gh run view "$CI_RUN" -R "$REPO" --json jobs -q '.jobs[] | "\(.name)\t\(.conclusion)"')
+        echo "$jobs" | grep -q 'macos.*	cancelled$' \
+            || die "CI run $CI_RUN did not pass ($conclusion), and not because its Mac job was cancelled: https://github.com/$REPO/actions/runs/$CI_RUN"
+        echo "$jobs" | grep -v macos | grep -qv '	success$' \
+            && die "CI run $CI_RUN: a job other than the Mac one did not pass: https://github.com/$REPO/actions/runs/$CI_RUN"
+        say "CI run $CI_RUN: Linux and Windows passed, the Mac job was cancelled; checking the Mac here"
+        mac_checks_here
+        return
+    fi
     [ "$conclusion" = success ] || die "CI run $CI_RUN did not pass ($conclusion): https://github.com/$REPO/actions/runs/$CI_RUN"
+}
+# CI's Mac job, run on this Mac (build.yml: build, test, Native AOT publish of
+# the app and the CLI with no trim/AOT warnings, smoke test), for --mac-checked-here.
+mac_checks_here() {
+    [ "$(uname -s)" = Darwin ] || die "--mac-checked-here runs the Mac checks, so it needs a Mac"
+    [ -z "$(git status --porcelain)" ] || die "--mac-checked-here checks HEAD, and the tree has changes"
+    local d; d=$(mktemp -d)
+    say "Mac check: build"
+    "$DOTNET" build Deadwax.slnx -c Release -nologo -v quiet || die "Mac check: build failed"
+    say "Mac check: tests"
+    "$DOTNET" test tests/Deadwax.Tests -c Release --no-build -nologo -v quiet || die "Mac check: tests failed"
+    say "Mac check: Native AOT publish (app and CLI)"
+    local p
+    for p in App:app Cli:cli; do
+        "$DOTNET" publish "src/Deadwax.${p%%:*}" -c Release -r osx-arm64 -p:PublishAot=true -o "$d/${p#*:}" -nologo -v minimal >> "$d/aot.log" 2>&1 \
+            || { tail -30 "$d/aot.log" >&2; die "Mac check: AOT publish of ${p%%:*} failed"; }
+    done
+    if grep -E "warning IL[0-9]+" "$d/aot.log" >&2; then die "Mac check: trim/AOT warnings above"; fi
+    say "Mac check: smoke test"
+    "$d/cli/deadwax" 2>&1 | grep -q "^usage:" || die "Mac check: the CLI did not print its usage"
+    local rc=0
+    perl -e 'alarm 10; exec @ARGV' "$d/app/Deadwax" > "$d/smoke.log" 2>&1 || rc=$?
+    [ "$rc" -eq 142 ] || [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ] \
+        || { cat "$d/smoke.log" >&2; die "Mac check: the app did not stay up for 10 s (exit $rc)"; }
+    say "Mac check: passed (build, tests, AOT with no warnings, app alive 10 s, CLI usage)"
+    rm -rf "$d"
 }
 # ci_build RID DIR: that run's Deadwax-aot-RID, unpacked into DIR/x.
 ci_build() {
