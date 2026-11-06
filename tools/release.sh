@@ -284,21 +284,26 @@ for rid in "${RIDS[@]}"; do
     # The program, its libraries, and beside them its license, the third-party
     # notices and the license texts (tools/fetch-licenses.py): what the
     # licenses ask to travel with it. UpdateService takes the program and the
-    # libraries out of the zip.
+    # libraries out of the zip. All of it inside one folder, Deadwax/: a zip
+    # unpacked straight into Downloads put the program beside whatever a web
+    # page had saved there, and a library of the right name there would be
+    # loaded (Marginal's security review 2026-10-31, C2). Spindle's
+    # UpdateService.FindProgram looks below the top (Deadwax's own updater did
+    # before it), and takes the libraries and licenses from the program's folder.
     [ -f "$ROOT/licenses/README.md" ] || die "licenses/ is missing: run tools/fetch-licenses.py"
     python3 - "$WORK/Deadwax-$rid-aot.zip" "$from" "$ROOT" $exe $libs <<'PY'
 import sys, zipfile, os
 out, src, root, *files = sys.argv[1:]
 with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
     for name in files:                          # the program first, then its libraries
-        info = zipfile.ZipInfo.from_file(os.path.join(src, name), name)
+        info = zipfile.ZipInfo.from_file(os.path.join(src, name), "Deadwax/" + name)
         info.external_attr = 0o755 << 16        # executable when unpacked
         info.compress_type = zipfile.ZIP_DEFLATED
         with open(os.path.join(src, name), "rb") as f: z.writestr(info, f.read())
     for name in ["LICENSE", "THIRD-PARTY-NOTICES.md"]:
-        z.write(os.path.join(root, name), name)
+        z.write(os.path.join(root, name), "Deadwax/" + name)
     for name in sorted(os.listdir(os.path.join(root, "licenses"))):
-        z.write(os.path.join(root, "licenses", name), "licenses/" + name)
+        z.write(os.path.join(root, "licenses", name), "Deadwax/licenses/" + name)
 PY
     echo "   Deadwax-$rid-aot.zip  $(du -h "$WORK/Deadwax-$rid-aot.zip" | cut -f1)"
 done
@@ -327,9 +332,9 @@ if [ -z "$NOTES" ]; then
         if printf '%s\n' "${RIDS[@]}" | grep -q '^osx-'; then
             echo "Mac: open Deadwax.dmg and drag Deadwax to Applications. Signed with a Developer ID and notarized by Apple, so it opens with no warning."
             echo
-            echo "Linux and Windows: unpack the zip for your system into a folder and run Deadwax; the library files beside it are part of it."
+            echo "Linux and Windows: unpack the zip for your system and run Deadwax in the Deadwax folder it makes; the library files beside it are part of it."
         else
-            echo "Unpack the zip into a folder and run Deadwax; the library files beside it are part of it."
+            echo "Unpack the zip and run Deadwax in the Deadwax folder it makes; the library files beside it are part of it."
         fi
         echo "Nothing else to install: Deadwax reads the drive with its own code."
         echo "A running copy offers newer releases from its title bar and updates itself in place."

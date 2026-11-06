@@ -22,6 +22,9 @@ public static class Program
     public static int Main(string[] args)
     {
         AppInfo.Use(Identity);
+        // System libraries from the system's places, before anything loads one
+        // (Spindle's NativeLoading; Marginal's security review 2026-10-31, C2).
+        NativeLoading.Install([.. Identity.NativeLibrariesUnix, .. Identity.NativeLibrariesWindows], typeof(Program).Assembly.GetName().Name!, "Deadwax.Drive");
         WindowSystem.NativeWayland = NativeWayland;     // for Spindle.Ui (WaylandShell, WindowPlacement, DrawnCaptions)
 
         // The log and the crash catcher first (Diagnostics). No single-instance

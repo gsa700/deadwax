@@ -46,8 +46,8 @@ Avalonia's graphics libraries beside it (the single file kept them inside);
 keep them together. Up to 0.7.6 the download was `Deadwax-<system>.zip`,
 one file.
 
-- **Windows and Linux:** unpack the zip into a folder and run `Deadwax`
-  (`Deadwax.exe` on Windows); it offers to install itself (see
+- **Windows and Linux:** unpack the zip and run `Deadwax` (`Deadwax.exe` on
+  Windows) in the `Deadwax` folder it makes; it offers to install itself (see
   [Install](#install)). Windows may say "Windows protected your PC" on the
   first run, because the program is not signed: More info, then Run anyway.
 - **Mac:** open `Deadwax.dmg` and drag Deadwax to Applications. It is signed
