@@ -96,7 +96,7 @@ public static class Program
 
     public static AppBuilder BuildAvaloniaApp()
     {
-        var builder = AppBuilder.Configure<App>().UsePlatformDetect().WithInterFont()
+        var builder = AppBuilder.Configure<App>().UseSystemPlatform().WithInterFont()   // Spindle.Ui: UsePlatformDetect, plus FreeBSD
             // macOS: Avalonia's own application-menu items include "About
             // Avalonia"; MainWindow.MacMenu.cs supplies the whole menu instead.
             .With(new MacOSPlatformOptions { DisableDefaultApplicationMenuItems = true })
