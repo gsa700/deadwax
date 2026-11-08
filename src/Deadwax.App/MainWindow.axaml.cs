@@ -69,6 +69,7 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        ScaleFollow.Keep(this);  // keeps its size across a monitor scale change (X11, Spindle.Ui)
         Filing.Current = _settings.ToFiling();
         // Tracks LRCLIB did not answer for are asked again: now, and every 15 minutes.
         _lyricsTimer.Tick += (_, _) => _ = RunLyricsAsync();
