@@ -81,7 +81,9 @@ public static class Program
     /// Native Wayland wherever a Wayland session exists, as AlbumWall does since
     /// 2026-09-21: Fedora 45's mutter stopped giving clicks to borderless X11
     /// windows that are not GTK's, and this window draws its own title bar.
-    /// DEADWAX_X11=1 goes back through XWayland.
+    /// The DEADWAX_X11=1 override was dropped 2026-11-11, with AlbumWall's and
+    /// Marginal's GNOME setting: X11 is only the fallback now. Not FreeBSD yet
+    /// (Avalonia's Wayland backend fails there at start; see AlbumWall).
     ///
     /// So does a running screen reader (Spindle's ScreenReader, AlbumWall's
     /// check): Avalonia 12.1 speaks to screen readers (AT-SPI) only from its
@@ -91,7 +93,6 @@ public static class Program
     public static readonly bool NativeWayland =
         OperatingSystem.IsLinux()
         && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WAYLAND_DISPLAY"))
-        && Environment.GetEnvironmentVariable("DEADWAX_X11") != "1"
         && !ScreenReader.Running;
 
     public static AppBuilder BuildAvaloniaApp()
